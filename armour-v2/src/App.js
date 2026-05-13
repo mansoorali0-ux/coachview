@@ -58,8 +58,9 @@ function PinScreen({ onAdmin, onViewer }) {
   };
   return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, ...T }}>
-      <div style={{ fontSize: 30, fontWeight: 900, color: "#60a5fa", letterSpacing: 2, marginBottom: 4 }}>CoachView</div>
-      <div style={{ fontSize: 11, color: "#93c5fd", letterSpacing: 3, marginBottom: 48 }}>BALTIMORE ARMOUR 11G ASPIRE</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: "#60a5fa", letterSpacing: 3, marginBottom: 4 }}>PITCHSIDE</div>
+      <div style={{ fontSize: 24, fontWeight: 900, color: "#fff", marginBottom: 4 }}>Baltimore Armour</div>
+      <div style={{ fontSize: 11, color: "#93c5fd", letterSpacing: 2, marginBottom: 40 }}>11G ASPIRE</div>
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28, width: "100%", maxWidth: 320, textAlign: "center" }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 20 }}>Admin Login</div>
         <input type="password" value={pin} onChange={e => setPin(e.target.value)} onKeyDown={e => e.key === "Enter" && check()}
@@ -76,7 +77,7 @@ function PinScreen({ onAdmin, onViewer }) {
 }
 
 //  GAME DETAIL 
-function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
+function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin, backLabel }) {
   const [events, setEvents] = useState(game.events || []);
   const [editing, setEditing] = useState(null);
   const [eMin, setEMin] = useState("");
@@ -249,32 +250,41 @@ function Home({ games, onStart, onStats, onView, isAdmin }) {
   const totalGF = games.reduce((a,g)=>a+g.scoreFor,0), totalGA = games.reduce((a,g)=>a+g.scoreAgainst,0);
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, ...T, paddingBottom: 24 }}>
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, ...T, paddingBottom: 80 }}>
       <div style={{ background: "linear-gradient(135deg,#1e3a5f,#0f2544)", padding: "28px 16px 18px", borderBottom: `3px solid ${C.blue}`, textAlign: "center" }}>
-        <div style={{ fontSize: 26, fontWeight: 900, color: "#60a5fa", letterSpacing: 2 }}>CoachView</div>
-        <div style={{ fontSize: 11, color: "#93c5fd", letterSpacing: 3, marginTop: 2 }}>BALTIMORE ARMOUR 11G ASPIRE - 2025/26</div>
-        {games.length > 0 && (
-          <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 14 }}>
-            {[["W", record.W, "#059669"], ["D", record.D, "#d97706"], ["L", record.L, C.red]].map(([l,v,c]) => (
-              <div key={l} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: 900, color: c }}>{v}</div>
-                <div style={{ fontSize: 10, color: C.muted }}>{l === "W" ? "Wins" : l === "D" ? "Draws" : "Losses"}</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#60a5fa", letterSpacing: 3, marginBottom: 6, opacity: 0.8 }}>PITCHSIDE</div>
+        <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: 1 }}>Baltimore Armour</div>
+        <div style={{ fontSize: 12, color: "#93c5fd", letterSpacing: 2, marginTop: 2 }}>11G ASPIRE - 2025/26</div>
+        {games.length > 0 && (()=>{
+          const sorted = games.slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+          let streak = 0;
+          for (let i=sorted.length-1;i>=0;i--) { if(sorted[i].scoreFor>=sorted[i].scoreAgainst) streak++; else break; }
+          return (
+            <div style={{ marginTop:14 }}>
+              <div style={{ display:"flex", justifyContent:"center", gap:14 }}>
+                {[["W",record.W,"#059669"],["D",record.D,"#d97706"],["L",record.L,C.red]].map(([l,v,c])=>(
+                  <div key={l} style={{ textAlign:"center" }}>
+                    <div style={{ fontSize:28, fontWeight:900, color:c }}>{v}</div>
+                    <div style={{ fontSize:10, color:C.muted }}>{l==="W"?"Wins":l==="D"?"Draws":"Losses"}</div>
+                  </div>
+                ))}
+                <div style={{ textAlign:"center" }}><div style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{totalGF}</div><div style={{ fontSize:9, color:C.muted }}>GF</div></div>
+                <div style={{ textAlign:"center" }}><div style={{ fontSize:22, fontWeight:900, color:"#f87171" }}>{totalGA}</div><div style={{ fontSize:9, color:C.muted }}>GA</div></div>
               </div>
-            ))}
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 900, color: "#60a5fa" }}>{totalGF}-{totalGA}</div>
-              <div style={{ fontSize: 10, color: C.muted }}>Goals</div>
+              {streak>=2&&<div style={{ marginTop:8, background:"linear-gradient(90deg,#065f46,#047857)", borderRadius:10, padding:"5px 14px", display:"inline-block" }}>
+                <span style={{ fontSize:12, fontWeight:800, color:"#6ee7b7" }}>Unbeaten: {streak} games</span>
+              </div>}
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       <div style={{ padding: 16, maxWidth: 480, margin: "0 auto" }}>
         {/* Results */}
         {games.length > 0 && <>
-          <Lbl>Results - tap to view{isAdmin ? " and edit" : ""}</Lbl>
+          <Lbl>Recent Results</Lbl>
           {games.slice().reverse().map((g, i) => (
-            <button key={i} onClick={() => onView(g)} style={{ background: "#0d2137", border: `2px solid #059669`, borderRadius: 12, padding: 14, marginBottom: 8, width: "100%", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button key={i} onClick={() => onView(g)} style={{ background: "#0d2137", border: `1px solid #065f46`, borderRadius: 12, padding: 14, marginBottom: 8, width: "100%", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>vs {g.opponent.split(" ").slice(0,3).join(" ")}</div>
                 <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{g.date} - {g.venue} - {g.type === "tournament" ? "Cup" : "League"}</div>
@@ -309,7 +319,7 @@ function Home({ games, onStart, onStats, onView, isAdmin }) {
           {isAdmin && <button onClick={() => { setOpp(""); setShowNew(true); }} style={{ ...btn(C.blue), flex: 1 }}>+ New Game</button>}
           <button onClick={onStats} style={{ ...btn(C.border, "#93c5fd"), flex: 1 }}>Season Stats</button>
         </div>
-        {!isAdmin && <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: C.muted }}>View only - live updates as games are logged</div>}
+        {!isAdmin && <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: C.muted }}>View only - data updates live as games are tracked</div>}
       </div>
 
       {showNew && (
@@ -434,14 +444,34 @@ function Game({ gameInfo, onEnd, onBack }) {
 
   useEffect(() => {
     if (running) {
-      startRef.current = Date.now() - pauseRef.current * 1000;
+      const wallStart = Date.now() - pauseRef.current * 1000;
+      startRef.current = wallStart;
+      sessionStorage.setItem("ps_clock_start", String(wallStart));
+      sessionStorage.setItem("ps_clock_running", "1");
       timerRef.current = setInterval(() => setSecs(Math.floor((Date.now() - startRef.current) / 1000)), 500);
     } else {
       clearInterval(timerRef.current);
       pauseRef.current = secs;
+      sessionStorage.setItem("ps_clock_running", "0");
+      sessionStorage.setItem("ps_clock_secs", String(secs));
     }
     return () => clearInterval(timerRef.current);
   }, [running]);
+
+  // Restore clock if page was refreshed during a game
+  useEffect(() => {
+    const wasRunning = sessionStorage.getItem("ps_clock_running") === "1";
+    const savedStart = sessionStorage.getItem("ps_clock_start");
+    if (wasRunning && savedStart) {
+      const elapsed = Math.floor((Date.now() - Number(savedStart)) / 1000);
+      pauseRef.current = elapsed;
+      setSecs(elapsed);
+      setRunning(true);
+    } else {
+      const savedSecs = sessionStorage.getItem("ps_clock_secs");
+      if (savedSecs) { const s = Number(savedSecs); pauseRef.current = s; setSecs(s); }
+    }
+  }, []);
 
   const curMin = Math.floor(secs / 60);
   const timeStr = String(Math.floor(secs/60)).padStart(2,"0") + ":" + String(secs%60).padStart(2,"0");
@@ -482,7 +512,7 @@ function Game({ gameInfo, onEnd, onBack }) {
           </div>
         </div>
         <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:10, color:C.muted, marginBottom:2 }}>{htMode?"HALF TIME":half===1?"1st Half":"2nd Half"} - vs {gameInfo.opponent?.split(" ").slice(0,3).join(" ")}</div>
+          <div style={{ fontSize:10, color:C.muted, marginBottom:2 }}>{htMode?"HALF TIME":half===1?"1st Half":"2nd Half"} - vs {gameInfo.opponent?.split(" ").slice(0,3).join(" ")} {running && <span style={{background:"#dc2626",color:"#fff",borderRadius:4,padding:"1px 6px",fontSize:9,fontWeight:800,marginLeft:4,animation:"pulse 1s infinite"}}>LIVE</span>}</div>
           <div style={{ fontSize:52, fontWeight:900, color:"#fff", lineHeight:1 }}><span style={{color:"#60a5fa"}}>{gf}</span><span style={{color:"#334155",margin:"0 10px"}}>-</span><span style={{color:"#f87171"}}>{ga}</span></div>
           {!running&&secs===0&&<div style={{fontSize:10,color:C.amber,marginTop:4}}>Tap START to begin</div>}
           {!running&&secs>0&&!htMode&&<div style={{fontSize:10,color:C.amber,marginTop:4}}>PAUSED</div>}
@@ -499,10 +529,10 @@ function Game({ gameInfo, onEnd, onBack }) {
       <div style={{ padding:12, maxWidth:480, margin:"0 auto" }}>
         {tab==="field" && <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
           {onFieldP.map(p=>(
-            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:6, background:C.card, border:String(p.id)===String(FEATURED_ID)?`2px solid #60a5fa`:`1px solid ${C.border}`, borderRadius:10, padding:"8px 10px" }}>
+            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:6, background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:"8px 10px" }}>
               <span style={{ width:26, height:26, borderRadius:"50%", background:POS_COLOR[positions[p.id]]||C.muted, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:10, color:"#fff", flexShrink:0 }}>{p.num}</span>
               <div style={{ minWidth:0 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:String(p.id)===String(FEATURED_ID)?"#93c5fd":C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name.split(" ")[0]}</div>
+                <div style={{ fontSize:11, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name.split(" ")[0]}</div>
                 <div style={{ fontSize:9, color:POS_COLOR[positions[p.id]] }}>{positions[p.id]}</div>
               </div>
             </div>
@@ -529,7 +559,7 @@ function Game({ gameInfo, onEnd, onBack }) {
           {benchP.map(p=>(
             <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, ...card, marginBottom:6 }}>
               <span style={{ width:28, height:28, borderRadius:"50%", background:C.border, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:11, color:"#93c5fd", flexShrink:0 }}>{p.num}</span>
-              <span style={{ flex:1, fontWeight:600, fontSize:14, color:String(p.id)===String(FEATURED_ID)?"#93c5fd":C.text }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</span>
+              <span style={{ flex:1, fontWeight:600, fontSize:14, color:C.text }}>{p.name}</span>
               <span style={{ fontSize:11, color:POS_COLOR[p.pos], fontWeight:600 }}>{p.pos}</span>
             </div>
           ))}
@@ -576,7 +606,7 @@ function Game({ gameInfo, onEnd, onBack }) {
         <button onClick={()=>setOwnGoal(o=>!o)} style={{ padding:"8px 14px", borderRadius:8, background:ownGoal?C.amber:C.border, border:"none", color:ownGoal?"#000":"#94a3b8", fontWeight:700, fontSize:12, cursor:"pointer", marginBottom:12 }}>Own Goal by opponent</button>
         {!ownGoal&&<>
           <Lbl>Scorer</Lbl>
-          {onFieldP.map(p=><button key={p.id} onClick={()=>setScorer(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, background:scorer===String(p.id)?C.blue:C.border, border:scorer===String(p.id)?`2px solid #60a5fa`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</button>)}
+          {onFieldP.map(p=><button key={p.id} onClick={()=>setScorer(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, background:scorer===String(p.id)?C.blue:C.border, border:scorer===String(p.id)?`2px solid #60a5fa`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}
           <Lbl mt={8}>Assist (optional)</Lbl>
           <button onClick={()=>setAssist(null)} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:assist===null?"#475569":C.border, border:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>No Assist / Unknown</button>
           {onFieldP.filter(p=>String(p.id)!==scorer).map(p=><button key={p.id} onClick={()=>setAssist(assist===String(p.id)?null:String(p.id))} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:assist===String(p.id)?"#065f46":C.border, border:assist===String(p.id)?`2px solid ${C.green}`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}
@@ -597,7 +627,7 @@ function Game({ gameInfo, onEnd, onBack }) {
         {onFieldP.map(p=><button key={p.id} onClick={()=>setSubOff(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, background:subOff===String(p.id)?C.red:C.border, border:subOff===String(p.id)?`2px solid #f87171`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name} <span style={{color:POS_COLOR[positions[p.id]],fontSize:11}}>- {positions[p.id]}</span></button>)}
         <Lbl mt={8}>Player On</Lbl>
         {benchP.length===0&&<div style={{ color:C.muted, fontSize:13, marginBottom:8 }}>No players on bench</div>}
-        {benchP.map(p=><button key={p.id} onClick={()=>setSubOn(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, background:subOn===String(p.id)?"#059669":C.border, border:subOn===String(p.id)?`2px solid ${C.green}`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</button>)}
+        {benchP.map(p=><button key={p.id} onClick={()=>setSubOn(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, background:subOn===String(p.id)?"#059669":C.border, border:subOn===String(p.id)?`2px solid ${C.green}`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}
         {subOn&&<><Lbl mt={8}>Position</Lbl><div style={{ display:"flex", gap:8 }}>{POSITIONS.map(pos=><button key={pos} onClick={()=>setSubPos(pos)} style={{ flex:1, padding:"14px 4px", borderRadius:10, border:"none", fontWeight:800, fontSize:14, cursor:"pointer", background:subPos===pos?POS_COLOR[pos]:C.border, color:subPos===pos?"#fff":C.muted }}>{pos}</button>)}</div></>}
         <button onClick={logSub} disabled={!subOff||!subOn||!subPos} style={{ ...btn(!subOff||!subOn||!subPos?C.border:"#059669",!subOff||!subOn||!subPos?C.muted:"#fff"), width:"100%", padding:16, fontSize:15, marginTop:12, cursor:!subOff||!subOn||!subPos?"not-allowed":"pointer" }}>Log Sub</button>
       </Modal>}
@@ -628,7 +658,7 @@ function Game({ gameInfo, onEnd, onBack }) {
         {onFieldP.map(p=>(
           <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, background:"#0d2137", border:`1px solid ${C.blue}`, borderRadius:10, padding:"10px 12px", marginBottom:5 }}>
             <span style={{ width:26, height:26, borderRadius:"50%", background:POS_COLOR[positions[p.id]]||C.muted, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:10, color:"#fff", flexShrink:0 }}>{p.num}</span>
-            <span style={{ flex:1, fontSize:13, fontWeight:700, color:C.text }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</span>
+            <span style={{ flex:1, fontSize:13, fontWeight:700, color:C.text }}>{p.name}</span>
             <span style={{ fontSize:11, color:POS_COLOR[positions[p.id]], fontWeight:700 }}>{positions[p.id]}</span>
           </div>
         ))}
@@ -695,7 +725,7 @@ function Stats({ games, onBack, onView, isAdmin }) {
             {topG.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No goals yet</div>}
             {topG.slice(0,8).map((p,i)=>(
               <div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:i<Math.min(7,topG.length-1)?`1px solid ${C.border}`:"none" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:String(p.id)===String(FEATURED_ID)?"#93c5fd":C.text }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</span></div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</span></div>
                 <span style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{p.goals}</span>
               </div>
             ))}
@@ -705,7 +735,7 @@ function Stats({ games, onBack, onView, isAdmin }) {
             {topA.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No assists yet</div>}
             {topA.slice(0,8).map((p,i)=>(
               <div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:i<Math.min(7,topA.length-1)?`1px solid ${C.border}`:"none" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:String(p.id)===String(FEATURED_ID)?"#93c5fd":C.text }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</span></div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</span></div>
                 <span style={{ fontSize:22, fontWeight:900, color:C.green }}>{p.assists}</span>
               </div>
             ))}
@@ -741,9 +771,9 @@ function Stats({ games, onBack, onView, isAdmin }) {
           <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Net/80: goals scored minus conceded per 80 mins on field. * = Maariyah</p>
           {pList.map(p=>{
             const s=allSt[String(p.id)]||{};
-            return <div key={p.id} style={{ ...card, border:String(p.id)===String(FEATURED_ID)?`2px solid #60a5fa`:`1px solid ${C.border}` }}>
+            return <div key={p.id} style={{ ...card, border:`1px solid ${C.border}` }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                <div><div style={{ fontWeight:800, fontSize:15, color:String(p.id)===String(FEATURED_ID)?"#93c5fd":C.text }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.played} games - {s.mins} mins - avg {s.avgMins} min/game</div></div>
+                <div><div style={{ fontWeight:800, fontSize:15, color:C.text }}>{p.name}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.played} games - {s.mins} mins - avg {s.avgMins} min/game</div></div>
                 <div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:8, padding:"6px 10px", textAlign:"center", minWidth:54 }}>
                   <div style={{ fontSize:16, fontWeight:900, color:parseFloat(s.net80)>0?C.green:parseFloat(s.net80)<0?C.red:"#94a3b8" }}>{s.net80s||"-"}</div>
                   <div style={{ fontSize:9, color:C.muted }}>NET/80</div>
@@ -775,13 +805,13 @@ function Stats({ games, onBack, onView, isAdmin }) {
             return <>
               {["GK","DEF","MID","FWD"].map(pos=>byPos[pos].length>0&&<div key={pos} style={{ marginBottom:12 }}>
                 <div style={{ fontSize:10, fontWeight:800, color:POS_COLOR[pos], letterSpacing:1, marginBottom:6 }}>{pos}</div>
-                {byPos[pos].map(p=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, ...card, border:String(p.id)===String(FEATURED_ID)?`2px solid #60a5fa`:`1px solid ${C.border}`, marginBottom:5 }}>
+                {byPos[pos].map(p=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, ...card, border:`1px solid ${C.border}`, marginBottom:5 }}>
                   <span style={{ width:28, height:28, borderRadius:"50%", background:POS_COLOR[pos], display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:11, color:"#fff", flexShrink:0 }}>{p.num}</span>
-                  <div style={{ flex:1 }}><div style={{ fontWeight:700, fontSize:14, color:String(p.id)===String(FEATURED_ID)?"#93c5fd":C.text }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</div><div style={{ fontSize:10, color:C.muted }}>{p.played} games - {p.mins} mins</div></div>
+                  <div style={{ flex:1 }}><div style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</div><div style={{ fontSize:10, color:C.muted }}>{p.played} games - {p.mins} mins</div></div>
                   <div style={{ textAlign:"right" }}><div style={{ fontSize:16, fontWeight:900, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:9, color:C.muted }}>NET/80</div></div>
                 </div>)}
               </div>)}
-              {rest.length>0&&<><Lbl>Others</Lbl>{rest.map((p,i)=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#0a1222", border:`1px solid #1e293b`, borderRadius:10, padding:"9px 14px", marginBottom:4, opacity:0.75 }}><span style={{ fontSize:12, color:C.muted, width:20 }}>{i+12}.</span><span style={{ flex:1, fontSize:13, color:"#94a3b8" }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</span><span style={{ fontSize:13, fontWeight:700, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</span><span style={{ fontSize:10, color:C.muted }}>{p.mins}m</span></div>)}</>}
+              {rest.length>0&&<><Lbl>Others</Lbl>{rest.map((p,i)=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#0a1222", border:`1px solid #1e293b`, borderRadius:10, padding:"9px 14px", marginBottom:4, opacity:0.75 }}><span style={{ fontSize:12, color:C.muted, width:20 }}>{i+12}.</span><span style={{ flex:1, fontSize:13, color:"#94a3b8" }}>{p.name}</span><span style={{ fontSize:13, fontWeight:700, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</span><span style={{ fontSize:10, color:C.muted }}>{p.mins}m</span></div>)}</>}
             </>;
           })()}
         </>}
@@ -807,6 +837,7 @@ function Stats({ games, onBack, onView, isAdmin }) {
             const ss=calcStats(og);
             const tf=og.reduce((a,g)=>a+g.scoreFor,0),ta=og.reduce((a,g)=>a+g.scoreAgainst,0);
             const sc=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.goals>0).sort((a,b)=>b.goals-a.goals);
+            const sa=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.assists>0).sort((a,b)=>b.assists-a.assists);
             const sm=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>b.mins-a.mins);
             return <>
               <button onClick={()=>setScout(null)} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:700, cursor:"pointer", padding:0, marginBottom:12 }}>{"< All Opponents"}</button>
@@ -816,8 +847,29 @@ function Stats({ games, onBack, onView, isAdmin }) {
                   {[["Played",og.length,"#94a3b8"],["GF",tf,"#60a5fa"],["GA",ta,"#f87171"],["GD",tf-ta>=0?"+"+String(tf-ta):String(tf-ta),C.green]].map(([l,v,co])=><div key={l}><div style={{ fontSize:28, fontWeight:900, color:co }}>{v}</div><div style={{ fontSize:10, color:C.muted }}>{l}</div></div>)}
                 </div>
               </div>
-              {sc.length>0&&<div style={card}><Lbl>Scorers</Lbl>{sc.map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:i<sc.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><span style={{ fontSize:18, fontWeight:800, color:"#60a5fa" }}>{p.goals}</span></div>)}</div>}
-              <div style={card}><Lbl>Minutes Played</Lbl>{sm.map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:i<sm.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:13, fontWeight:600, color:String(p.id)===String(FEATURED_ID)?"#93c5fd":C.text }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</span><span style={{ fontSize:13, color:C.amber, fontWeight:700 }}>{p.mins}' <span style={{ fontSize:10, color:C.muted }}>avg {p.avgMins}'</span></span></div>)}</div>
+              {sc.length>0&&<div style={card}><Lbl>Scorers & Assists</Lbl>{sc.map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:i<sc.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><div style={{ display:"flex", gap:8 }}>{p.goals>0&&<div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:"#60a5fa" }}>{p.goals}</div><div style={{ fontSize:8, color:C.muted }}>G</div></div>}{p.assists>0&&<div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:C.green }}>{p.assists}</div><div style={{ fontSize:8, color:C.muted }}>A</div></div>}</div></div>)}
+              {sa.length>0&&sa.filter(p=>!sc.find(s=>String(s.id)===String(p.id))).map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:C.green }}>{p.assists}</div><div style={{ fontSize:8, color:C.muted }}>A</div></div></div>)}</div>}
+              <div style={card}><Lbl>Minutes Played</Lbl>{sm.map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:i<sm.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><span style={{ fontSize:13, color:C.amber, fontWeight:700 }}>{p.mins}' <span style={{ fontSize:10, color:C.muted }}>avg {p.avgMins}'</span></span></div>)}</div>
+              {(()=>{
+                const opt=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.played>0&&p.net80!==null).sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(0,11);
+                return opt.length>0&&<div style={card}>
+                  <Lbl>Optimum Team vs {scout.split(" ")[0]}</Lbl>
+                  <p style={{fontSize:11,color:C.muted,marginTop:0,marginBottom:8}}>{og.length} game{og.length!==1?"s":""} of data - Best XI by Net/80</p>
+                  {opt.map((p,i)=>(
+                    <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:i<opt.length-1?`1px solid ${C.border}`:"none"}}>
+                      <span style={{fontSize:12,color:C.muted,width:20}}>{i+1}.</span>
+                      <span style={{flex:1,fontSize:13,fontWeight:700,color:C.text}}>{p.name}</span>
+                      <span style={{fontSize:10,color:POS_COLOR[p.pos]||C.muted,fontWeight:700,marginRight:6}}>{p.pos}</span>
+                      <div style={{display:"flex",gap:6}}>
+                        {p.goals>0&&<span style={{fontSize:11,color:"#60a5fa",fontWeight:700}}>{p.goals}G</span>}
+                        {p.assists>0&&<span style={{fontSize:11,color:C.green,fontWeight:700}}>{p.assists}A</span>}
+                        <span style={{fontSize:11,color:"#94a3b8"}}>{p.net80s}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>;
+              })()}
+              <Lbl>Results</Lbl>
               {og.map((g,i)=><button key={i} onClick={()=>onView(g)} style={{ ...card, width:"100%", textAlign:"left", cursor:"pointer", marginBottom:8 }}><div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}><span style={{ fontSize:12, color:C.muted }}>{g.date} - {g.venue}</span><div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:18, fontWeight:900, color:"#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span><WinBadge gf={g.scoreFor} ga={g.scoreAgainst}/></div></div></button>)}
             </>;
           })()}
@@ -828,14 +880,107 @@ function Stats({ games, onBack, onView, isAdmin }) {
 }
 
 //  APP ROOT 
+
+// PLAYERS SCREEN
+function Players({ games, onBack, isAdmin }) {
+  const [selected, setSelected] = useState(null);
+  const [note, setNote]         = useState("");
+  const [notes, setNotes]       = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem("ps_notes")||"{}"); } catch(e) { return {}; }
+  });
+  const allGuests = games.flatMap(g=>g.guests||[]).filter((g,i,a)=>a.findIndex(x=>String(x.id)===String(g.id))===i);
+  const allP   = [...ROSTER,...allGuests];
+  const allSt  = calcStats(games);
+
+  const saveNote = () => {
+    const updated = {...notes, [selected.id]: note};
+    setNotes(updated);
+    sessionStorage.setItem("ps_notes", JSON.stringify(updated));
+    setSelected(null);
+  };
+
+  const playerList = allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>(b.net80||0)-(a.net80||0));
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
+      <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
+        <div style={{ fontSize:13, fontWeight:800, color:"#60a5fa", letterSpacing:3, marginBottom:4 }}>PITCHSIDE</div>
+        <div style={{ fontSize:20, fontWeight:900, color:"#fff" }}>Players</div>
+        <div style={{ fontSize:11, color:C.muted, marginTop:4 }}>{playerList.length} players with data</div>
+      </div>
+      <div style={{ padding:14, maxWidth:480, margin:"0 auto" }}>
+        <p style={{ fontSize:11, color:C.muted, marginTop:0 }}>Sorted by Net/80  - tap for details{isAdmin?" and notes":""}</p>
+        {playerList.map((p,i) => {
+          const s = allSt[String(p.id)]||{};
+          const hasNote = notes[p.id];
+          return (
+            <div key={p.id} onClick={()=>{setSelected(p);setNote(notes[p.id]||"");}}
+              style={{ ...card, cursor:"pointer", marginBottom:8 }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ width:32, height:32, borderRadius:"50%", background:POS_COLOR[p.pos]||C.border, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:12, color:"#fff", flexShrink:0 }}>{p.num}</span>
+                  <div>
+                    <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{p.name}</div>
+                    <div style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:600 }}>{p.pos}  - {s.played} games  - {s.mins} mins</div>
+                    {hasNote && <div style={{ fontSize:10, color:"#a78bfa", marginTop:2 }}>"{notes[p.id].slice(0,40)}{notes[p.id].length>40?"...":""}"</div>}
+                  </div>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                  <div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:8, padding:"4px 8px", textAlign:"center", minWidth:48 }}>
+                    <div style={{ fontSize:14, fontWeight:900, color:parseFloat(s.net80)>0?C.green:parseFloat(s.net80)<0?C.red:"#94a3b8" }}>{s.net80s||"-"}</div>
+                    <div style={{ fontSize:8, color:C.muted }}>NET/80</div>
+                  </div>
+                  <div style={{ display:"flex", gap:5 }}>
+                    {s.goals>0&&<span style={{ fontSize:12, color:"#60a5fa", fontWeight:700 }}>{s.goals}G</span>}
+                    {s.assists>0&&<span style={{ fontSize:12, color:C.green, fontWeight:700 }}>{s.assists}A</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {playerList.length===0 && <div style={{ color:C.muted, fontSize:14, textAlign:"center", marginTop:40 }}>Play some games first to see player stats</div>}
+      </div>
+
+      {selected && (
+        <Modal title={selected.name} onClose={()=>setSelected(null)}>
+          <div style={{ ...card, marginBottom:12 }}>
+            <div style={{ display:"flex", justifyContent:"space-around", textAlign:"center" }}>
+              {[["Goals",(allSt[String(selected.id)]||{}).goals||0,"#60a5fa"],["Assists",(allSt[String(selected.id)]||{}).assists||0,C.green],["GF",(allSt[String(selected.id)]||{}).gf||0,"#3b82f6"],["GA",(allSt[String(selected.id)]||{}).ga||0,"#f87171"]].map(([l,v,c])=>(
+                <div key={l}><div style={{ fontSize:24, fontWeight:900, color:c }}>{v}</div><div style={{ fontSize:10, color:C.muted }}>{l}</div></div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
+            <div style={{ textAlign:"center" }}><div style={{ fontSize:20, fontWeight:900, color:C.amber }}>{(allSt[String(selected.id)]||{}).mins||0}'</div><div style={{ fontSize:10, color:C.muted }}>Total Mins</div></div>
+            <div style={{ textAlign:"center" }}><div style={{ fontSize:20, fontWeight:900, color:"#94a3b8" }}>{(allSt[String(selected.id)]||{}).avgMins||0}'</div><div style={{ fontSize:10, color:C.muted }}>Avg/Game</div></div>
+            <div style={{ textAlign:"center" }}><div style={{ fontSize:20, fontWeight:900, color:parseFloat((allSt[String(selected.id)]||{}).net80)>=0?C.green:C.red }}>{(allSt[String(selected.id)]||{}).net80s||"-"}</div><div style={{ fontSize:10, color:C.muted }}>Net/80</div></div>
+          </div>
+          {isAdmin && <>
+            <Lbl>Coach Notes</Lbl>
+            <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder={"Add a private note about "+selected.name.split(" ")[0]+"..."}
+              style={{ width:"100%", padding:12, borderRadius:10, background:C.border, border:`1px solid #334155`, color:C.text, fontSize:13, resize:"none", minHeight:80, boxSizing:"border-box", fontFamily:"-apple-system,sans-serif" }}/>
+            <button onClick={saveNote} style={{ ...btn(C.blue), width:"100%", padding:14, marginTop:8 }}>Save Note</button>
+          </>}
+          {!isAdmin && notes[selected.id] && <>
+            <Lbl>Coach Note</Lbl>
+            <div style={{ background:C.border, borderRadius:10, padding:12, fontSize:13, color:"#a78bfa", fontStyle:"italic" }}>"{notes[selected.id]}"</div>
+          </>}
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [screen,   setScreen]   = useState("home");
   const [gameInfo, setGameInfo] = useState(null);
   const [games,    setGames]    = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [viewing,  setViewing]  = useState(null);
-  const [isAdmin,  setIsAdmin]  = useState(false);
-  const [showPin,  setShowPin]  = useState(false);
+  const [isAdmin,    setIsAdmin]    = useState(() => sessionStorage.getItem("ps_admin") === "1");
+  const [showPin,    setShowPin]    = useState(false);
+  const [prevScreen, setPrevScreen] = useState("home");
   const seeded = useRef(false);
 
   useEffect(() => {
@@ -864,23 +1009,46 @@ export default function App() {
 
   if (loading) return (
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, ...T }}>
-      <div style={{ fontSize:28, fontWeight:900, color:"#60a5fa", letterSpacing:2 }}>CoachView</div>
-      <div style={{ fontSize:11, color:"#93c5fd", letterSpacing:3 }}>BALTIMORE ARMOUR 11G ASPIRE</div>
+      <div style={{ fontSize:28, fontWeight:900, color:"#60a5fa", letterSpacing:2 }}>PitchSide</div>
+      <div style={{ fontSize:11, color:"#93c5fd", letterSpacing:2 }}>Baltimore Armour 11G Aspire</div>
       <div style={{ marginTop:20, width:36, height:36, border:`3px solid ${C.border}`, borderTop:`3px solid ${C.blue}`, borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
     </div>
   );
 
-  if (viewing) return <GameDetail game={viewing} onClose={()=>setViewing(null)} onUpdate={updateGame} onDelete={handleDelete} isAdmin={isAdmin}/>;
-  if (showPin) return <PinScreen onAdmin={()=>{setIsAdmin(true);setShowPin(false);}} onViewer={()=>setShowPin(false)}/>;
+  if (viewing) return <GameDetail game={viewing} onClose={()=>setViewing(null)} onUpdate={updateGame} onDelete={handleDelete} isAdmin={isAdmin} backLabel={prevScreen==="stats"?"Back to Games":"Back to Home"}/>;
+  if (showPin) return <PinScreen onAdmin={()=>{setIsAdmin(true);sessionStorage.setItem("ps_admin","1");setShowPin(false);}} onViewer={()=>setShowPin(false)}/>;
 
   return (
     <>
-      {screen==="home"   && <Home    games={games} onStart={i=>{if(!isAdmin){setShowPin(true);return;}setGameInfo(i);setScreen("lineup");}} onStats={()=>setScreen("stats")} onView={setViewing} isAdmin={isAdmin}/>}
-      {screen==="lineup" && gameInfo && <Lineup  gameInfo={gameInfo} onKickoff={i=>{setGameInfo(i);setScreen("game");}} onBack={()=>setScreen("home")}/>}
-      {screen==="game"   && gameInfo && <Game    gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>setScreen("home")}/>}
-      {screen==="stats"  && <Stats   games={games} onBack={()=>setScreen("home")} onView={setViewing} isAdmin={isAdmin}/>}
-      {!isAdmin && <div onClick={()=>setShowPin(true)} style={{ position:"fixed", bottom:16, right:16, background:C.border, border:`1px solid #334155`, borderRadius:10, padding:"8px 14px", cursor:"pointer", fontSize:11, color:C.muted, fontWeight:700 }}>Admin Login</div>}
+      {screen==="home"    && <Home    games={games} onStart={i=>{if(!isAdmin){setShowPin(true);return;}setGameInfo(i);setScreen("lineup");}} onStats={()=>setScreen("stats")} onView={g=>{setViewing(g);setPrevScreen("home");}} isAdmin={isAdmin}/>}
+      {screen==="lineup"  && gameInfo && <Lineup  gameInfo={gameInfo} onKickoff={i=>{setGameInfo(i);setScreen("game");}} onBack={()=>setScreen("home")}/>}
+      {screen==="game"    && gameInfo && <Game    gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>setScreen("home")}/>}
+      {screen==="stats"   && <Stats   games={games} onBack={()=>setScreen("home")} onView={g=>{setViewing(g);setPrevScreen("stats");}} isAdmin={isAdmin}/>}
+      {screen==="players" && <Players games={games} onBack={()=>setScreen("home")} isAdmin={isAdmin}/>}
+
+      {/* Bottom Nav Bar - hidden during game and lineup */}
+      {screen!=="game" && screen!=="lineup" && !viewing && (
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a1628", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
+          {[
+            {key:"home",    label:"Home",    icon:"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"},
+            {key:"stats",   label:"Games",   icon:"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"},
+            {key:"stats",   label:"Stats",   icon:"M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"},
+            {key:"players", label:"Players", icon:"M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"},
+          ].map(({key, label, icon}) => (
+            <button key={label} onClick={()=>setScreen(key)} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:screen===key?`2px solid ${C.blue}`:"2px solid transparent" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={screen===key?"#60a5fa":C.muted}><path d={icon}/></svg>
+              <span style={{ fontSize:10, color:screen===key?"#60a5fa":C.muted, fontWeight:screen===key?700:400 }}>{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Admin / Logout button */}
+      <div style={{ position:"fixed", bottom:screen!=="game"&&screen!=="lineup"&&!viewing?70:16, right:16, display:"flex", gap:8, zIndex:101 }}>
+        {!isAdmin && <div onClick={()=>setShowPin(true)} style={{ background:C.border, border:`1px solid #334155`, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:C.muted, fontWeight:700 }}>Admin Login</div>}
+        {isAdmin && <div onClick={()=>{setIsAdmin(false);sessionStorage.removeItem("ps_admin");}} style={{ background:"#7f1d1d", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:"#fca5a5", fontWeight:700 }}>Logout</div>}
+      </div>
     </>
   );
 }
