@@ -1079,7 +1079,7 @@ export default function App() {
             {key:"analytics",   label:"Stats",   icon:"M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"},
             {key:"players", label:"Players", icon:"M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"},
           ].map(({key, label, icon}) => (
-            <button key={label} onClick={()=>setScreen(key)} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:(screen===key||(key==="games"&&screen==="stats")||(key==="analytics"&&screen==="stats"))?`2px solid ${C.blue}`:"2px solid transparent" }}>
+            <button key={label} onClick={()=>setScreen(key==="games"||key==="analytics"?"stats":key)} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:(screen===key||(key==="games"&&screen==="stats")||(key==="analytics"&&screen==="stats"))?`2px solid ${C.blue}`:"2px solid transparent" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill={screen===key?"#60a5fa":C.muted}><path d={icon}/></svg>
               <span style={{ fontSize:10, color:screen===key?"#60a5fa":C.muted, fontWeight:screen===key?700:400 }}>{label}</span>
             </button>
