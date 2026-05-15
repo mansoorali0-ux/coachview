@@ -261,17 +261,28 @@ function Home({ games, onStart, onStats, onView, isAdmin }) {
           for (let i=sorted.length-1;i>=0;i--) { if(sorted[i].scoreFor>=sorted[i].scoreAgainst) streak++; else break; }
           return (
             <div style={{ marginTop:14 }}>
-              <div style={{ display:"flex", justifyContent:"center", gap:14 }}>
+              {/* W / D / L */}
+              <div style={{ display:"flex", justifyContent:"center", gap:20, marginBottom:10 }}>
                 {[["W",record.W,"#059669"],["D",record.D,"#d97706"],["L",record.L,C.red]].map(([l,v,c])=>(
                   <div key={l} style={{ textAlign:"center" }}>
-                    <div style={{ fontSize:28, fontWeight:900, color:c }}>{v}</div>
+                    <div style={{ fontSize:30, fontWeight:900, color:c }}>{v}</div>
                     <div style={{ fontSize:10, color:C.muted }}>{l==="W"?"Wins":l==="D"?"Draws":"Losses"}</div>
                   </div>
                 ))}
-                <div style={{ textAlign:"center" }}><div style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{totalGF}</div><div style={{ fontSize:9, color:C.muted }}>GF</div></div>
-                <div style={{ textAlign:"center" }}><div style={{ fontSize:22, fontWeight:900, color:"#f87171" }}>{totalGA}</div><div style={{ fontSize:9, color:C.muted }}>GA</div></div>
               </div>
-              {streak>=2&&<div style={{ marginTop:8, background:"linear-gradient(90deg,#065f46,#047857)", borderRadius:10, padding:"5px 14px", display:"inline-block" }}>
+              {/* GF / GA on its own row below */}
+              <div style={{ display:"flex", justifyContent:"center", gap:24, marginBottom:8 }}>
+                <div style={{ textAlign:"center" }}>
+                  <div style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{totalGF}</div>
+                  <div style={{ fontSize:9, color:C.muted, letterSpacing:1 }}>GOALS FOR</div>
+                </div>
+                <div style={{ width:1, background:C.border, margin:"4px 0" }}/>
+                <div style={{ textAlign:"center" }}>
+                  <div style={{ fontSize:22, fontWeight:900, color:"#f87171" }}>{totalGA}</div>
+                  <div style={{ fontSize:9, color:C.muted, letterSpacing:1 }}>GOALS AGAINST</div>
+                </div>
+              </div>
+              {streak>=2&&<div style={{ marginTop:6, background:"linear-gradient(90deg,#065f46,#047857)", borderRadius:10, padding:"5px 14px", display:"inline-block" }}>
                 <span style={{ fontSize:12, fontWeight:800, color:"#6ee7b7" }}>Unbeaten: {streak} games</span>
               </div>}
             </div>
@@ -441,6 +452,9 @@ function Game({ gameInfo, onEnd, onBack }) {
   const [subMin,    setSubMin]    = useState("0");
   const [subPos,    setSubPos]    = useState(null);
   const timerRef = useRef(null), startRef = useRef(null), pauseRef = useRef(0);
+  const liveGameRef = useRef({...gameInfo, events:[], scoreFor:0, scoreAgainst:0, date:new Date().toLocaleDateString("en-US"), id:gameInfo.id||(new Date().toLocaleDateString("en-US").replace(/\//g,"-")+"-"+gameInfo.opponent.slice(0,10).replace(/\s/g,"-")).toLowerCase()});
+  // Keep liveGameRef in sync
+  useEffect(()=>{ liveGameRef.current={...gameInfo,events,scoreFor:gf,scoreAgainst:ga,secondHalfStarting:half===2?[...onField]:undefined,id:liveGameRef.current.id,date:liveGameRef.current.date,status:"in_progress"}; },[events,gf,ga,half,onField]);
 
   useEffect(() => {
     if (running) {
@@ -473,6 +487,13 @@ function Game({ gameInfo, onEnd, onBack }) {
     }
   }, []);
 
+  // Save events to sessionStorage as extra backup on every change
+  useEffect(() => {
+    if (events.length > 0) {
+      try { sessionStorage.setItem("ps_live_events", JSON.stringify({events,gf,ga,half,onField})); } catch(e) {}
+    }
+  }, [events, gf, ga]);
+
   const curMin = Math.floor(secs / 60);
   const timeStr = String(Math.floor(secs/60)).padStart(2,"0") + ":" + String(secs%60).padStart(2,"0");
   const allP = gameInfo.allPlayers;
@@ -482,13 +503,35 @@ function Game({ gameInfo, onEnd, onBack }) {
   const openGoal = type => { setGoalMin(String(curMin)); setSubMin(String(curMin)); setScorer(null); setAssist(null); setOwnGoal(false); setSubOff(null); setSubOn(null); setSubPos(null); setModal(type); };
   const pName = id => allP.find(p => String(p.id) === String(id))?.name?.split(" ")[0] || "?";
 
-  const logGoalFor = () => { const ngf=gf+1; setGf(ngf); setEvents(ev=>[...ev,{type:"goal_for",minute:parseInt(goalMin)||0,scorer:ownGoal?null:scorer,assist:ownGoal?null:assist,ownGoal,score:ngf+"-"+ga,half,id:uid()}]); setModal(null); };
-  const logGoalAgainst = () => { const nga=ga+1; setGa(nga); setEvents(ev=>[...ev,{type:"goal_against",minute:parseInt(goalMin)||0,ownGoal,score:gf+"-"+nga,half,id:uid()}]); setModal(null); };
+  const logGoalFor = () => {
+    const ngf=gf+1; setGf(ngf);
+    const ev={type:"goal_for",minute:parseInt(goalMin)||0,scorer:ownGoal?null:scorer,assist:ownGoal?null:assist,ownGoal,score:ngf+"-"+ga,half,id:uid()};
+    const newEvents=[...events,ev];
+    setEvents(()=>newEvents);
+    // Save live to Firebase so data survives if tab closes
+    const snap={...liveGameRef.current,events:newEvents,scoreFor:ngf,scoreAgainst:ga};
+    saveGame(snap).catch(()=>{});
+    setModal(null);
+  };
+  const logGoalAgainst = () => {
+    const nga=ga+1; setGa(nga);
+    const ev={type:"goal_against",minute:parseInt(goalMin)||0,ownGoal,score:gf+"-"+nga,half,id:uid()};
+    const newEvents=[...events,ev];
+    setEvents(()=>newEvents);
+    const snap={...liveGameRef.current,events:newEvents,scoreFor:gf,scoreAgainst:nga};
+    saveGame(snap).catch(()=>{});
+    setModal(null);
+  };
   const logSub = () => {
     if (!subOff||!subOn||!subPos) return;
-    setOnField(f=>f.map(id=>String(id)===String(subOff)?subOn:id));
+    const newField = onField.map(id=>String(id)===String(subOff)?subOn:id);
+    setOnField(newField);
     setPositions(p=>{const n={...p};n[subOn]=subPos;delete n[subOff];return n;});
-    setEvents(ev=>[...ev,{type:"sub",minute:parseInt(subMin)||0,playerOff:subOff,playerOn:subOn,subType:"tactical",pos:subPos,half,id:uid()}]);
+    const ev={type:"sub",minute:parseInt(subMin)||0,playerOff:subOff,playerOn:subOn,subType:"tactical",pos:subPos,half,id:uid()};
+    const newEvents=[...events,ev];
+    setEvents(()=>newEvents);
+    const snap={...liveGameRef.current,events:newEvents};
+    saveGame(snap).catch(()=>{});
     setModal(null);
   };
   const openEditEv = ev => { setEditEv(ev); setGoalMin(String(ev.minute)); setScorer(ev.scorer?String(ev.scorer):null); setAssist(ev.assist?String(ev.assist):null); setModal("edit"); };
@@ -1032,11 +1075,11 @@ export default function App() {
         <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a1628", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
           {[
             {key:"home",    label:"Home",    icon:"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"},
-            {key:"stats",   label:"Games",   icon:"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"},
-            {key:"stats",   label:"Stats",   icon:"M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"},
+            {key:"games",   label:"Games",   icon:"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"},
+            {key:"analytics",   label:"Stats",   icon:"M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"},
             {key:"players", label:"Players", icon:"M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"},
           ].map(({key, label, icon}) => (
-            <button key={label} onClick={()=>setScreen(key)} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:screen===key?`2px solid ${C.blue}`:"2px solid transparent" }}>
+            <button key={label} onClick={()=>setScreen(key)} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:(screen===key||(key==="games"&&screen==="stats")||(key==="analytics"&&screen==="stats"))?`2px solid ${C.blue}`:"2px solid transparent" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill={screen===key?"#60a5fa":C.muted}><path d={icon}/></svg>
               <span style={{ fontSize:10, color:screen===key?"#60a5fa":C.muted, fontWeight:screen===key?700:400 }}>{label}</span>
             </button>
@@ -1044,11 +1087,13 @@ export default function App() {
         </div>
       )}
 
-      {/* Admin / Logout button */}
-      <div style={{ position:"fixed", bottom:screen!=="game"&&screen!=="lineup"&&!viewing?70:16, right:16, display:"flex", gap:8, zIndex:101 }}>
-        {!isAdmin && <div onClick={()=>setShowPin(true)} style={{ background:C.border, border:`1px solid #334155`, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:C.muted, fontWeight:700 }}>Admin Login</div>}
-        {isAdmin && <div onClick={()=>{setIsAdmin(false);sessionStorage.removeItem("ps_admin");}} style={{ background:"#7f1d1d", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:"#fca5a5", fontWeight:700 }}>Logout</div>}
-      </div>
+      {/* Admin/Logout - hidden during game and lineup */}
+      {screen!=="game" && screen!=="lineup" && !viewing && (
+        <div style={{ position:"fixed", bottom:70, right:16, display:"flex", gap:8, zIndex:101 }}>
+          {!isAdmin && <div onClick={()=>setShowPin(true)} style={{ background:C.border, border:`1px solid #334155`, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:C.muted, fontWeight:700 }}>Admin Login</div>}
+          {isAdmin && <div onClick={()=>{setIsAdmin(false);sessionStorage.removeItem("ps_admin");}} style={{ background:"#7f1d1d", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:"#fca5a5", fontWeight:700 }}>Logout</div>}
+        </div>
+      )}
     </>
   );
 }
