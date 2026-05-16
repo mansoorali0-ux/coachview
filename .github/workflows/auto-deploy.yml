@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  check-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -14,54 +14,32 @@ jobs:
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Check and apply Gist update
+      - name: Apply Gist update
         run: |
           GIST_URL="https://gist.githubusercontent.com/mansoorali0-ux/1ab82824f4da39e42349663f55232101/raw/update.json"
-          
-          # Fetch gist
-          RESPONSE=$(curl -sf "$GIST_URL" 2>/dev/null || echo '{"version":"none"}')
-          GIST_VER=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('version','none'))" 2>/dev/null || echo "none")
+          curl -sf "$GIST_URL" -o /tmp/update.json || exit 0
+          GIST_VER=$(python3 -c "import json; print(json.load(open('/tmp/update.json')).get('version','none'))")
           CURRENT=$(cat .deployed-version 2>/dev/null || echo "none")
-          
-          echo "Gist version: $GIST_VER"
-          echo "Current version: $CURRENT"
-          
-          if [ "$GIST_VER" = "$CURRENT" ] || [ "$GIST_VER" = "none" ]; then
-            echo "Already up to date"
-            exit 0
-          fi
-          
-          # Apply update
-          echo "$RESPONSE" | python3 - << 'PYEOF'
-import json, sys, os
-
-data = json.load(sys.stdin)
-files = data.get('files', {})
-
-for filepath, content in files.items():
-    dirpath = os.path.dirname(filepath)
-    if dirpath:
-        os.makedirs(dirpath, exist_ok=True)
-    with open(filepath, 'w') as f:
-        f.write(content)
-    print(f"Updated: {filepath}")
-
-version = data.get('version', 'unknown')
-with open('.deployed-version', 'w') as f:
-    f.write(version)
-print(f"Version {version} applied")
-PYEOF
+          echo "Gist: $GIST_VER | Current: $CURRENT"
+          if [ "$GIST_VER" = "$CURRENT" ]; then echo "Up to date"; exit 0; fi
+          python3 -c "
+import json, os
+data = json.load(open('/tmp/update.json'))
+for path, content in data.get('files', {}).items():
+    d = os.path.dirname(path)
+    if d: os.makedirs(d, exist_ok=True)
+    open(path, 'w').write(content)
+    print('Updated:', path)
+open('.deployed-version','w').write(data.get('version','0'))
+print('Done:', data.get('version'))
+"
 
       - name: Commit and push
         run: |
           git config user.email "pitchside-bot@deploy.app"
           git config user.name "PitchSide Bot"
           git add -A
-          if git diff --staged --quiet; then
-            echo "Nothing to commit"
-          else
-            GIST_URL="https://gist.githubusercontent.com/mansoorali0-ux/1ab82824f4da39e42349663f55232101/raw/update.json"
-            VER=$(curl -sf "$GIST_URL" | python3 -c "import sys,json; print(json.load(sys.stdin).get('version','unknown'))" 2>/dev/null || echo "unknown")
-            git commit -m "Auto-deploy v$VER"
-            git push
-          fi
+          git diff --staged --quiet && echo "Nothing to commit" && exit 0
+          VER=$(cat .deployed-version 2>/dev/null || echo "unknown")
+          git commit -m "Auto-deploy v$VER"
+          git push
