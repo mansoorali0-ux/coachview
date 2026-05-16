@@ -689,52 +689,354 @@ function Game({ gameInfo, onEnd, onBack }) {
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
-  const [view,setView]=useState(defaultTab||"overview");
-  const [sortBy,setSortBy]=useState("net80"); const [sortDir,setSortDir]=useState(-1); const [scout,setScout]=useState(null);
-  const allGuests=games.flatMap(g=>g.guests||[]).filter((g,i,a)=>a.findIndex(x=>String(x.id)===String(g.id))===i);
-  const allP=[...ROSTER,...allGuests]; const allSt=calcStats(games);
-  const allGF=games.flatMap(g=>(g.events||[]).filter(e=>e.type==="goal_for"));
-  const allGA=games.flatMap(g=>(g.events||[]).filter(e=>e.type==="goal_against"));
-  const opps=[...new Set(games.map(g=>g.opponent))];
-  const skeys={net80:"net80",goals:"goals",assists:"assists",gf:"gf",ga:"ga"};
-  const pList=allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>{ const k=skeys[sortBy];const av=k==="net80"?(a.net80||0):(a[k]||0);const bv=k==="net80"?(b.net80||0):(b[k]||0);return sortDir*(bv-av); });
-  const toggleSort=k=>{ if(sortBy===k)setSortDir(d=>d*-1);else{setSortBy(k);setSortDir(-1);} };
-  const sb=(k,l)=><button onClick={()=>toggleSort(k)} style={{ flex:1, padding:"8px 2px", borderRadius:8, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:sortBy===k?C.blue:C.border, color:sortBy===k?"#fff":C.muted }}>{l}{sortBy===k?(sortDir===-1?" v":" ^"):""}</button>;
-  const topG=allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.goals>0).sort((a,b)=>b.goals-a.goals);
-  const topA=allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.assists>0).sort((a,b)=>b.assists-a.assists);
-  const buckets=[{l:"0-10",min:0,max:10},{l:"11-20",min:11,max:20},{l:"21-30",min:21,max:30},{l:"31-40",min:31,max:40},{l:"41-50",min:41,max:50},{l:"51-60",min:51,max:60},{l:"61-70",min:61,max:70},{l:"71-80",min:71,max:80}];
-  if(!games||games.length===0)return <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, padding:32 }}><div style={{ fontSize:20, fontWeight:700, color:"#60a5fa" }}>No Games Yet</div><button onClick={onBack} style={{ ...btn(C.blue), padding:"14px 28px" }}>Back</button></div>;
-  return (
-    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:32 }}>
-      <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:16, borderBottom:`3px solid ${C.blue}`, display:"flex", alignItems:"center", gap:12 }}>
-        <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:20, cursor:"pointer", padding:0, fontWeight:800 }}>{"<"}</button>
-        <div><div style={{ fontSize:18, fontWeight:800, color:"#60a5fa" }}>Season Stats</div><div style={{ fontSize:11, color:C.muted }}>{games.length} games played</div></div>
+  const [view, setView] = useState(defaultTab || "overview");
+  const [sortBy, setSortBy] = useState("net80");
+  const [sortDir, setSortDir] = useState(-1);
+  const [scout, setScout] = useState(null);
+
+  const allGuests = games.flatMap(g => g.guests || []).filter((g, i, a) => a.findIndex(x => String(x.id) === String(g.id)) === i);
+  const allP = [...ROSTER, ...allGuests];
+  const allSt = calcStats(games);
+  const allGF = games.flatMap(g => (g.events || []).filter(e => e.type === "goal_for"));
+  const allGA = games.flatMap(g => (g.events || []).filter(e => e.type === "goal_against"));
+  const opps = [...new Set(games.map(g => g.opponent))];
+  const pList = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}) })).filter(p => p.played > 0).sort((a, b) => {
+    const av = sortBy === "net80" ? (a.net80 || 0) : (a[sortBy] || 0);
+    const bv = sortBy === "net80" ? (b.net80 || 0) : (b[sortBy] || 0);
+    return sortDir * (bv - av);
+  });
+  const toggleSort = k => { if (sortBy === k) setSortDir(d => d * -1); else { setSortBy(k); setSortDir(-1); } };
+  const sb = (k, l) => (
+    <button key={k} onClick={() => toggleSort(k)} style={{ flex: 1, padding: "8px 2px", borderRadius: 8, border: "none", fontWeight: 700, fontSize: 10, cursor: "pointer", background: sortBy === k ? C.blue : C.border, color: sortBy === k ? "#fff" : C.muted }}>
+      {l}{sortBy === k ? (sortDir === -1 ? " v" : " ^") : ""}
+    </button>
+  );
+  const topG = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}) })).filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals);
+  const topA = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}) })).filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists);
+  const buckets = [
+    { l: "0-10", min: 0, max: 10 }, { l: "11-20", min: 11, max: 20 },
+    { l: "21-30", min: 21, max: 30 }, { l: "31-40", min: 31, max: 40 },
+    { l: "41-50", min: 41, max: 50 }, { l: "51-60", min: 51, max: 60 },
+    { l: "61-70", min: 61, max: 70 }, { l: "71-80", min: 71, max: 80 },
+  ];
+
+  if (!games || games.length === 0) {
+    return (
+      <div style={{ minHeight: "100vh", background: C.bg, color: C.text, ...T, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32 }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: "#60a5fa" }}>No Games Yet</div>
+        <button onClick={onBack} style={{ ...btn(C.blue), padding: "14px 28px" }}>Back</button>
       </div>
-      <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#0a1628" }}>
-        {[["overview","Overview"],["players","Players"],["optimum","Optimum"],["scouting","Scouting"]].map(([t,l])=>(
-          <button key={t} onClick={()=>setView(t)} style={{ flex:1, padding:"13px 2px", background:"none", border:"none", borderBottom:view===t?`3px solid ${C.blue}`:"3px solid transparent", color:view===t?"#60a5fa":C.muted, fontWeight:700, fontSize:11, cursor:"pointer" }}>{l}</button>
+    );
+  }
+
+  const renderOverview = () => (
+    <div>
+      <div style={card}>
+        <Lbl>Season Record</Lbl>
+        <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
+          {["W", "D", "L"].map(r => {
+            const c = games.filter(g => r === "W" ? g.scoreFor > g.scoreAgainst : r === "D" ? g.scoreFor === g.scoreAgainst : g.scoreFor < g.scoreAgainst).length;
+            return (
+              <div key={r}>
+                <div style={{ fontSize: 36, fontWeight: 900, color: r === "W" ? "#059669" : r === "D" ? "#d97706" : C.red }}>{c}</div>
+                <div style={{ fontSize: 11, color: C.muted }}>{r === "W" ? "Wins" : r === "D" ? "Draws" : "Losses"}</div>
+              </div>
+            );
+          })}
+          <div>
+            <div style={{ fontSize: 36, fontWeight: 900, color: "#60a5fa" }}>{games.reduce((a, g) => a + g.scoreFor, 0)}-{games.reduce((a, g) => a + g.scoreAgainst, 0)}</div>
+            <div style={{ fontSize: 11, color: C.muted }}>Goals</div>
+          </div>
+        </div>
+      </div>
+      <div style={card}>
+        <Lbl>Top Scorers</Lbl>
+        {topG.length === 0 && <div style={{ color: C.muted, fontSize: 13 }}>No goals yet</div>}
+        {topG.slice(0, 8).map((p, i) => (
+          <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: i < Math.min(7, topG.length - 1) ? `1px solid ${C.border}` : "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, color: C.muted, fontWeight: 800, width: 18 }}>{i + 1}</span>
+              <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</span>
+            </div>
+            <span style={{ fontSize: 22, fontWeight: 900, color: "#60a5fa" }}>{p.goals}</span>
+          </div>
         ))}
       </div>
-      <div style={{ padding:14, maxWidth:480, margin:"0 auto" }}>
-        {view==="overview"&&<>
-          <div style={card}><Lbl>Season Record</Lbl><div style={{ display:"flex", justifyContent:"space-around", textAlign:"center" }}>{["W","D","L"].map(r=>{ const c=games.filter(g=>r==="W"?g.scoreFor>g.scoreAgainst:r==="D"?g.scoreFor===g.scoreAgainst:g.scoreFor<g.scoreAgainst).length;return <div key={r}><div style={{ fontSize:36, fontWeight:900, color:r==="W"?"#059669":r==="D"?"#d97706":C.red }}>{c}</div><div style={{ fontSize:11, color:C.muted }}>{r==="W"?"Wins":r==="D"?"Draws":"Losses"}</div></div>; }}<div><div style={{ fontSize:36, fontWeight:900, color:"#60a5fa" }}>{games.reduce((a,g)=>a+g.scoreFor,0)}-{games.reduce((a,g)=>a+g.scoreAgainst,0)}</div><div style={{ fontSize:11, color:C.muted }}>Goals</div></div></div></div>
-          <div style={card}><Lbl>Top Scorers</Lbl>{topG.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No goals yet</div>}{topG.slice(0,8).map((p,i)=><div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:i<Math.min(7,topG.length-1)?`1px solid ${C.border}`:"none" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</span></div><span style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{p.goals}</span></div>)}</div>
-          <div style={card}><Lbl>Top Assists</Lbl>{topA.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No assists yet</div>}{topA.slice(0,8).map((p,i)=><div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:i<Math.min(7,topA.length-1)?`1px solid ${C.border}`:"none" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</span></div><span style={{ fontSize:22, fontWeight:900, color:C.green }}>{p.assists}</span></div>)}</div>
-          <div style={card}><Lbl>Goal Timing (10-min intervals)</Lbl>{buckets.map(b=>{ const gfC=allGF.filter(g=>g.minute>=b.min&&g.minute<=b.max).length;const gaC=allGA.filter(g=>g.minute>=b.min&&g.minute<=b.max).length;const mx=Math.max(gfC,gaC,1);return <div key={b.l} style={{ marginBottom:10 }}><div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}><span style={{ fontSize:11, color:"#94a3b8" }}>{b.l}</span><span style={{ fontSize:11 }}><span style={{ color:"#60a5fa", fontWeight:700 }}>For: {gfC}</span>  <span style={{ color:"#f87171", fontWeight:700 }}>vs: {gaC}</span></span></div><div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:2 }}><span style={{ fontSize:9, color:"#60a5fa", width:16 }}>F</span><div style={{ flex:1, background:"#1e293b", borderRadius:3, height:6 }}><div style={{ width:(gfC/mx*100)+"%", background:C.blue, borderRadius:3, height:"100%" }}/></div></div><div style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ fontSize:9, color:"#f87171", width:16 }}>V</span><div style={{ flex:1, background:"#1e293b", borderRadius:3, height:6 }}><div style={{ width:(gaC/mx*100)+"%", background:C.red, borderRadius:3, height:"100%" }}/></div></div></div>; })}</div>
-          <Lbl>All Results</Lbl>{games.slice().reverse().map((g,i)=><button key={i} onClick={()=>onView(g)} style={{ ...card, width:"100%", textAlign:"left", cursor:"pointer", marginBottom:8 }}><div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}><div><div style={{ fontSize:13, fontWeight:700, color:C.text }}>vs {g.opponent.split(" ").slice(0,3).join(" ")}</div><div style={{ fontSize:11, color:C.muted }}>{g.date} · {g.venue}</div></div><div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:22, fontWeight:900, color:"#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span><WinBadge gf={g.scoreFor} ga={g.scoreAgainst}/></div></div></button>)}
-        </>}
-        {view==="players"&&<>
-          <div style={{ display:"flex", gap:5, marginBottom:12 }}>{sb("goals","Goals")}{sb("assists","Assists")}{sb("gf","GF")}{sb("ga","GA")}{sb("net80","Net/80")}</div>
-          <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Net/80: goals scored minus conceded per 80 mins on field. * = Maariyah</p>
-          {pList.map(p=>{ const s=allSt[String(p.id)]||{}; return <div key={p.id} style={{ ...card, border:`1px solid ${C.border}` }}><div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}><div><div style={{ fontWeight:800, fontSize:15, color:C.text }}>{p.name}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.played} games - {s.mins} mins - avg {s.avgMins} min/game</div></div><div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:8, padding:"6px 10px", textAlign:"center", minWidth:54 }}><div style={{ fontSize:16, fontWeight:900, color:parseFloat(s.net80)>0?C.green:parseFloat(s.net80)<0?C.red:"#94a3b8" }}>{s.net80s||"-"}</div><div style={{ fontSize:9, color:C.muted }}>NET/80</div></div></div><div style={{ display:"flex", gap:5 }}>{[["G",s.goals,"#60a5fa"],["A",s.assists,C.green],["GF",s.gf,"#3b82f6"],["GA",s.ga,"#f87171"]].map(([l,v,co])=><div key={l} style={{ flex:1, background:C.border, borderRadius:8, padding:"7px 4px", textAlign:"center" }}><div style={{ fontSize:18, fontWeight:800, color:co }}>{v||0}</div><div style={{ fontSize:8, color:C.muted }}>{l}</div></div>)}</div></div>; })}
-        </>}
-        {view==="optimum"&&<>
-          <div style={{ ...card, border:`2px solid ${C.amber}`, marginBottom:14 }}><div style={{ fontSize:13, fontWeight:800, color:C.amber, marginBottom:4 }}>Season Optimum XI</div><div style={{ fontSize:11, color:C.muted }}>Best 11 by Net/80 across all games.</div></div>
-          {(()=>{ const el=allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.played>0&&p.net80!==null); const top11=[...el].sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(0,11); const rest=[...el].sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(11); const byPos={GK:[],DEF:[],MID:[],FWD:[]}; top11.forEach(p=>{ if(byPos[p.pos])byPos[p.pos].push(p); }); return <>{["GK","DEF","MID","FWD"].map(pos=>byPos[pos].length>0&&<div key={pos} style={{ marginBottom:12 }}><div style={{ fontSize:10, fontWeight:800, color:POS_COLOR[pos], letterSpacing:1, marginBottom:6 }}>{pos}</div>{byPos[pos].map(p=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, ...card, border:`1px solid ${C.border}`, marginBottom:5 }}><span style={{ width:28, height:28, borderRadius:"50%", background:POS_COLOR[pos], display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:11, color:"#fff", flexShrink:0 }}>{p.num}</span><div style={{ flex:1 }}><div style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</div><div style={{ fontSize:10, color:C.muted }}>{p.played} games - {p.mins} mins</div></div><div style={{ textAlign:"right" }}><div style={{ fontSize:16, fontWeight:900, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:9, color:C.muted }}>NET/80</div></div></div>)}</div>)}{rest.length>0&&<><Lbl>Others</Lbl>{rest.map((p,i)=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#0a1222", border:`1px solid #1e293b`, borderRadius:10, padding:"9px 14px", marginBottom:4, opacity:0.75 }}><span style={{ fontSize:12, color:C.muted, width:20 }}>{i+12}.</span><span style={{ flex:1, fontSize:13, color:"#94a3b8" }}>{p.name}</span><span style={{ fontSize:13, fontWeight:700, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</span><span style={{ fontSize:10, color:C.muted }}>{p.mins}m</span></div>)}</>}</>; })()}
-        </>}
-        {view==="scouting"&&<>
-          {!scout?<><p style={{ color:C.muted, fontSize:12, marginTop:0 }}>Tap opponent for full report</p>{opps.map(opp=>{ const og=games.filter(g=>g.opponent===opp);const w=og.filter(g=>g.scoreFor>g.scoreAgainst).length,d=og.filter(g=>g.scoreFor===g.scoreAgainst).length,l=og.filter(g=>g.scoreFor<g.scoreAgainst).length;const tf=og.reduce((a,g)=>a+g.scoreFor,0),ta=og.reduce((a,g)=>a+g.scoreAgainst,0);return <button key={opp} onClick={()=>setScout(opp)} style={{ ...card, width:"100%", textAlign:"left", cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}><div><div style={{ fontSize:13, fontWeight:700, color:C.text }}>{opp.split(" ").slice(0,4).join(" ")}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>GF: {tf} GA: {ta}</div></div><div style={{ display:"flex", gap:4 }}>{w>0&&<span style={{ background:"#059669", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:12, fontWeight:700 }}>{w}W</span>}{d>0&&<span style={{ background:"#d97706", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:12, fontWeight:700 }}>{d}D</span>}{l>0&&<span style={{ background:C.red, color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:12, fontWeight:700 }}>{l}L</span>}</div></button>; })}</>:(()=>{ const og=games.filter(g=>g.opponent===scout);const ss=calcStats(og);const tf=og.reduce((a,g)=>a+g.scoreFor,0),ta=og.reduce((a,g)=>a+g.scoreAgainst,0);const sc=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.goals>0).sort((a,b)=>b.goals-a.goals);const sa=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.assists>0).sort((a,b)=>b.assists-a.assists);const sm=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>b.mins-a.mins);return <><button onClick={()=>setScout(null)} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:700, cursor:"pointer", padding:0, marginBottom:12 }}>{"< All Opponents"}</button><div style={{ fontSize:16, fontWeight:800, color:"#60a5fa", marginBottom:10 }}>{scout.split(" ").slice(0,4).join(" ")}</div><div style={{ ...card, marginBottom:12 }}><div style={{ display:"flex", justifyContent:"space-around", textAlign:"center" }}>{[["Played",og.length,"#94a3b8"],["GF",tf,"#60a5fa"],["GA",ta,"#f87171"],["GD",tf-ta>=0?"+"+String(tf-ta):String(tf-ta),C.green]].map(([l,v,co])=><div key={l}><div style={{ fontSize:28, fontWeight:900, color:co }}>{v}</div><div style={{ fontSize:10, color:C.muted }}>{l}</div></div>)}</div></div>{sc.length>0&&<div style={card}><Lbl>Scorers & Assists</Lbl>{sc.map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:i<sc.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><div style={{ display:"flex", gap:8 }}>{p.goals>0&&<div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:"#60a5fa" }}>{p.goals}</div><div style={{ fontSize:8, color:C.muted }}>G</div></div>}{p.assists>0&&<div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:C.green }}>{p.assists}</div><div style={{ fontSize:8, color:C.muted }}>A</div></div>}</div></div>)}{sa.length>0&&sa.filter(p=>!sc.find(s=>String(s.id)===String(p.id))).map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:C.green }}>{p.assists}</div><div style={{ fontSize:8, color:C.muted }}>A</div></div></div>)}</div>}<div style={card}><Lbl>Minutes Played</Lbl>{sm.map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:i<sm.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><span style={{ fontSize:13, color:C.amber, fontWeight:700 }}>{p.mins}' <span style={{ fontSize:10, color:C.muted }}>avg {p.avgMins}'</span></span></div>)}</div>{(()=>{ const opt=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.played>0&&p.net80!==null).sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(0,11);return opt.length>0&&<div style={card}><Lbl>Optimum Team vs {scout.split(" ")[0]}</Lbl><p style={{ fontSize:11, color:C.muted, marginTop:0, marginBottom:8 }}>{og.length} game{og.length!==1?"s":""} of data</p>{opt.map((p,i)=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderBottom:i<opt.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:12, color:C.muted, width:20 }}>{i+1}.</span><span style={{ flex:1, fontSize:13, fontWeight:700, color:C.text }}>{p.name}</span><span style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:6 }}>{p.pos}</span><div style={{ display:"flex", gap:6 }}>{p.goals>0&&<span style={{ fontSize:11, color:"#60a5fa", fontWeight:700 }}>{p.goals}G</span>}{p.assists>0&&<span style={{ fontSize:11, color:C.green, fontWeight:700 }}>{p.assists}A</span>}<span style={{ fontSize:11, color:"#94a3b8" }}>{p.net80s}</span></div></div>)}</div>; })()}<Lbl>Results</Lbl>{og.map((g,i)=><button key={i} onClick={()=>onView(g)} style={{ ...card, width:"100%", textAlign:"left", cursor:"pointer", marginBottom:8 }}><div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}><span style={{ fontSize:12, color:C.muted }}>{g.date} · {g.venue}</span><div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:18, fontWeight:900, color:"#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span><WinBadge gf={g.scoreFor} ga={g.scoreAgainst}/></div></div></button>)}</>; })()}
-        </>}
+      <div style={card}>
+        <Lbl>Top Assists</Lbl>
+        {topA.length === 0 && <div style={{ color: C.muted, fontSize: 13 }}>No assists yet</div>}
+        {topA.slice(0, 8).map((p, i) => (
+          <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: i < Math.min(7, topA.length - 1) ? `1px solid ${C.border}` : "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, color: C.muted, fontWeight: 800, width: 18 }}>{i + 1}</span>
+              <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</span>
+            </div>
+            <span style={{ fontSize: 22, fontWeight: 900, color: C.green }}>{p.assists}</span>
+          </div>
+        ))}
+      </div>
+      <div style={card}>
+        <Lbl>Goal Timing (10-min intervals)</Lbl>
+        {buckets.map(b => {
+          const gfC = allGF.filter(g => g.minute >= b.min && g.minute <= b.max).length;
+          const gaC = allGA.filter(g => g.minute >= b.min && g.minute <= b.max).length;
+          const mx = Math.max(gfC, gaC, 1);
+          return (
+            <div key={b.l} style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>{b.l}</span>
+                <span style={{ fontSize: 11 }}>
+                  <span style={{ color: "#60a5fa", fontWeight: 700 }}>For: {gfC}</span>{"  "}
+                  <span style={{ color: "#f87171", fontWeight: 700 }}>vs: {gaC}</span>
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+                <span style={{ fontSize: 9, color: "#60a5fa", width: 16 }}>F</span>
+                <div style={{ flex: 1, background: "#1e293b", borderRadius: 3, height: 6 }}>
+                  <div style={{ width: (gfC / mx * 100) + "%", background: C.blue, borderRadius: 3, height: "100%" }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 9, color: "#f87171", width: 16 }}>V</span>
+                <div style={{ flex: 1, background: "#1e293b", borderRadius: 3, height: 6 }}>
+                  <div style={{ width: (gaC / mx * 100) + "%", background: C.red, borderRadius: 3, height: "100%" }} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Lbl>All Results</Lbl>
+      {games.slice().reverse().map((g, i) => (
+        <button key={i} onClick={() => onView(g)} style={{ ...card, width: "100%", textAlign: "left", cursor: "pointer", marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>vs {g.opponent.split(" ").slice(0, 3).join(" ")}</div>
+              <div style={{ fontSize: 11, color: C.muted }}>{g.date} · {g.venue}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 22, fontWeight: 900, color: "#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span>
+              <WinBadge gf={g.scoreFor} ga={g.scoreAgainst} />
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderPlayers = () => (
+    <div>
+      <div style={{ display: "flex", gap: 5, marginBottom: 12 }}>
+        {["goals", "assists", "gf", "ga", "net80"].map(k => sb(k, k === "net80" ? "Net/80" : k.toUpperCase()))}
+      </div>
+      <p style={{ color: C.muted, fontSize: 11, marginTop: 0, marginBottom: 12 }}>Net/80: goals scored minus conceded per 80 mins on field. * = Maariyah</p>
+      {pList.map(p => {
+        const s = allSt[String(p.id)] || {};
+        return (
+          <div key={p.id} style={{ ...card, border: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{p.name}</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{s.played} games - {s.mins} mins - avg {s.avgMins} min/game</div>
+              </div>
+              <div style={{ background: parseFloat(s.net80) > 0 ? "#064e3b" : parseFloat(s.net80) < 0 ? "#450a0a" : C.border, borderRadius: 8, padding: "6px 10px", textAlign: "center", minWidth: 54 }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: parseFloat(s.net80) > 0 ? C.green : parseFloat(s.net80) < 0 ? C.red : "#94a3b8" }}>{s.net80s || "-"}</div>
+                <div style={{ fontSize: 9, color: C.muted }}>NET/80</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 5 }}>
+              {[["G", s.goals, "#60a5fa"], ["A", s.assists, C.green], ["GF", s.gf, "#3b82f6"], ["GA", s.ga, "#f87171"]].map(([l, v, co]) => (
+                <div key={l} style={{ flex: 1, background: C.border, borderRadius: 8, padding: "7px 4px", textAlign: "center" }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: co }}>{v || 0}</div>
+                  <div style={{ fontSize: 8, color: C.muted }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderOptimum = () => {
+    const el = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}) })).filter(p => p.played > 0 && p.net80 !== null);
+    const top11 = [...el].sort((a, b) => (b.net80 || 0) - (a.net80 || 0)).slice(0, 11);
+    const rest = [...el].sort((a, b) => (b.net80 || 0) - (a.net80 || 0)).slice(11);
+    const byPos = { GK: [], DEF: [], MID: [], FWD: [] };
+    top11.forEach(p => { if (byPos[p.pos]) byPos[p.pos].push(p); });
+    return (
+      <div>
+        <div style={{ ...card, border: `2px solid ${C.amber}`, marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.amber, marginBottom: 4 }}>Season Optimum XI</div>
+          <div style={{ fontSize: 11, color: C.muted }}>Best 11 by Net/80 across all games.</div>
+        </div>
+        {["GK", "DEF", "MID", "FWD"].map(pos => byPos[pos].length > 0 && (
+          <div key={pos} style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: POS_COLOR[pos], letterSpacing: 1, marginBottom: 6 }}>{pos}</div>
+            {byPos[pos].map(p => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, ...card, border: `1px solid ${C.border}`, marginBottom: 5 }}>
+                <span style={{ width: 28, height: 28, borderRadius: "50%", background: POS_COLOR[pos], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#fff", flexShrink: 0 }}>{p.num}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</div>
+                  <div style={{ fontSize: 10, color: C.muted }}>{p.played} games - {p.mins} mins</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: parseFloat(p.net80) >= 0 ? C.green : C.red }}>{p.net80s}</div>
+                  <div style={{ fontSize: 9, color: C.muted }}>NET/80</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+        {rest.length > 0 && (
+          <div>
+            <Lbl>Others</Lbl>
+            {rest.map((p, i) => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#0a1222", border: `1px solid #1e293b`, borderRadius: 10, padding: "9px 14px", marginBottom: 4, opacity: 0.75 }}>
+                <span style={{ fontSize: 12, color: C.muted, width: 20 }}>{i + 12}.</span>
+                <span style={{ flex: 1, fontSize: 13, color: "#94a3b8" }}>{p.name}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: parseFloat(p.net80) >= 0 ? C.green : C.red }}>{p.net80s}</span>
+                <span style={{ fontSize: 10, color: C.muted }}>{p.mins}m</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderScoutList = () => (
+    <div>
+      <p style={{ color: C.muted, fontSize: 12, marginTop: 0 }}>Tap opponent for full report</p>
+      {opps.map(opp => {
+        const og = games.filter(g => g.opponent === opp);
+        const w = og.filter(g => g.scoreFor > g.scoreAgainst).length;
+        const d = og.filter(g => g.scoreFor === g.scoreAgainst).length;
+        const l = og.filter(g => g.scoreFor < g.scoreAgainst).length;
+        const tf = og.reduce((a, g) => a + g.scoreFor, 0);
+        const ta = og.reduce((a, g) => a + g.scoreAgainst, 0);
+        return (
+          <button key={opp} onClick={() => setScout(opp)} style={{ ...card, width: "100%", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{opp.split(" ").slice(0, 4).join(" ")}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>GF: {tf} GA: {ta}</div>
+            </div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {w > 0 && <span style={{ background: "#059669", color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 12, fontWeight: 700 }}>{w}W</span>}
+              {d > 0 && <span style={{ background: "#d97706", color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 12, fontWeight: 700 }}>{d}D</span>}
+              {l > 0 && <span style={{ background: C.red, color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 12, fontWeight: 700 }}>{l}L</span>}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderScoutDetail = () => {
+    const og = games.filter(g => g.opponent === scout);
+    const ss = calcStats(og);
+    const tf = og.reduce((a, g) => a + g.scoreFor, 0);
+    const ta = og.reduce((a, g) => a + g.scoreAgainst, 0);
+    const sc = allP.map(p => ({ ...p, ...(ss[String(p.id)] || {}) })).filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals);
+    const sa = allP.map(p => ({ ...p, ...(ss[String(p.id)] || {}) })).filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists);
+    const sm = allP.map(p => ({ ...p, ...(ss[String(p.id)] || {}) })).filter(p => p.played > 0).sort((a, b) => b.mins - a.mins);
+    const opt = allP.map(p => ({ ...p, ...(ss[String(p.id)] || {}) })).filter(p => p.played > 0 && p.net80 !== null).sort((a, b) => (b.net80 || 0) - (a.net80 || 0)).slice(0, 11);
+    return (
+      <div>
+        <button onClick={() => setScout(null)} style={{ background: "none", border: "none", color: "#60a5fa", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 12 }}>{"< All Opponents"}</button>
+        <div style={{ fontSize: 16, fontWeight: 800, color: "#60a5fa", marginBottom: 10 }}>{scout.split(" ").slice(0, 4).join(" ")}</div>
+        <div style={{ ...card, marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
+            {[["Played", og.length, "#94a3b8"], ["GF", tf, "#60a5fa"], ["GA", ta, "#f87171"], ["GD", tf - ta >= 0 ? "+" + String(tf - ta) : String(tf - ta), C.green]].map(([l, v, co]) => (
+              <div key={l}>
+                <div style={{ fontSize: 28, fontWeight: 900, color: co }}>{v}</div>
+                <div style={{ fontSize: 10, color: C.muted }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {sc.length > 0 && (
+          <div style={card}>
+            <Lbl>Scorers & Assists</Lbl>
+            {sc.map((p, i) => (
+              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: i < sc.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.name}</span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {p.goals > 0 && <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 800, color: "#60a5fa" }}>{p.goals}</div><div style={{ fontSize: 8, color: C.muted }}>G</div></div>}
+                  {p.assists > 0 && <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 800, color: C.green }}>{p.assists}</div><div style={{ fontSize: 8, color: C.muted }}>A</div></div>}
+                </div>
+              </div>
+            ))}
+            {sa.filter(p => !sc.find(s => String(s.id) === String(p.id))).map((p, i) => (
+              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.name}</span>
+                <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 800, color: C.green }}>{p.assists}</div><div style={{ fontSize: 8, color: C.muted }}>A</div></div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={card}>
+          <Lbl>Minutes Played</Lbl>
+          {sm.map((p, i) => (
+            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: i < sm.length - 1 ? `1px solid ${C.border}` : "none" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.name}</span>
+              <span style={{ fontSize: 13, color: C.amber, fontWeight: 700 }}>{p.mins}' <span style={{ fontSize: 10, color: C.muted }}>avg {p.avgMins}'</span></span>
+            </div>
+          ))}
+        </div>
+        {opt.length > 0 && (
+          <div style={card}>
+            <Lbl>Optimum Team vs {scout.split(" ")[0]}</Lbl>
+            <p style={{ fontSize: 11, color: C.muted, marginTop: 0, marginBottom: 8 }}>{og.length} game{og.length !== 1 ? "s" : ""} of data</p>
+            {opt.map((p, i) => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: i < opt.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                <span style={{ fontSize: 12, color: C.muted, width: 20 }}>{i + 1}.</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.text }}>{p.name}</span>
+                <span style={{ fontSize: 10, color: POS_COLOR[p.pos] || C.muted, fontWeight: 700, marginRight: 6 }}>{p.pos}</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {p.goals > 0 && <span style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700 }}>{p.goals}G</span>}
+                  {p.assists > 0 && <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>{p.assists}A</span>}
+                  <span style={{ fontSize: 11, color: "#94a3b8" }}>{p.net80s}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <Lbl>Results</Lbl>
+        {og.map((g, i) => (
+          <button key={i} onClick={() => onView(g)} style={{ ...card, width: "100%", textAlign: "left", cursor: "pointer", marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: C.muted }}>{g.date} · {g.venue}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span>
+                <WinBadge gf={g.scoreFor} ga={g.scoreAgainst} />
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, ...T, paddingBottom: 32 }}>
+      <div style={{ background: "linear-gradient(135deg,#1e3a5f,#0f2544)", padding: 16, borderBottom: `3px solid ${C.blue}`, display: "flex", alignItems: "center", gap: 12 }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "#60a5fa", fontSize: 20, cursor: "pointer", padding: 0, fontWeight: 800 }}>{"<"}</button>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#60a5fa" }}>Season Stats</div>
+          <div style={{ fontSize: 11, color: C.muted }}>{games.length} games played</div>
+        </div>
+      </div>
+      <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, background: "#0a1628" }}>
+        {[["overview", "Overview"], ["players", "Players"], ["optimum", "Optimum"], ["scouting", "Scouting"]].map(([t, l]) => (
+          <button key={t} onClick={() => setView(t)} style={{ flex: 1, padding: "13px 2px", background: "none", border: "none", borderBottom: view === t ? `3px solid ${C.blue}` : "3px solid transparent", color: view === t ? "#60a5fa" : C.muted, fontWeight: 700, fontSize: 11, cursor: "pointer" }}>{l}</button>
+        ))}
+      </div>
+      <div style={{ padding: 14, maxWidth: 480, margin: "0 auto" }}>
+        {view === "overview" && renderOverview()}
+        {view === "players" && renderPlayers()}
+        {view === "optimum" && renderOptimum()}
+        {view === "scouting" && (scout ? renderScoutDetail() : renderScoutList())}
       </div>
     </div>
   );
@@ -944,19 +1246,4 @@ export default function App() {
             {key:"analytics",label:"Stats",  icon:"M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"},
             {key:"players", label:"Players", icon:"M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"},
           ].map(({key,label,icon})=>(
-            <button key={label} onClick={()=>{ if(key==="games"){setStatsTab("scouting");setScreen("stats");}else if(key==="analytics"){setStatsTab("overview");setScreen("stats");}else setScreen(key); }} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:(screen===key||(key==="games"&&screen==="stats")||(key==="analytics"&&screen==="stats"))?`2px solid ${C.blue}`:"2px solid transparent" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill={screen===key?"#60a5fa":C.muted}><path d={icon}/></svg>
-              <span style={{ fontSize:10, color:screen===key?"#60a5fa":C.muted, fontWeight:screen===key?700:400 }}>{label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {screen!=="game"&&screen!=="lineup"&&!viewing&&(
-        <div style={{ position:"fixed", bottom:70, right:16, display:"flex", gap:8, zIndex:101 }}>
-          {!isAdmin&&<div onClick={()=>setShowPin(true)} style={{ background:C.border, border:`1px solid #334155`, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:C.muted, fontWeight:700 }}>Admin Login</div>}
-          {isAdmin&&<div onClick={()=>{ setIsAdmin(false);localStorage.removeItem("ps_admin"); }} style={{ background:"#7f1d1d", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:"#fca5a5", fontWeight:700 }}>Logout</div>}
-        </div>
-      )}
-    </>
-  );
-}
+            <button key={label} onClick={()=>{ if(key==="games"){setStatsTab("scouting");setScreen("stats");}else if(key==="analytics"){setStatsTab("overview");setScreen("stats");}else setScreen(key); }} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignI
