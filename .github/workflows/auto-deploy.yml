@@ -1,0 +1,60 @@
+name: Auto Deploy from Gist
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Check Gist for updates
+        id: check
+        run: |
+          GIST_URL="https://gist.githubusercontent.com/mansoorali0-ux/1ab82824f4da39e42349663f55232101/raw/update.json"
+          RESPONSE=$(curl -sf "$GIST_URL" 2>/dev/null || echo '{"version":"none"}')
+          GIST_VER=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('version','none'))" 2>/dev/null || echo "none")
+          CURRENT=$(cat .deployed-version 2>/dev/null || echo "none")
+          echo "gist_version=$GIST_VER" >> $GITHUB_OUTPUT
+          echo "current_version=$CURRENT" >> $GITHUB_OUTPUT
+          if [ "$GIST_VER" != "$CURRENT" ] && [ "$GIST_VER" != "none" ]; then
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Apply update
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          GIST_URL="https://gist.githubusercontent.com/mansoorali0-ux/1ab82824f4da39e42349663f55232101/raw/update.json"
+          curl -sf "$GIST_URL" | python3 << 'PYEOF'
+import json, sys, os
+data = json.load(sys.stdin)
+for filepath, content in data.get('files', {}).items():
+    os.makedirs(os.path.dirname(filepath), exist_ok=True) if os.path.dirname(filepath) else None
+    with open(filepath, 'w') as f:
+        f.write(content)
+    print(f"Updated: {filepath}")
+with open('.deployed-version', 'w') as f:
+    f.write(data.get('version', 'unknown'))
+print("Done:", data.get('version'))
+PYEOF
+
+      - name: Commit and push
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          git config user.email "pitchside-bot@deploy.app"
+          git config user.name "PitchSide Bot"
+          git add -A
+          git commit -m "Auto-deploy v${{ steps.check.outputs.gist_version }}"
+          git push
+
+      - name: No update needed
+        if: steps.check.outputs.needs_update == 'false'
+        run: echo "Up to date at ${{ steps.check.outputs.current_version }}"
