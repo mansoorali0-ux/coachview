@@ -48,6 +48,160 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+//  LIVE OPTIMUM XI COMPONENT
+function LiveOptimumXI({ events, onField, allPlayers, positions, gf, ga, half, secs }) {
+  // Calculate live stats for each player based on current game events
+  const goalEvents = events.filter(e => e.type === "goal_for" && !e.ownGoal);
+  const subEvents  = events.filter(e => e.type === "sub");
+  const curMin = Math.floor(secs / 60);
+
+  // Build per-player minutes using sub events
+  const playerMins = {};
+  allPlayers.forEach(p => {
+    const pid = String(p.id);
+    // Was in starting 11?
+    const inStart = onField.map(String).includes(pid);
+    let mins = 0;
+
+    // Find when they came on / went off
+    let onTime = inStart ? 0 : null;
+    let offTime = null;
+
+    subEvents.forEach(ev => {
+      if (String(ev.playerOn) === pid) onTime = ev.minute;
+      if (String(ev.playerOff) === pid) offTime = ev.minute;
+    });
+
+    if (onTime !== null) {
+      mins = (offTime !== null ? offTime : curMin) - onTime;
+    }
+    playerMins[pid] = Math.max(0, mins);
+  });
+
+  // Goals and assists per player in this game
+  const playerGoals   = {};
+  const playerAssists = {};
+  goalEvents.forEach(ev => {
+    if (ev.scorer)  playerGoals[String(ev.scorer)]   = (playerGoals[String(ev.scorer)]   || 0) + 1;
+    if (ev.assist)  playerAssists[String(ev.assist)] = (playerAssists[String(ev.assist)] || 0) + 1;
+  });
+
+  // Goals conceded while each player was on field
+  const concededEvents = events.filter(e => e.type === "goal_against");
+  const playerConceded = {};
+  allPlayers.forEach(p => {
+    const pid = String(p.id);
+    // Check sub events to see if player was on field at time of each conceded goal
+    let count = 0;
+    concededEvents.forEach(ev => {
+      const min = ev.minute;
+      // Was player on field at this minute?
+      const inStartXI = onField.map(String).includes(pid);
+      let wasOn = inStartXI;
+      subEvents.forEach(sub => {
+        if (String(sub.playerOn)  === pid && sub.minute <= min) wasOn = true;
+        if (String(sub.playerOff) === pid && sub.minute <= min) wasOn = false;
+      });
+      if (wasOn) count++;
+    });
+    playerConceded[pid] = count;
+  });
+
+  // Score each player: goals*3 + assists*2 - conceded*0.5 + mins*0.01
+  const scored = allPlayers.map(p => {
+    const pid = String(p.id);
+    const mins    = playerMins[pid]    || 0;
+    const goals   = playerGoals[pid]   || 0;
+    const assists = playerAssists[pid] || 0;
+    const concede = playerConceded[pid]|| 0;
+    const score   = goals * 3 + assists * 2 - concede * 0.5 + mins * 0.01;
+    return { ...p, lMins: mins, lGoals: goals, lAssists: assists, lConcede: concede, lScore: score };
+  }).filter(p => playerMins[String(p.id)] > 0 || onField.map(String).includes(String(p.id)));
+
+  // Sort by score, take top 11
+  const sorted  = [...scored].sort((a, b) => b.lScore - a.lScore);
+  const top11   = sorted.slice(0, 11);
+  const rest    = sorted.slice(11);
+
+  // Group by position
+  const byPos = { GK: [], DEF: [], MID: [], FWD: [] };
+  top11.forEach(p => {
+    const pos = positions[p.id] || p.pos || "MID";
+    if (byPos[pos]) byPos[pos].push(p);
+    else byPos["MID"].push(p);
+  });
+
+  const currentlyOnField = new Set(onField.map(String));
+
+  return (
+    <div>
+      <div style={{ background: "linear-gradient(135deg,#1a2744,#0f1f3d)", border: `1px solid ${C.amber}`, borderRadius: 12, padding: "10px 14px", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16 }}>⭐</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.amber }}>Live Optimum XI</div>
+            <div style={{ fontSize: 10, color: C.muted }}>Best 11 right now · updates every minute</div>
+          </div>
+          <div style={{ marginLeft: "auto", textAlign: "right" }}>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>{gf}<span style={{ color: C.muted, margin: "0 4px" }}>-</span>{ga}</div>
+            <div style={{ fontSize: 9, color: C.muted }}>{half === 1 ? "1st" : "2nd"} Half</div>
+          </div>
+        </div>
+      </div>
+
+      {["GK","DEF","MID","FWD"].map(pos => byPos[pos].length > 0 && (
+        <div key={pos} style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: POS_COLOR[pos], letterSpacing: 1, marginBottom: 5 }}>{pos}</div>
+          {byPos[pos].map(p => {
+            const isOn = currentlyOnField.has(String(p.id));
+            return (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, background: isOn ? "#0d2137" : "#0a1628", border: `1px solid ${isOn ? C.blue : "#1e293b"}`, borderRadius: 10, padding: "9px 12px", marginBottom: 5, opacity: isOn ? 1 : 0.65 }}>
+                <span style={{ width: 28, height: 28, borderRadius: "50%", background: POS_COLOR[pos], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 10, color: "#fff", flexShrink: 0 }}>{p.num}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {p.name.split(" ")[0]}
+                    {!isOn && <span style={{ fontSize: 9, color: C.amber, marginLeft: 5 }}>BENCH</span>}
+                  </div>
+                  <div style={{ fontSize: 9, color: C.muted }}>{p.lMins}' played</div>
+                </div>
+                <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                  {p.lGoals > 0 && <div style={{ background: "#1e3a5f", borderRadius: 6, padding: "3px 7px", textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 800, color: "#60a5fa" }}>{p.lGoals}</div><div style={{ fontSize: 7, color: C.muted }}>G</div></div>}
+                  {p.lAssists > 0 && <div style={{ background: "#064e3b", borderRadius: 6, padding: "3px 7px", textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{p.lAssists}</div><div style={{ fontSize: 7, color: C.muted }}>A</div></div>}
+                  <div style={{ background: C.border, borderRadius: 6, padding: "3px 7px", textAlign: "center", minWidth: 30 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: C.amber }}>{p.lScore.toFixed(1)}</div>
+                    <div style={{ fontSize: 7, color: C.muted }}>RTG</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+
+      {rest.length > 0 && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 1, marginBottom: 5, marginTop: 8 }}>OUTSIDE XI</div>
+          {rest.map((p, i) => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, background: "#080f1c", border: `1px solid #0f1e35`, borderRadius: 8, padding: "7px 12px", marginBottom: 4, opacity: 0.6 }}>
+              <span style={{ fontSize: 11, color: C.muted, width: 18 }}>{i + 12}.</span>
+              <span style={{ flex: 1, fontSize: 12, color: "#94a3b8" }}>{p.name.split(" ")[0]}</span>
+              <span style={{ fontSize: 10, color: POS_COLOR[p.pos] || C.muted, fontWeight: 700, marginRight: 6 }}>{p.pos}</span>
+              <span style={{ fontSize: 11, color: C.muted }}>{p.lMins}'</span>
+              <span style={{ fontSize: 11, color: "#64748b", fontWeight: 700 }}>{p.lScore.toFixed(1)}</span>
+            </div>
+          ))}
+        </>
+      )}
+
+      {scored.length === 0 && (
+        <div style={{ textAlign: "center", color: C.muted, fontSize: 13, marginTop: 40 }}>
+          Start the clock to see live ratings
+        </div>
+      )}
+    </div>
+  );
+}
+
 //  PIN SCREEN 
 function PinScreen({ onAdmin, onViewer }) {
   const [pin, setPin] = useState("");
@@ -125,7 +279,6 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin, backLabel }) {
       </div>
 
       <div style={{ padding: 14, maxWidth: 480, margin: "0 auto" }}>
-        {/* Starting lineups */}
         <Lbl>Starting Lineup</Lbl>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 12 }}>
           {(game.starting || []).map(id => {
@@ -162,7 +315,6 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin, backLabel }) {
           </div>
         </>}
 
-        {/* Goals */}
         <Lbl mt={8}>Goals</Lbl>
         {goalEvs.length === 0 && <div style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>No goals logged</div>}
         {goalEvs.map(ev => (
@@ -178,7 +330,6 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin, backLabel }) {
           </div>
         ))}
 
-        {/* Subs */}
         <Lbl mt={12}>Substitutions</Lbl>
         {subEvs.length === 0 && <div style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>None logged</div>}
         {subEvs.map(ev => (
@@ -192,7 +343,6 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin, backLabel }) {
           </div>
         ))}
 
-        {/* Minutes */}
         <Lbl mt={12}>Minutes Played</Lbl>
         {playerList.map(p => {
           const s = stats[String(p.id)]; if (!s) return null;
@@ -208,7 +358,6 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin, backLabel }) {
         })}
       </div>
 
-      {/* Edit Modal - admin only */}
       {editing && (
         <Modal title="Edit Event" onClose={() => setEditing(null)}>
           <Lbl>Minute</Lbl>
@@ -261,7 +410,6 @@ function Home({ games, onStart, onStats, onView, isAdmin }) {
           for (let i=sorted.length-1;i>=0;i--) { if(sorted[i].scoreFor>=sorted[i].scoreAgainst) streak++; else break; }
           return (
             <div style={{ marginTop:14 }}>
-              {/* W / D / L */}
               <div style={{ display:"flex", justifyContent:"center", gap:20, marginBottom:10 }}>
                 {[["W",record.W,"#059669"],["D",record.D,"#d97706"],["L",record.L,C.red]].map(([l,v,c])=>(
                   <div key={l} style={{ textAlign:"center" }}>
@@ -270,7 +418,6 @@ function Home({ games, onStart, onStats, onView, isAdmin }) {
                   </div>
                 ))}
               </div>
-              {/* GF / GA on its own row below */}
               <div style={{ display:"flex", justifyContent:"center", gap:24, marginBottom:8 }}>
                 <div style={{ textAlign:"center" }}>
                   <div style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{totalGF}</div>
@@ -291,7 +438,6 @@ function Home({ games, onStart, onStats, onView, isAdmin }) {
       </div>
 
       <div style={{ padding: 16, maxWidth: 480, margin: "0 auto" }}>
-        {/* Results */}
         {games.length > 0 && <>
           <Lbl>Recent Results</Lbl>
           {games.slice().reverse().map((g, i) => (
@@ -309,7 +455,6 @@ function Home({ games, onStart, onStats, onView, isAdmin }) {
           <div style={{ height: 8 }} />
         </>}
 
-        {/* Upcoming */}
         {remaining.length > 0 && <>
           <Lbl>Upcoming</Lbl>
           {remaining.map((g, i) => (
@@ -325,7 +470,6 @@ function Home({ games, onStart, onStats, onView, isAdmin }) {
           <div style={{ height: 8 }} />
         </>}
 
-        {/* Actions */}
         <div style={{ display: "flex", gap: 10 }}>
           {isAdmin && <button onClick={() => { setOpp(""); setShowNew(true); }} style={{ ...btn(C.blue), flex: 1 }}>+ New Game</button>}
           <button onClick={onStats} style={{ ...btn(C.border, "#93c5fd"), flex: 1 }}>Season Stats</button>
@@ -453,7 +597,6 @@ function Game({ gameInfo, onEnd, onBack }) {
   const [subPos,    setSubPos]    = useState(null);
   const timerRef = useRef(null), startRef = useRef(null), pauseRef = useRef(0);
   const liveGameRef = useRef({...gameInfo, events:[], scoreFor:0, scoreAgainst:0, date:new Date().toLocaleDateString("en-US"), id:gameInfo.id||(new Date().toLocaleDateString("en-US").replace(/\//g,"-")+"-"+gameInfo.opponent.slice(0,10).replace(/\s/g,"-")).toLowerCase()});
-  // Keep liveGameRef in sync
   useEffect(()=>{ liveGameRef.current={...gameInfo,events,scoreFor:gf,scoreAgainst:ga,secondHalfStarting:half===2?[...onField]:undefined,id:liveGameRef.current.id,date:liveGameRef.current.date,status:"in_progress"}; },[events,gf,ga,half,onField]);
 
   useEffect(() => {
@@ -472,7 +615,6 @@ function Game({ gameInfo, onEnd, onBack }) {
     return () => clearInterval(timerRef.current);
   }, [running]);
 
-  // Restore clock if page was refreshed during a game
   useEffect(() => {
     const wasRunning = sessionStorage.getItem("ps_clock_running") === "1";
     const savedStart = sessionStorage.getItem("ps_clock_start");
@@ -487,7 +629,6 @@ function Game({ gameInfo, onEnd, onBack }) {
     }
   }, []);
 
-  // Save events to sessionStorage as extra backup on every change
   useEffect(() => {
     if (events.length > 0) {
       try { sessionStorage.setItem("ps_live_events", JSON.stringify({events,gf,ga,half,onField})); } catch(e) {}
@@ -508,7 +649,6 @@ function Game({ gameInfo, onEnd, onBack }) {
     const ev={type:"goal_for",minute:parseInt(goalMin)||0,scorer:ownGoal?null:scorer,assist:ownGoal?null:assist,ownGoal,score:ngf+"-"+ga,half,id:uid()};
     const newEvents=[...events,ev];
     setEvents(()=>newEvents);
-    // Save live to Firebase so data survives if tab closes
     const snap={...liveGameRef.current,events:newEvents,scoreFor:ngf,scoreAgainst:ga};
     saveGame(snap).catch(()=>{});
     setModal(null);
@@ -562,10 +702,10 @@ function Game({ gameInfo, onEnd, onBack }) {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - now includes XI */}
       <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#0a1628" }}>
-        {[["field","On Field"],["events","Events"],["bench","Bench"]].map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} style={{ flex:1, padding:"12px 4px", background:"none", border:"none", borderBottom:tab===t?`3px solid ${C.blue}`:"3px solid transparent", color:tab===t?"#60a5fa":C.muted, fontWeight:700, fontSize:12, cursor:"pointer" }}>{l}</button>
+        {[["field","On Field"],["xi","Live XI"],["events","Events"],["bench","Bench"]].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ flex:1, padding:"12px 4px", background:"none", border:"none", borderBottom:tab===t?`3px solid ${tab==="xi"?C.amber:C.blue}`:"3px solid transparent", color:tab===t?(t==="xi"?C.amber:"#60a5fa"):C.muted, fontWeight:700, fontSize:11, cursor:"pointer" }}>{l}</button>
         ))}
       </div>
 
@@ -581,6 +721,20 @@ function Game({ gameInfo, onEnd, onBack }) {
             </div>
           ))}
         </div>}
+
+        {/* LIVE OPTIMUM XI TAB */}
+        {tab==="xi" && (
+          <LiveOptimumXI
+            events={events}
+            onField={onField}
+            allPlayers={allP}
+            positions={positions}
+            gf={gf}
+            ga={ga}
+            half={half}
+            secs={secs}
+          />
+        )}
 
         {tab==="events" && <div>
           <div style={{ fontSize:11, color:C.muted, marginBottom:8 }}>Tap to edit</div>
@@ -682,8 +836,8 @@ function Game({ gameInfo, onEnd, onBack }) {
           <Lbl>Scorer</Lbl>
           {allP.map(p=><button key={p.id} onClick={()=>setScorer(String(p.id))} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:scorer===String(p.id)?C.blue:C.border, border:scorer===String(p.id)?`2px solid #60a5fa`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}
           <Lbl mt={8}>Assist</Lbl>
-          <button onClick={()=>setEAssist(null)} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:"#475569", border:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>No Assist</button>
-          {allP.filter(p=>String(p.id)!==eScorer).map(p=><button key={p.id} onClick={()=>setEAssist(eAssist===String(p.id)?null:String(p.id))} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:eAssist===String(p.id)?"#065f46":C.border, border:eAssist===String(p.id)?`2px solid ${C.green}`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}
+          <button onClick={()=>setAssist(null)} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:"#475569", border:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>No Assist</button>
+          {allP.filter(p=>String(p.id)!==scorer).map(p=><button key={p.id} onClick={()=>setAssist(assist===String(p.id)?null:String(p.id))} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:assist===String(p.id)?"#065f46":C.border, border:assist===String(p.id)?`2px solid ${C.green}`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}
         </>}
         <div style={{ display:"flex", gap:8, marginTop:12 }}>
           <button onClick={delEditEv}  style={{ ...btn("#7f1d1d","#fca5a5"), flex:1 }}>Delete</button>
@@ -922,8 +1076,6 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   );
 }
 
-//  APP ROOT 
-
 // PLAYERS SCREEN
 function Players({ games, onBack, isAdmin }) {
   const [selected, setSelected] = useState(null);
@@ -1071,7 +1223,6 @@ export default function App() {
       {screen==="stats"   && <Stats   games={games} onBack={()=>setScreen("home")} onView={g=>{setViewing(g);setPrevScreen("stats");}} isAdmin={isAdmin} defaultTab={statsTab}/>}
       {screen==="players" && <Players games={games} onBack={()=>setScreen("home")} isAdmin={isAdmin}/>}
 
-      {/* Bottom Nav Bar - hidden during game and lineup */}
       {screen!=="game" && screen!=="lineup" && !viewing && (
         <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a1628", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
           {[
@@ -1088,7 +1239,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Admin/Logout - hidden during game and lineup */}
       {screen!=="game" && screen!=="lineup" && !viewing && (
         <div style={{ position:"fixed", bottom:70, right:16, display:"flex", gap:8, zIndex:101 }}>
           {!isAdmin && <div onClick={()=>setShowPin(true)} style={{ background:C.border, border:`1px solid #334155`, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:C.muted, fontWeight:700 }}>Admin Login</div>}
