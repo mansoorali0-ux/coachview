@@ -1320,20 +1320,20 @@ function Players({ games, onBack, isAdmin }) {
   );
 }
 
+
 // ─── KEYSTONE FC GAME BUILDER ─────────────────────────────────────────────────
 function makeKeystoneGame(roster) {
   const pid = (first, lastInit) => {
     const f = first.toLowerCase();
     let match;
     if (lastInit) {
-      match = roster.find(p => p.name.split(" ")[0].toLowerCase()===f && (p.name.split(" ")[1]||"").toLowerCase().startsWith(lastInit.toLowerCase()));
+      match = roster.find(p => p.name.split(" ")[0].toLowerCase() === f && (p.name.split(" ")[1] || "").toLowerCase().startsWith(lastInit.toLowerCase()));
     }
-    if (!match) match = roster.find(p => p.name.split(" ")[0].toLowerCase()===f);
+    if (!match) match = roster.find(p => p.name.split(" ")[0].toLowerCase() === f);
     return match ? String(match.id) : null;
   };
   const emilyId    = pid("emily");
   const lilyKId    = pid("lily","k");
-  // lilyNId must NOT fall back to lilyKId — if no "N" match found, leave null
   const lilyNId    = pid("lily","n");
   const avaId      = pid("ava");
   const aureliaId  = pid("aurelia");
@@ -1342,35 +1342,34 @@ function makeKeystoneGame(roster) {
   const laineyId   = pid("lainey");
   const abbyId     = pid("abby");
   const caitDId    = pid("caitlin","d") || pid("caitlyn","d");
-
   const maariyahId = pid("maariyah");
   const ashleyId   = pid("ashley");
   const sadieId    = pid("sadie");
   const emmaId     = pid("emma");
 
-  const starting = [emilyId,lilyKId,avaId,aureliaId,juliaId,brookeId,laineyId,abbyId,caitDId,lilyNId,ashleyId].filter(Boolean);
+  // 1st half starting XI: Emily, Lily K, Ava, Aurelia, Julia, Brooke, Lainey, Abby, Caitlin D, Lily N, Ashley
+  const starting = [emilyId, lilyKId, avaId, aureliaId, juliaId, brookeId, laineyId, abbyId, caitDId, lilyNId, ashleyId].filter(Boolean);
+
   const events = [];
   // 1st half subs
   events.push({ type:"sub", minute:14, playerOff:aureliaId, playerOn:maariyahId, half:1, id:uid() });
   events.push({ type:"sub", minute:22, playerOff:brookeId,  playerOn:sadieId,    half:1, id:uid() });
-  // 2nd half subs @12' (=52')
+  // 2nd half subs @12min (=52 total)
   events.push({ type:"sub", minute:52, playerOff:lilyNId,    playerOn:sadieId,    half:2, id:uid() });
   events.push({ type:"sub", minute:52, playerOff:maariyahId, playerOn:brookeId,   half:2, id:uid() });
-  // 2nd half subs @19' (=59')
+  // 2nd half subs @19min (=59 total)
   events.push({ type:"sub", minute:59, playerOff:emilyId,    playerOn:emmaId,     half:2, id:uid() });
   events.push({ type:"sub", minute:59, playerOff:laineyId,   playerOn:maariyahId, half:2, id:uid() });
   events.push({ type:"sub", minute:59, playerOff:abbyId,     playerOn:lilyNId,    half:2, id:uid() });
-  // 2nd half subs @27' (=67')
+  // 2nd half subs @27min (=67 total)
   events.push({ type:"sub", minute:67, playerOff:maariyahId, playerOn:laineyId,   half:2, id:uid() });
   events.push({ type:"sub", minute:67, playerOff:sadieId,    playerOn:abbyId,     half:2, id:uid() });
-  // Goals
+  // Goals: they score @71, we score @72 (Caitlin D, assist Lainey)
   events.push({ type:"goal_against", minute:71, score:"0-1", half:2, id:uid() });
   events.push({ type:"goal_for", minute:72, scorer:caitDId, assist:laineyId, score:"1-1", half:2, id:uid() });
 
-  // 2nd half XI: Ashley, Lily N, Abby, Caitlin D, Lainey, Maariyah, Ava, Caitlin K, Aurelia, Emily, Julia
-  // Lily N must start because she comes off @52'. Caitlin K must start because she comes off @59'.
-  // 2nd half XI: 10 unique players confirmed. Using Lily K as 11th pending confirmation.
-  const secondHalfStarting = [ashleyId,lilyNId,abbyId,caitDId,laineyId,maariyahId,avaId,lilyKId,aureliaId,emilyId,juliaId].filter(Boolean);
+  // 2nd half XI: Ashley, Lily N, Abby, Caitlin D, Lainey, Maariyah, Ava, Lily K, Aurelia, Emily, Julia
+  const secondHalfStarting = [ashleyId, lilyNId, abbyId, caitDId, laineyId, maariyahId, avaId, lilyKId, aureliaId, emilyId, juliaId].filter(Boolean);
 
   return {
     id: "5-16-2025-keystone-fc",
@@ -1382,12 +1381,13 @@ function makeKeystoneGame(roster) {
     scoreAgainst: 1,
     starting,
     secondHalfStarting,
-    positions: Object.fromEntries(starting.map(id=>[id, roster.find(p=>String(p.id)===String(id))?.pos||"MID"])),
+    positions: Object.fromEntries(starting.map(id => [id, roster.find(p => String(p.id) === String(id))?.pos || "MID"])),
     events,
     allPlayers: roster,
     status: "completed",
   };
 }
+
 
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -1411,6 +1411,7 @@ export default function App() {
         await saveGame(makeLVURush());
         await saveGame(makeCoppermine());
         await saveGame(makeKeystoneGame(ROSTER));
+        await saveGame(makeKeystoneGame(ROSTER));
       } else {
         // Seed Keystone if not already saved
         if(!seeded.current && !fbGames.find(g=>g.id==="5-16-2025-keystone-fc")){
@@ -1427,4 +1428,75 @@ export default function App() {
   },[]);
 
   const updateGame=g=>{ setViewing(g);setGames(prev=>prev.map(x=>x.id===g.id?g:x)); };
-  const handleDelete=async g=>{ if(window.confirm("Delete "+g.opponent+"? This cannot be un
+  const handleDelete=async g=>{ if(window.confirm("Delete "+g.opponent+"? This cannot be undone.")){ await deleteGame(g.id);setGames(prev=>prev.filter(x=>x.id!==g.id));setViewing(null); } };
+  const handleEnd=async g=>{ clearGameState();setResumeState(null);await saveGame(g);setScreen("stats"); };
+
+  // Resume a saved game - pass full state back into gameInfo so Game can restore it
+  const handleResume=()=>{
+    if(!resumeState)return;
+    // Merge saved events/score/half back into gameInfo so Game component picks them up
+    setGameInfo({
+      ...resumeState.gameInfo,
+      _resumeEvents: resumeState.events,
+      _resumeGf:     resumeState.gf,
+      _resumeGa:     resumeState.ga,
+      _resumeHalf:   resumeState.half,
+      _resumeOnField:resumeState.onField,
+      _resumeSecs:   resumeState.secs,
+    });
+    setScreen("game");
+  };
+  const handleDiscardResume=()=>{ clearGameState();setResumeState(null); };
+
+  if(loading)return(
+    <div style={{ minHeight:"100vh", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, ...T }}>
+      <div style={{ fontSize:28, fontWeight:900, color:"#60a5fa", letterSpacing:2 }}>PitchSide</div>
+      <div style={{ fontSize:11, color:"#93c5fd", letterSpacing:2 }}>Baltimore Armour 11G Aspire</div>
+      <div style={{ marginTop:20, width:36, height:36, border:`3px solid ${C.border}`, borderTop:`3px solid ${C.blue}`, borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
+    </div>
+  );
+
+  if(viewing)return <GameDetail game={viewing} onClose={()=>setViewing(null)} onUpdate={updateGame} onDelete={handleDelete} isAdmin={isAdmin}/>;
+  if(showPin)return <PinScreen onAdmin={()=>{ setIsAdmin(true);localStorage.setItem("ps_admin","1");setShowPin(false); }} onViewer={()=>setShowPin(false)}/>;
+
+  return (
+    <>
+      {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); }} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume}/>}
+      {screen==="lineup"&&gameInfo&&<Lineup gameInfo={gameInfo} onKickoff={i=>{ setGameInfo(i);setScreen("game"); }} onBack={()=>setScreen("home")}/>}
+      {screen==="game"&&gameInfo&&<Game gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>{ setResumeState(loadGameState());setScreen("home"); }}/>}
+      {screen==="stats"&&<Stats games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={statsTab}/>}
+      {screen==="players"&&<Players games={games} onBack={()=>setScreen("home")} isAdmin={isAdmin}/>}
+
+      {screen!=="game"&&screen!=="lineup"&&!viewing&&(
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a1628", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
+          {[
+            {key:"home",    label:"Home",    icon:"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"},
+            {key:"games",   label:"Games",   icon:"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"},
+            {key:"analytics",label:"Stats",  icon:"M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"},
+            {key:"players", label:"Players", icon:"M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"},
+          ].map(({key,label,icon})=>(
+            <button
+              key={label}
+              onClick={() => {
+                if (key === "games") { setStatsTab("scouting"); setScreen("stats"); }
+                else if (key === "analytics") { setStatsTab("overview"); setScreen("stats"); }
+                else setScreen(key);
+              }}
+              style={{ flex: 1, padding: "10px 0 8px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, borderTop: (screen === key || (key === "games" && screen === "stats") || (key === "analytics" && screen === "stats")) ? `2px solid ${C.blue}` : "2px solid transparent" }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={screen===key?"#60a5fa":C.muted}><path d={icon}/></svg>
+              <span style={{ fontSize:10, color:screen===key?"#60a5fa":C.muted, fontWeight:screen===key?700:400 }}>{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {screen!=="game"&&screen!=="lineup"&&!viewing&&(
+        <div style={{ position:"fixed", bottom:70, right:16, display:"flex", gap:8, zIndex:101 }}>
+          {!isAdmin&&<div onClick={()=>setShowPin(true)} style={{ background:C.border, border:`1px solid #334155`, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:C.muted, fontWeight:700 }}>Admin Login</div>}
+          {isAdmin&&<div onClick={()=>{ setIsAdmin(false);localStorage.removeItem("ps_admin"); }} style={{ background:"#7f1d1d", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:"#fca5a5", fontWeight:700 }}>Logout</div>}
+        </div>
+      )}
+    </>
+  );
+}
