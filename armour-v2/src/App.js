@@ -372,27 +372,40 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           </div>
         )}
 
-        {games.length>0&&(<>
-          <Lbl>Recent Results</Lbl>
-          {games.slice().reverse().map((g,i)=>(
-            <button key={i} onClick={()=>onView(g)} style={{ background:"#0d2137", border:`1px solid #065f46`, borderRadius:12, padding:14, marginBottom:8, width:"100%", textAlign:"left", cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div><div style={{ fontWeight:700, fontSize:14, color:C.text }}>vs {g.opponent.split(" ").slice(0,3).join(" ")}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{g.date} · {g.venue} · {g.type==="tournament"?"Cup":"League"}</div></div>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}><span style={{ fontSize:26, fontWeight:900, color:"#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span><WinBadge gf={g.scoreFor} ga={g.scoreAgainst}/></div>
-            </button>
-          ))}
-          <div style={{ height:8 }}/>
-        </>}
-        {remaining.length>0&&(<>
-          <Lbl>Upcoming</Lbl>
-          {remaining.map((g,i)=>(
-            <button key={i} onClick={()=>{ if(!isAdmin)return; setType(g.type);setOpp(g.opp);setVenue(g.venue);setShowNew(true); }}
-              style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px", marginBottom:8, width:"100%", textAlign:"left", cursor:isAdmin?"pointer":"default", display:"flex", justifyContent:"space-between", alignItems:"center", opacity:isAdmin?1:0.8 }}>
-              <div><div style={{ fontWeight:700, fontSize:13, color:C.text }}>vs {g.opp.split(" ").slice(0,3).join(" ")}</div><div style={{ fontSize:11, color:C.muted }}>{g.date} · {g.venue}</div></div>
-              <span style={{ background:g.type==="tournament"?C.purple:C.blue, color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700 }}>{g.type==="tournament"?"CUP":"LEAGUE"}</span>
-            </button>
-          ))}
-          <div style={{ height:8 }}/>
-        </>}
+        {games.length > 0 && (
+          <div>
+            <Lbl>Recent Results</Lbl>
+            {games.slice().reverse().map((g, i) => (
+              <button key={i} onClick={() => onView(g)} style={{ background: "#0d2137", border: "1px solid #065f46", borderRadius: 12, padding: 14, marginBottom: 8, width: "100%", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>vs {g.opponent.split(" ").slice(0, 3).join(" ")}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{g.date} · {g.venue} · {g.type === "tournament" ? "Cup" : "League"}</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                  <span style={{ fontSize: 26, fontWeight: 900, color: "#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span>
+                  <WinBadge gf={g.scoreFor} ga={g.scoreAgainst} />
+                </div>
+              </button>
+            ))}
+            <div style={{ height: 8 }} />
+          </div>
+        )}
+        {remaining.length > 0 && (
+          <div>
+            <Lbl>Upcoming</Lbl>
+            {remaining.map((g, i) => (
+              <button key={i} onClick={() => { if (!isAdmin) return; setType(g.type); setOpp(g.opp); setVenue(g.venue); setShowNew(true); }}
+                style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, width: "100%", textAlign: "left", cursor: isAdmin ? "pointer" : "default", display: "flex", justifyContent: "space-between", alignItems: "center", opacity: isAdmin ? 1 : 0.8 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>vs {g.opp.split(" ").slice(0, 3).join(" ")}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{g.date} · {g.venue}</div>
+                </div>
+                <span style={{ background: g.type === "tournament" ? C.purple : C.blue, color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700 }}>{g.type === "tournament" ? "CUP" : "LEAGUE"}</span>
+              </button>
+            ))}
+            <div style={{ height: 8 }} />
+          </div>
+        )}
         <div style={{ display:"flex", gap:10 }}>
           {isAdmin&&<button onClick={()=>{ setOpp("");setShowNew(true); }} style={{ ...btn(C.blue), flex:1 }}>+ New Game</button>}
           <button onClick={onStats} style={{ ...btn(C.border,"#93c5fd"), flex:1 }}>Season Stats</button>
@@ -804,7 +817,16 @@ function Game({ gameInfo, onEnd, onBack }) {
             #{p.num} {p.name}
           </button>
         ))}
-        {subOn&&(<><Lbl mt={8}>Position</Lbl><div style={{ display:"flex", gap:8 }}>{POSITIONS.map(pos=><button key={pos} onClick={()=>setSubPos(pos)} style={{ flex:1, padding:"14px 4px", borderRadius:10, border:"none", fontWeight:800, fontSize:14, cursor:"pointer", background:subPos===pos?POS_COLOR[pos]:C.border, color:subPos===pos?"#fff":C.muted }}>{pos}</button>)}</div></>}
+        {subOn && (
+          <div>
+            <Lbl mt={8}>Position</Lbl>
+            <div style={{ display: "flex", gap: 8 }}>
+              {POSITIONS.map(pos => (
+                <button key={pos} onClick={() => setSubPos(pos)} style={{ flex: 1, padding: "14px 4px", borderRadius: 10, border: "none", fontWeight: 800, fontSize: 14, cursor: "pointer", background: subPos === pos ? POS_COLOR[pos] : C.border, color: subPos === pos ? "#fff" : C.muted }}>{pos}</button>
+              ))}
+            </div>
+          </div>
+        )}
         <button onClick={logSub} disabled={!subOff||!subOn||!subPos} style={{ ...btn(!subOff||!subOn||!subPos?C.border:"#059669",!subOff||!subOn||!subPos?C.muted:"#fff"), width:"100%", padding:16, fontSize:15, marginTop:12 }}>Log Sub</button>
       </Modal>}
 
@@ -1286,7 +1308,12 @@ function Players({ games, onBack, isAdmin }) {
               <button onClick={saveNote} style={{ ...btn(C.blue), width: "100%", padding: 14, marginTop: 8 }}>Save Note</button>
             </div>
           )}}
-          {!isAdmin&&notes[selected.id]&&(<><Lbl>Coach Note</Lbl><div style={{ background:C.border, borderRadius:10, padding:12, fontSize:13, color:"#a78bfa", fontStyle:"italic" }}>"{notes[selected.id]}"</div></>}
+          {!isAdmin && notes[selected.id] && (
+            <div>
+              <Lbl>Coach Note</Lbl>
+              <div style={{ background: C.border, borderRadius: 10, padding: 12, fontSize: 13, color: "#a78bfa", fontStyle: "italic" }}>"{notes[selected.id]}"</div>
+            </div>
+          )}
         </Modal>
       )}
     </div>
@@ -1400,15 +1427,4 @@ export default function App() {
   },[]);
 
   const updateGame=g=>{ setViewing(g);setGames(prev=>prev.map(x=>x.id===g.id?g:x)); };
-  const handleDelete=async g=>{ if(window.confirm("Delete "+g.opponent+"? This cannot be undone.")){ await deleteGame(g.id);setGames(prev=>prev.filter(x=>x.id!==g.id));setViewing(null); } };
-  const handleEnd=async g=>{ clearGameState();setResumeState(null);await saveGame(g);setScreen("stats"); };
-
-  // Resume a saved game - pass full state back into gameInfo so Game can restore it
-  const handleResume=()=>{
-    if(!resumeState)return;
-    // Merge saved events/score/half back into gameInfo so Game component picks them up
-    setGameInfo({
-      ...resumeState.gameInfo,
-      _resumeEvents: resumeState.events,
-      _resumeGf:     resumeState.gf,
-      _resumeGa:     resumeState.ga
+  const handleDelete=async g=>{ if(window.confirm("Delete "+g.opponent+"? This cannot be un
