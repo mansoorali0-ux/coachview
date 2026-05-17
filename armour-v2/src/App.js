@@ -127,7 +127,19 @@ function LiveOptimumXI({ events, onField, allPlayers, positions, gf, ga, half, s
           })}
         </div>
       ))}
-      {rest.length>0&&(<>{<div style={{ fontSize:10, fontWeight:800, color:C.muted, letterSpacing:1, marginBottom:5, marginTop:8 }}>OUTSIDE XI</div>}{rest.map((p,i)=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, background:"#080f1c", border:`1px solid #0f1e35`, borderRadius:8, padding:"7px 12px", marginBottom:4, opacity:0.6 }}><span style={{ fontSize:11, color:C.muted, width:18 }}>{i+12}.</span><span style={{ flex:1, fontSize:12, color:"#94a3b8" }}>{p.name.split(" ")[0]}</span><span style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:6 }}>{p.pos}</span><span style={{ fontSize:11, color:"#64748b", fontWeight:700 }}>{p.lScore.toFixed(1)}</span></div>)}</>)}
+      {rest.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 1, marginBottom: 5, marginTop: 8 }}>OUTSIDE XI</div>
+          {rest.map((p, i) => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, background: "#080f1c", border: "1px solid #0f1e35", borderRadius: 8, padding: "7px 12px", marginBottom: 4, opacity: 0.6 }}>
+              <span style={{ fontSize: 11, color: C.muted, width: 18 }}>{i + 12}.</span>
+              <span style={{ flex: 1, fontSize: 12, color: "#94a3b8" }}>{p.name.split(" ")[0]}</span>
+              <span style={{ fontSize: 10, color: POS_COLOR[p.pos] || C.muted, fontWeight: 700, marginRight: 6 }}>{p.pos}</span>
+              <span style={{ fontSize: 11, color: "#64748b", fontWeight: 700 }}>{p.lScore.toFixed(1)}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {scored.length===0&&<div style={{ textAlign:"center", color:C.muted, fontSize:13, marginTop:40 }}>Start the clock to see live ratings</div>}
     </div>
   );
@@ -193,9 +205,42 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
       <div style={{ padding:14, maxWidth:480, margin:"0 auto" }}>
         <Lbl>Starting Lineup</Lbl>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:5, marginBottom:12 }}>
-          {(game.starting||[]).map(id=>{ const p=findPlayer(id,allP); if(!p)return null; const pos=(game.positions||{})[id]||p.pos; return(<div key={id} style={{ display:"flex", alignItems:"center", gap:6, background:C.card, border:String(id)===String(FEATURED_ID)?`2px solid #60a5fa`:`1px solid ${C.border}`, borderRadius:8, padding:"7px 10px" }}><span style={{ width:22, height:22, borderRadius:"50%", background:POS_COLOR[pos]||C.muted, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:9, color:"#fff", flexShrink:0 }}>{p.num}</span><div style={{ minWidth:0 }}><div style={{ fontSize:11, fontWeight:700, color:String(id)===String(FEATURED_ID)?"#93c5fd":C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name.split(" ")[0]}</div><div style={{ fontSize:9, color:POS_COLOR[pos] }}>{pos}</div></div></div>); })}
+          {(game.starting || []).map(id => {
+            const p = findPlayer(id, allP);
+            if (!p) return null;
+            const pos = (game.positions || {})[id] || p.pos;
+            return (
+              <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: C.card, border: String(id) === String(FEATURED_ID) ? "2px solid #60a5fa" : `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px" }}>
+                <span style={{ width: 22, height: 22, borderRadius: "50%", background: POS_COLOR[pos] || C.muted, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 9, color: "#fff", flexShrink: 0 }}>{p.num}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: String(id) === String(FEATURED_ID) ? "#93c5fd" : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
+                  <div style={{ fontSize: 9, color: POS_COLOR[pos] }}>{pos}</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        {game.secondHalfStarting&&(<><Lbl>2nd Half Lineup</Lbl><div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:5, marginBottom:12 }}>{game.secondHalfStarting.map(id=>{ const p=findPlayer(id,allP); if(!p)return null; const pos=DEFAULT_POS[id]||p.pos; return(<div key={id} style={{ display:"flex", alignItems:"center", gap:6, background:C.card, border:String(id)===String(FEATURED_ID)?`2px solid #60a5fa`:`1px solid ${C.border}`, borderRadius:8, padding:"7px 10px" }}><span style={{ width:22, height:22, borderRadius:"50%", background:POS_COLOR[pos]||C.muted, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:9, color:"#fff", flexShrink:0 }}>{p.num}</span><div style={{ minWidth:0 }}><div style={{ fontSize:11, fontWeight:700, color:String(id)===String(FEATURED_ID)?"#93c5fd":C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name.split(" ")[0]}</div><div style={{ fontSize:9, color:POS_COLOR[pos] }}>{pos}</div></div></div>); })}</div></>)}
+        {game.secondHalfStarting && (
+          <div>
+            <Lbl>2nd Half Lineup</Lbl>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 12 }}>
+              {game.secondHalfStarting.map(id => {
+                const p = findPlayer(id, allP);
+                if (!p) return null;
+                const pos = DEFAULT_POS[id] || p.pos;
+                return (
+                  <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: C.card, border: String(id) === String(FEATURED_ID) ? "2px solid #60a5fa" : `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px" }}>
+                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: POS_COLOR[pos] || C.muted, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 9, color: "#fff", flexShrink: 0 }}>{p.num}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: String(id) === String(FEATURED_ID) ? "#93c5fd" : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
+                      <div style={{ fontSize: 9, color: POS_COLOR[pos] }}>{pos}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <Lbl mt={8}>Goals</Lbl>
         {goalEvs.length===0&&<div style={{ color:C.muted, fontSize:13, marginBottom:12 }}>No goals logged</div>}
         {goalEvs.map(ev=>(
@@ -216,16 +261,62 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
           </div>
         ))}
         <Lbl mt={12}>Minutes Played</Lbl>
-        {playerList.map(p=>{ const s=stats[String(p.id)]; if(!s)return null; return(<div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, ...card, border:String(p.id)===String(FEATURED_ID)?`2px solid #60a5fa`:`1px solid ${C.border}`, marginBottom:5 }}><span style={{ width:28, height:28, borderRadius:"50%", background:C.border, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:11, color:"#93c5fd", flexShrink:0 }}>#{p.num}</span><span style={{ flex:1, fontWeight:600, fontSize:13, color:String(p.id)===String(FEATURED_ID)?"#93c5fd":C.text }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</span><span style={{ fontSize:16, fontWeight:800, color:"#60a5fa" }}>{s.mins}'</span>{s.goals>0&&<div style={{ background:C.border, borderRadius:6, padding:"3px 8px", textAlign:"center" }}><div style={{ fontSize:13, fontWeight:800, color:"#60a5fa" }}>{s.goals}</div><div style={{ fontSize:8, color:C.muted }}>G</div></div>}{s.assists>0&&<div style={{ background:C.border, borderRadius:6, padding:"3px 8px", textAlign:"center" }}><div style={{ fontSize:13, fontWeight:800, color:C.green }}>{s.assists}</div><div style={{ fontSize:8, color:C.muted }}>A</div></div>}</div>); })}
+        {playerList.map(p => {
+          const s = stats[String(p.id)];
+          if (!s) return null;
+          return (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, ...card, border: String(p.id) === String(FEATURED_ID) ? "2px solid #60a5fa" : `1px solid ${C.border}`, marginBottom: 5 }}>
+              <span style={{ width: 28, height: 28, borderRadius: "50%", background: C.border, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#93c5fd", flexShrink: 0 }}>#{p.num}</span>
+              <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: String(p.id) === String(FEATURED_ID) ? "#93c5fd" : C.text }}>{p.name}{String(p.id) === String(FEATURED_ID) ? " *" : ""}</span>
+              <span style={{ fontSize: 16, fontWeight: 800, color: "#60a5fa" }}>{s.mins}'</span>
+              {s.goals > 0 && <div style={{ background: C.border, borderRadius: 6, padding: "3px 8px", textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 800, color: "#60a5fa" }}>{s.goals}</div><div style={{ fontSize: 8, color: C.muted }}>G</div></div>}
+              {s.assists > 0 && <div style={{ background: C.border, borderRadius: 6, padding: "3px 8px", textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{s.assists}</div><div style={{ fontSize: 8, color: C.muted }}>A</div></div>}
+            </div>
+          );
+        })}
       </div>
-      {editing&&(
-        <Modal title="Edit Event" onClose={()=>setEditing(null)}>
+      {editing && (
+        <Modal title="Edit Event" onClose={() => setEditing(null)}>
           <Lbl>Minute</Lbl>
-          <input value={eMin} onChange={e=>setEMin(e.target.value)} type="number" style={{ ...inp, fontSize:22, fontWeight:700, marginBottom:12 }}/>
-          {editing.type==="goal_for"&&(<><Lbl>Scorer</Lbl>{allP.map(p=><button key={p.id} onClick={()=>setEScorer(String(p.id))} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:eScorer===String(p.id)?C.blue:C.border, border:eScorer===String(p.id)?`2px solid #60a5fa`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}<Lbl mt={8}>Assist</Lbl><button onClick={()=>setEAssist(null)} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:eAssist===null?"#475569":C.border, border:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>No Assist</button>{allP.filter(p=>String(p.id)!==eScorer).map(p=><button key={p.id} onClick={()=>setEAssist(eAssist===String(p.id)?null:String(p.id))} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:eAssist===String(p.id)?"#065f46":C.border, border:eAssist===String(p.id)?`2px solid ${C.green}`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}</>}
-          <div style={{ display:"flex", gap:8, marginTop:12 }}>
-            <button onClick={doDel} style={{ ...btn("#7f1d1d","#fca5a5"), flex:1 }}>Delete</button>
-            <button onClick={doSave} style={{ ...btn(C.blue), flex:2 }}>Save</button>
+          <input
+            value={eMin}
+            onChange={e => setEMin(e.target.value)}
+            type="number"
+            style={{ ...inp, fontSize: 22, fontWeight: 700, marginBottom: 12 }}
+          />
+          {editing.type === "goal_for" && (
+            <div>
+              <Lbl>Scorer</Lbl>
+              {allP.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setEScorer(String(p.id))}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eScorer === String(p.id) ? C.blue : C.border, border: eScorer === String(p.id) ? "2px solid #60a5fa" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                >
+                  #{p.num} {p.name}
+                </button>
+              ))}
+              <Lbl mt={8}>Assist</Lbl>
+              <button
+                onClick={() => setEAssist(null)}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eAssist === null ? "#475569" : C.border, border: "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+              >
+                No Assist
+              </button>
+              {allP.filter(p => String(p.id) !== eScorer).map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setEAssist(eAssist === String(p.id) ? null : String(p.id))}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eAssist === String(p.id) ? "#065f46" : C.border, border: eAssist === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                >
+                  #{p.num} {p.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button onClick={doDel} style={{ ...btn("#7f1d1d", "#fca5a5"), flex: 1 }}>Delete</button>
+            <button onClick={doSave} style={{ ...btn(C.blue), flex: 2 }}>Save</button>
           </div>
         </Modal>
       )}
@@ -372,7 +463,16 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
             </div>
           );
         })}
-        {!showGuest?<button onClick={()=>setShowGuest(true)} style={{ width:"100%", padding:12, borderRadius:12, background:C.card, border:`1px dashed #334155`, color:C.purple, fontWeight:700, fontSize:13, cursor:"pointer", marginBottom:8 }}>+ Add Guest Player</button>:<div style={{ display:"flex", gap:8, marginBottom:8 }}><input value={guestName} onChange={e=>setGuestName(e.target.value)} placeholder="Guest name..." style={{ ...inp, flex:1 }}/><button onClick={addGuest} style={{ ...btn(C.purple), padding:"12px 16px" }}>Add</button></div>}
+        {!showGuest ? (
+          <button onClick={() => setShowGuest(true)} style={{ width: "100%", padding: 12, borderRadius: 12, background: C.card, border: "1px dashed #334155", color: C.purple, fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
+            + Add Guest Player
+          </button>
+        ) : (
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Guest name..." style={{ ...inp, flex: 1 }} />
+            <button onClick={addGuest} style={{ ...btn(C.purple), padding: "12px 16px" }}>Add</button>
+          </div>
+        )}
       </div>
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a1628", borderTop:`2px solid ${C.border}`, padding:"12px 16px" }}>
         {selected.length>0&&selected.length<11&&<div style={{ textAlign:"center", fontSize:12, color:C.amber, marginBottom:6 }}>Select {11-selected.length} more</div>}
@@ -380,7 +480,21 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
           {selected.length===11?(halfMode==="second_only"?"Start 2nd Half Tracking!":"Kick Off!"):"Tap "+( 11-selected.length>0?11-selected.length+" more players":"11 players")}
         </button>
       </div>
-      {posModal&&(<Modal title="Set Position" onClose={()=>setPosModal(null)}><div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>{POSITIONS.map(pos=><button key={pos} onClick={()=>{ setOverrides(o=>({...o,[posModal]:pos}));setPosModal(null); }} style={{ padding:24, borderRadius:14, background:posFor(posModal)===pos?POS_COLOR[pos]:C.border, border:posFor(posModal)===pos?"3px solid #fff":"3px solid transparent", color:"#fff", fontWeight:800, fontSize:20, cursor:"pointer" }}>{pos}</button>)}</div></Modal>)}
+      {posModal && (
+        <Modal title="Set Position" onClose={() => setPosModal(null)}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {POSITIONS.map(pos => (
+              <button
+                key={pos}
+                onClick={() => { setOverrides(o => ({ ...o, [posModal]: pos })); setPosModal(null); }}
+                style={{ padding: 24, borderRadius: 14, background: posFor(posModal) === pos ? POS_COLOR[pos] : C.border, border: posFor(posModal) === pos ? "3px solid #fff" : "3px solid transparent", color: "#fff", fontWeight: 800, fontSize: 20, cursor: "pointer" }}
+              >
+                {pos}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -638,8 +752,37 @@ function Game({ gameInfo, onEnd, onBack }) {
       {modal==="goal_for"&&<Modal title="Goal For!" onClose={()=>setModal(null)}>
         <Lbl>Minute</Lbl><input value={goalMin} onChange={e=>setGoalMin(e.target.value)} type="number" style={{ ...inp, fontSize:22, fontWeight:700, marginBottom:12 }}/>
         <button onClick={()=>setOwnGoal(o=>!o)} style={{ padding:"8px 14px", borderRadius:8, background:ownGoal?C.amber:C.border, border:"none", color:ownGoal?"#000":"#94a3b8", fontWeight:700, fontSize:12, cursor:"pointer", marginBottom:12 }}>Own Goal by opponent</button>
-        {!ownGoal&&(<><Lbl>Scorer</Lbl>{onFieldP.map(p=><button key={p.id} onClick={()=>setScorer(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, background:scorer===String(p.id)?C.blue:C.border, border:scorer===String(p.id)?`2px solid #60a5fa`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}<Lbl mt={8}>Assist (optional)</Lbl><button onClick={()=>setAssist(null)} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:assist===null?"#475569":C.border, border:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>No Assist / Unknown</button>{onFieldP.filter(p=>String(p.id)!==scorer).map(p=><button key={p.id} onClick={()=>setAssist(assist===String(p.id)?null:String(p.id))} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:assist===String(p.id)?"#065f46":C.border, border:assist===String(p.id)?`2px solid ${C.green}`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}</>}
-        <button onClick={logGoalFor} disabled={!ownGoal&&!scorer} style={{ ...btn(!ownGoal&&!scorer?C.border:C.blue,!ownGoal&&!scorer?C.muted:"#fff"), width:"100%", padding:16, fontSize:15, marginTop:8 }}>Log Goal</button>
+        {!ownGoal && (
+        <div>
+          <Lbl>Scorer</Lbl>
+          {onFieldP.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setScorer(String(p.id))}
+              style={{ width: "100%", padding: "11px 14px", borderRadius: 10, marginBottom: 5, background: scorer === String(p.id) ? C.blue : C.border, border: scorer === String(p.id) ? "2px solid #60a5fa" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+            >
+              #{p.num} {p.name}
+            </button>
+          ))}
+          <Lbl mt={8}>Assist (optional)</Lbl>
+          <button
+            onClick={() => setAssist(null)}
+            style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: assist === null ? "#475569" : C.border, border: "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+          >
+            No Assist / Unknown
+          </button>
+          {onFieldP.filter(p => String(p.id) !== scorer).map(p => (
+            <button
+              key={p.id}
+              onClick={() => setAssist(assist === String(p.id) ? null : String(p.id))}
+              style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: assist === String(p.id) ? "#065f46" : C.border, border: assist === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+            >
+              #{p.num} {p.name}
+            </button>
+          ))}
+        </div>
+      )}
+              <button onClick={logGoalFor} disabled={!ownGoal&&!scorer} style={{ ...btn(!ownGoal&&!scorer?C.border:C.blue,!ownGoal&&!scorer?C.muted:"#fff"), width:"100%", padding:16, fontSize:15, marginTop:8 }}>Log Goal</button>
       </Modal>}
 
       {modal==="goal_against"&&<Modal title="Goal Against" onClose={()=>setModal(null)}>
@@ -650,15 +793,54 @@ function Game({ gameInfo, onEnd, onBack }) {
       {modal==="sub"&&<Modal title="Substitution" onClose={()=>setModal(null)}>
         <Lbl>Minute</Lbl><input value={subMin} onChange={e=>setSubMin(e.target.value)} type="number" style={{ ...inp, fontSize:22, fontWeight:700, marginBottom:12 }}/>
         <Lbl>Player Off</Lbl>{onFieldP.map(p=><button key={p.id} onClick={()=>setSubOff(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, background:subOff===String(p.id)?C.red:C.border, border:subOff===String(p.id)?`2px solid #f87171`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name} <span style={{ color:POS_COLOR[positions[p.id]], fontSize:11 }}>- {positions[p.id]}</span></button>)}
-        <Lbl mt={8}>Player On</Lbl>{benchP.length===0&&<div style={{ color:C.muted, fontSize:13, marginBottom:8 }}>No players on bench</div>}{benchP.map(p=><button key={p.id} onClick={()=>setSubOn(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, background:subOn===String(p.id)?"#059669":C.border, border:subOn===String(p.id)?`2px solid ${C.green}`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}
+        <Lbl mt={8}>Player On</Lbl>
+        {benchP.length === 0 && <div style={{ color: C.muted, fontSize: 13, marginBottom: 8 }}>No players on bench</div>}
+        {benchP.map(p => (
+          <button
+            key={p.id}
+            onClick={() => setSubOn(String(p.id))}
+            style={{ width: "100%", padding: "11px 14px", borderRadius: 10, marginBottom: 5, background: subOn === String(p.id) ? "#059669" : C.border, border: subOn === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+          >
+            #{p.num} {p.name}
+          </button>
+        ))}
         {subOn&&(<><Lbl mt={8}>Position</Lbl><div style={{ display:"flex", gap:8 }}>{POSITIONS.map(pos=><button key={pos} onClick={()=>setSubPos(pos)} style={{ flex:1, padding:"14px 4px", borderRadius:10, border:"none", fontWeight:800, fontSize:14, cursor:"pointer", background:subPos===pos?POS_COLOR[pos]:C.border, color:subPos===pos?"#fff":C.muted }}>{pos}</button>)}</div></>}
         <button onClick={logSub} disabled={!subOff||!subOn||!subPos} style={{ ...btn(!subOff||!subOn||!subPos?C.border:"#059669",!subOff||!subOn||!subPos?C.muted:"#fff"), width:"100%", padding:16, fontSize:15, marginTop:12 }}>Log Sub</button>
       </Modal>}
 
       {modal==="edit"&&editEv&&<Modal title="Edit Event" onClose={()=>setModal(null)}>
         <Lbl>Minute</Lbl><input value={goalMin} onChange={e=>setGoalMin(e.target.value)} type="number" style={{ ...inp, fontSize:22, fontWeight:700, marginBottom:12 }}/>
-        {editEv.type==="goal_for"&&(<><Lbl>Scorer</Lbl>{allP.map(p=><button key={p.id} onClick={()=>setScorer(String(p.id))} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:scorer===String(p.id)?C.blue:C.border, border:scorer===String(p.id)?`2px solid #60a5fa`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}<Lbl mt={8}>Assist</Lbl><button onClick={()=>setAssist(null)} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:"#475569", border:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>No Assist</button>{allP.filter(p=>String(p.id)!==scorer).map(p=><button key={p.id} onClick={()=>setAssist(assist===String(p.id)?null:String(p.id))} style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:assist===String(p.id)?"#065f46":C.border, border:assist===String(p.id)?`2px solid ${C.green}`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name}</button>)}</>}
-        <div style={{ display:"flex", gap:8, marginTop:12 }}>
+        {editEv.type === "goal_for" && (
+          <div>
+            <Lbl>Scorer</Lbl>
+            {allP.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setScorer(String(p.id))}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: scorer === String(p.id) ? C.blue : C.border, border: scorer === String(p.id) ? "2px solid #60a5fa" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+              >
+                #{p.num} {p.name}
+              </button>
+            ))}
+            <Lbl mt={8}>Assist</Lbl>
+            <button
+              onClick={() => setAssist(null)}
+              style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: "#475569", border: "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+            >
+              No Assist
+            </button>
+            {allP.filter(p => String(p.id) !== scorer).map(p => (
+              <button
+                key={p.id}
+                onClick={() => setAssist(assist === String(p.id) ? null : String(p.id))}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: assist === String(p.id) ? "#065f46" : C.border, border: assist === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+              >
+                #{p.num} {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+                <div style={{ display:"flex", gap:8, marginTop:12 }}>
           <button onClick={delEditEv} style={{ ...btn("#7f1d1d","#fca5a5"), flex:1 }}>Delete</button>
           <button onClick={saveEditEv} style={{ ...btn(C.blue), flex:2 }}>Save</button>
         </div>
@@ -1077,13 +1259,33 @@ function Players({ games, onBack, isAdmin }) {
       </div>
       {selected&&(
         <Modal title={selected.name} onClose={()=>setSelected(null)}>
-          <div style={{ ...card, marginBottom:12 }}><div style={{ display:"flex", justifyContent:"space-around", textAlign:"center" }}>{[["Goals",(allSt[String(selected.id)]||{}).goals||0,"#60a5fa"],["Assists",(allSt[String(selected.id)]||{}).assists||0,C.green],["GF",(allSt[String(selected.id)]||{}).gf||0,"#3b82f6"],["GA",(allSt[String(selected.id)]||{}).ga||0,"#f87171"]].map(([l,v,c])=><div key={l}><div style={{ fontSize:24, fontWeight:900, color:c }}>{v}</div><div style={{ fontSize:10, color:C.muted }}>{l}</div></div>)}</div></div>
+          <div style={{ ...card, marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
+              {[["Goals", (allSt[String(selected.id)] || {}).goals || 0, "#60a5fa"], ["Assists", (allSt[String(selected.id)] || {}).assists || 0, C.green], ["GF", (allSt[String(selected.id)] || {}).gf || 0, "#3b82f6"], ["GA", (allSt[String(selected.id)] || {}).ga || 0, "#f87171"]].map(([l, v, c]) => (
+                <div key={l}>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: c }}>{v}</div>
+                  <div style={{ fontSize: 10, color: C.muted }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
             <div style={{ textAlign:"center" }}><div style={{ fontSize:20, fontWeight:900, color:C.amber }}>{(allSt[String(selected.id)]||{}).mins||0}'</div><div style={{ fontSize:10, color:C.muted }}>Total Mins</div></div>
             <div style={{ textAlign:"center" }}><div style={{ fontSize:20, fontWeight:900, color:"#94a3b8" }}>{(allSt[String(selected.id)]||{}).avgMins||0}'</div><div style={{ fontSize:10, color:C.muted }}>Avg/Game</div></div>
             <div style={{ textAlign:"center" }}><div style={{ fontSize:20, fontWeight:900, color:parseFloat((allSt[String(selected.id)]||{}).net80)>=0?C.green:C.red }}>{(allSt[String(selected.id)]||{}).net80s||"-"}</div><div style={{ fontSize:10, color:C.muted }}>Net/80</div></div>
           </div>
-          {isAdmin&&(<><Lbl>Coach Notes</Lbl><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder={"Add a private note about "+selected.name.split(" ")[0]+"..."} style={{ width:"100%", padding:12, borderRadius:10, background:C.border, border:`1px solid #334155`, color:C.text, fontSize:13, resize:"none", minHeight:80, boxSizing:"border-box", fontFamily:"-apple-system,sans-serif" }}/><button onClick={saveNote} style={{ ...btn(C.blue), width:"100%", padding:14, marginTop:8 }}>Save Note</button></>}
+          {isAdmin && (
+            <div>
+              <Lbl>Coach Notes</Lbl>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                placeholder={"Add a private note about " + selected.name.split(" ")[0] + "..."}
+                style={{ width: "100%", padding: 12, borderRadius: 10, background: C.border, border: "1px solid #334155", color: C.text, fontSize: 13, resize: "none", minHeight: 80, boxSizing: "border-box", fontFamily: "-apple-system,sans-serif" }}
+              />
+              <button onClick={saveNote} style={{ ...btn(C.blue), width: "100%", padding: 14, marginTop: 8 }}>Save Note</button>
+            </div>
+          )}}
           {!isAdmin&&notes[selected.id]&&(<><Lbl>Coach Note</Lbl><div style={{ background:C.border, borderRadius:10, padding:12, fontSize:13, color:"#a78bfa", fontStyle:"italic" }}>"{notes[selected.id]}"</div></>}
         </Modal>
       )}
@@ -1209,41 +1411,4 @@ export default function App() {
       ...resumeState.gameInfo,
       _resumeEvents: resumeState.events,
       _resumeGf:     resumeState.gf,
-      _resumeGa:     resumeState.ga,
-      _resumeHalf:   resumeState.half,
-      _resumeOnField:resumeState.onField,
-      _resumeSecs:   resumeState.secs,
-    });
-    setScreen("game");
-  };
-  const handleDiscardResume=()=>{ clearGameState();setResumeState(null); };
-
-  if(loading)return(
-    <div style={{ minHeight:"100vh", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, ...T }}>
-      <div style={{ fontSize:28, fontWeight:900, color:"#60a5fa", letterSpacing:2 }}>PitchSide</div>
-      <div style={{ fontSize:11, color:"#93c5fd", letterSpacing:2 }}>Baltimore Armour 11G Aspire</div>
-      <div style={{ marginTop:20, width:36, height:36, border:`3px solid ${C.border}`, borderTop:`3px solid ${C.blue}`, borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
-    </div>
-  );
-
-  if(viewing)return <GameDetail game={viewing} onClose={()=>setViewing(null)} onUpdate={updateGame} onDelete={handleDelete} isAdmin={isAdmin}/>;
-  if(showPin)return <PinScreen onAdmin={()=>{ setIsAdmin(true);localStorage.setItem("ps_admin","1");setShowPin(false); }} onViewer={()=>setShowPin(false)}/>;
-
-  return (
-    <>
-      {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); }} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume}/>}
-      {screen==="lineup"&&gameInfo&&<Lineup gameInfo={gameInfo} onKickoff={i=>{ setGameInfo(i);setScreen("game"); }} onBack={()=>setScreen("home")}/>}
-      {screen==="game"&&gameInfo&&<Game gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>{ setResumeState(loadGameState());setScreen("home"); }}/>}
-      {screen==="stats"&&<Stats games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={statsTab}/>}
-      {screen==="players"&&<Players games={games} onBack={()=>setScreen("home")} isAdmin={isAdmin}/>}
-
-      {screen!=="game"&&screen!=="lineup"&&!viewing&&(
-        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a1628", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
-          {[
-            {key:"home",    label:"Home",    icon:"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"},
-            {key:"games",   label:"Games",   icon:"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"},
-            {key:"analytics",label:"Stats",  icon:"M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"},
-            {key:"players", label:"Players", icon:"M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"},
-          ].map(({key,label,icon})=>(
-            <button key={label} onClick={()=>{ if(key==="games"){setStatsTab("scouting");setScreen("stats");}else if(key==="analytics"){setStatsTab("overview");setScreen("stats");}else setScreen(key); }} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"col
+      _resumeGa:     resumeState.ga
