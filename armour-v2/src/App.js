@@ -477,7 +477,19 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
                   <span style={{ background: g.type==="tournament"?C.purple:C.blue, color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700 }}>{g.type==="tournament"?"CUP":"LEAGUE"}</span>
                   {isAdmin && (
                     <div style={{ display:"flex", gap:5 }}>
-                      {g.id && <button onClick={()=>setEditingGame(g)} style={{ background:"#0f4c81", border:"none", borderRadius:6, padding:"4px 8px", color:"#93c5fd", fontSize:10, fontWeight:700, cursor:"pointer" }}>EDIT</button>}
+                      <button
+                        onClick={async()=>{
+                          if(g.id){
+                            setEditingGame({...g, rawDate:""});
+                          } else {
+                            // Hardcoded game - save to Firebase first so it gets an id
+                            const newId = "scheduled-"+Date.now();
+                            await onSchedule({ opp:g.opp, date:g.date||"", time:g.time||"", type:g.type, venue:g.venue, id:newId });
+                            setEditingGame({ opp:g.opp, date:g.date||"", time:g.time||"", type:g.type, venue:g.venue, id:newId, rawDate:"" });
+                          }
+                        }}
+                        style={{ background:"#0f4c81", border:"none", borderRadius:6, padding:"4px 8px", color:"#93c5fd", fontSize:10, fontWeight:700, cursor:"pointer" }}
+                      >EDIT</button>
                       <button onClick={()=>onStart({ type:g.type, opponent:g.opp, venue:g.venue, scheduledId:g.id })} style={{ background:C.green, border:"none", borderRadius:6, padding:"4px 8px", color:"#fff", fontSize:10, fontWeight:700, cursor:"pointer" }}>▶ START</button>
                     </div>
                   )}
@@ -596,12 +608,10 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
             ))}
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            {editingGame.id && (
-              <button
-                onClick={()=>{ onDeleteScheduled(editingGame.id); setEditingGame(null); }}
-                style={{ ...btn("#7f1d1d","#fca5a5"), flex:1 }}
-              >Delete</button>
-            )}
+            <button
+              onClick={()=>{ onDeleteScheduled(editingGame.id); setEditingGame(null); }}
+              style={{ ...btn("#7f1d1d","#fca5a5"), flex:1 }}
+            >Delete</button>
             <button
               onClick={()=>{
                 onEditScheduled({
@@ -1696,11 +1706,11 @@ export default function App() {
   const updateGame=g=>{ setViewing(g);setGames(prev=>prev.map(x=>x.id===g.id?g:x)); };
   const handleDelete=async g=>{ if(window.confirm("Delete "+g.opponent+"? This cannot be undone.")){ await deleteGame(g.id);setGames(prev=>prev.filter(x=>x.id!==g.id));setViewing(null); } };
   const handleEnd=async g=>{ clearGameState();setResumeState(null);await saveGame(g);setScreen("stats"); };
-  const handleSchedule=async({opp,date,time,type,venue})=>{
+  const handleSchedule=async({opp,date,time,type,venue,id})=>{
     const scheduled={
-      id:"scheduled-"+Date.now(),
+      id: id || "scheduled-"+Date.now(),
       opponent:opp,
-      date: date ? new Date(date).toLocaleDateString("en-US") : "",
+      date: date ? (date.includes("/") ? date : new Date(date).toLocaleDateString("en-US")) : "",
       time: time || "",
       type, venue,
       status:"scheduled",
@@ -1708,19 +1718,49 @@ export default function App() {
       events:[], starting:[], allPlayers:ROSTER,
     };
     await saveGame(scheduled);
+    return scheduled.id;
   };
 
   const handleEditScheduled=async(g)=>{
+    if(g.id) {
+      const existing = games.find(x=>x.id===g.id) || {};
+      await saveGame({
+        ...existing, id:g.id,
+        opponent:g.opp, date:g.date, time:g.time||"",
+        type:g.type, venue:g.venue, status:"scheduled",
+        scoreFor:0, scoreAgainst:0,
+        events:existing.events||[], starting:existing.starting||[], allPlayers:existing.allPlayers||ROSTER,
+      });
+    } else {
+      await saveGame({
+        id:"scheduled-"+Date.now(),
+        opponent:g.opp, date:g.date, time:g.time||"",
+        type:g.type, venue:g.venue, status:"scheduled",
+        scoreFor:0, scoreAgainst:0,
+        events:[], starting:[], allPlayers:ROSTER,
+      });
+    }
+  };
     // g has opp, date, time, type, venue, id
+    const existing = games.find(x=>x.id===g.id);
     const updated = {
-      ...games.find(x=>x.id===g.id),
+      ...(existing || {}),
+      id: g.id,
       opponent: g.opp,
       date: g.date,
       time: g.time || "",
       type: g.type,
       venue: g.venue,
+      status: "scheduled",
+      scoreFor: 0,
+      scoreAgainst: 0,
+      events: existing?.events || [],
+      starting: existing?.starting || [],
+      allPlayers: existing?.allPlayers || ROSTER,
     };
     await saveGame(updated);
+    // Update local state immediately so UI reflects change without waiting for Firebase
+    setGames(prev => prev.map(x => x.id === g.id ? updated : x));
   };
   const handleDeleteScheduled=async(id)=>{
     await deleteGame(id);
@@ -1760,7 +1800,7 @@ export default function App() {
       {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); if(i.scheduledId){deleteGame(i.scheduledId).catch(()=>{}); }}} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume} onSchedule={handleSchedule} onEditScheduled={handleEditScheduled} onDeleteScheduled={handleDeleteScheduled}/>}
       {screen==="lineup"&&gameInfo&&<Lineup gameInfo={gameInfo} onKickoff={i=>{ setGameInfo(i);setScreen("game"); }} onBack={()=>setScreen("home")}/>}
       {screen==="game"&&gameInfo&&<Game gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>{ setResumeState(loadGameState());setScreen("home"); }}/>}
-      {screen==="stats"&&<Stats games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={statsTab}/>}
+      {screen==="stats"&&<Stats key={statsTab} games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={statsTab}/>}
       {screen==="players"&&<Players games={games} onBack={()=>setScreen("home")} isAdmin={isAdmin}/>}
 
       {screen!=="game"&&screen!=="lineup"&&!viewing&&(
@@ -1778,10 +1818,15 @@ export default function App() {
                 else if (key === "analytics") { setStatsTab("overview"); setScreen("stats"); }
                 else setScreen(key);
               }}
-              style={{ flex: 1, padding: "10px 0 8px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, borderTop: (screen === key || (key === "games" && screen === "stats") || (key === "analytics" && screen === "stats")) ? `2px solid ${C.blue}` : "2px solid transparent" }}
+              style={{ flex: 1, padding: "10px 0 8px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, borderTop: (
+                (key === "home" && screen === "home") ||
+                (key === "games" && screen === "stats" && statsTab === "scouting") ||
+                (key === "analytics" && screen === "stats" && statsTab !== "scouting") ||
+                (key === "players" && screen === "players")
+              ) ? `2px solid ${C.blue}` : "2px solid transparent" }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill={screen===key?"#60a5fa":C.muted}><path d={icon}/></svg>
-              <span style={{ fontSize:10, color:screen===key?"#60a5fa":C.muted, fontWeight:screen===key?700:400 }}>{label}</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={(key==="home"&&screen==="home")||(key==="games"&&screen==="stats"&&statsTab==="scouting")||(key==="analytics"&&screen==="stats"&&statsTab!=="scouting")||(key==="players"&&screen==="players")?"#60a5fa":C.muted}><path d={icon}/></svg>
+              <span style={{ fontSize:10, color:(key==="home"&&screen==="home")||(key==="games"&&screen==="stats"&&statsTab==="scouting")||(key==="analytics"&&screen==="stats"&&statsTab!=="scouting")||(key==="players"&&screen==="players")?"#60a5fa":C.muted, fontWeight:(key==="home"&&screen==="home")||(key==="games"&&screen==="stats"&&statsTab==="scouting")||(key==="analytics"&&screen==="stats"&&statsTab!=="scouting")||(key==="players"&&screen==="players")?700:400 }}>{label}</span>
             </button>
           ))}
         {/* Admin Login / Logout as nav tab */}
