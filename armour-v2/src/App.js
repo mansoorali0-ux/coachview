@@ -375,11 +375,32 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
-function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume, onDiscardResume }) {
+function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume, onDiscardResume, onSchedule }) {
   const [showNew,setShowNew]=useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [schedOpp, setSchedOpp] = useState("");
+  const [schedDate, setSchedDate] = useState("");
+  const [schedType, setSchedType] = useState("regular");
+  const [schedVenue, setSchedVenue] = useState("Away");
   const [type,setType]=useState("regular"); const [opp,setOpp]=useState(""); const [customOpp,setCustomOpp]=useState(""); const [venue,setVenue]=useState("Home");
   const played=new Set(games.map(g=>g.opponent.toLowerCase().trim()));
-  const remaining=UPCOMING.filter(g=>!played.has(g.opp.toLowerCase().trim()));
+  // Match upcoming games - filter out completed/in-progress games
+  const completedOpps = games.filter(g=>g.status!=="scheduled").map(g=>g.opponent.toLowerCase().trim());
+  const hardcodedRemaining = UPCOMING.filter(upg=>{
+    const uppOpp = upg.opp.toLowerCase().trim();
+    return !completedOpps.some(gOpp=>
+      gOpp===uppOpp || uppOpp.startsWith(gOpp) || gOpp.startsWith(uppOpp) ||
+      uppOpp.includes(gOpp.split(' ')[0]) || gOpp.includes(uppOpp.split(' ')[0])
+    );
+  });
+  // Also include Firebase-scheduled games
+  const firebaseScheduled = games.filter(g=>g.status==="scheduled").map(g=>({
+    opp:g.opponent, date:g.date, venue:g.venue, type:g.type, id:g.id
+  }));
+  const remaining = [
+    ...hardcodedRemaining,
+    ...firebaseScheduled.filter(fs=>!hardcodedRemaining.some(h=>h.opp.toLowerCase()===fs.opp.toLowerCase()))
+  ].sort((a,b)=>new Date(a.date)-new Date(b.date));
   const teams=type==="regular"?LEAGUE_TEAMS:TOURNAMENT_TEAMS;
   const go=()=>{ const opponent=opp==="__custom__"?customOpp.trim():opp; if(!opponent)return; onStart({type,opponent,venue}); setShowNew(false); };
   const record={W:games.filter(g=>g.scoreFor>g.scoreAgainst).length,D:games.filter(g=>g.scoreFor===g.scoreAgainst).length,L:games.filter(g=>g.scoreFor<g.scoreAgainst).length};
@@ -456,8 +477,11 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
             <div style={{ height: 8 }} />
           </div>
         )}
+        <div style={{ display:"flex", gap:10, marginBottom:8 }}>
+          {isAdmin&&<button onClick={()=>{ setOpp("");setShowNew(true); }} style={{ ...btn(C.blue), flex:1 }}>▶ Start Game</button>}
+          {isAdmin&&<button onClick={()=>setShowSchedule(true)} style={{ ...btn("#1d4ed8","#bfdbfe"), flex:1 }}>+ Schedule</button>}
+        </div>
         <div style={{ display:"flex", gap:10 }}>
-          {isAdmin&&<button onClick={()=>{ setOpp("");setShowNew(true); }} style={{ ...btn(C.blue), flex:1 }}>+ New Game</button>}
           <button onClick={onStats} style={{ ...btn(C.border,"#93c5fd"), flex:1 }}>Season Stats</button>
         </div>
         {!isAdmin&&<div style={{ textAlign:"center", marginTop:12, fontSize:11, color:C.muted }}>View only - data updates live as games are tracked</div>}
@@ -473,6 +497,49 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <button onClick={()=>setOpp("__custom__")} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:8, textAlign:"left", cursor:"pointer", fontWeight:600, fontSize:13, background:opp==="__custom__"?"#1d4ed8":C.border, border:`1px dashed #334155`, color:"#94a3b8" }}>+ Other / Tournament Final</button>
           {opp==="__custom__"&&<input value={customOpp} onChange={e=>setCustomOpp(e.target.value)} placeholder="Opponent name..." style={{ ...inp, marginBottom:10 }}/>}
           <button onClick={go} style={{ ...btn(C.blue), width:"100%", padding:16, fontSize:15 }}>Continue to Lineup</button>
+        </Modal>
+      )}
+
+      {showSchedule && (
+        <Modal title="Schedule a Game" onClose={() => setShowSchedule(false)}>
+          <Lbl>Opponent Name</Lbl>
+          <input
+            value={schedOpp}
+            onChange={e => setSchedOpp(e.target.value)}
+            placeholder="e.g. Keystone FC 11G Aspire"
+            style={{ ...inp, marginBottom: 12 }}
+          />
+          <Lbl>Date</Lbl>
+          <input
+            type="date"
+            value={schedDate}
+            onChange={e => setSchedDate(e.target.value)}
+            style={{ ...inp, marginBottom: 12 }}
+          />
+          <Lbl>Competition</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+            {[["regular","⚽ League"],["tournament","🏆 Cup"]].map(([k,l])=>(
+              <button key={k} onClick={()=>setSchedType(k)} style={{ ...btn(schedType===k?C.blue:C.border, schedType===k?"#fff":C.muted), flex:1 }}>{l}</button>
+            ))}
+          </div>
+          <Lbl>Venue</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+            {["Home","Away"].map(v=>(
+              <button key={v} onClick={()=>setSchedVenue(v)} style={{ ...btn(schedVenue===v?C.blue:C.border, schedVenue===v?"#fff":C.muted), flex:1 }}>{v}</button>
+            ))}
+          </div>
+          <button
+            onClick={()=>{
+              if(!schedOpp.trim()||!schedDate)return;
+              onSchedule({ opp:schedOpp.trim(), date:schedDate, type:schedType, venue:schedVenue });
+              setSchedOpp(""); setSchedDate(""); setSchedType("regular"); setSchedVenue("Away");
+              setShowSchedule(false);
+            }}
+            disabled={!schedOpp.trim()||!schedDate}
+            style={{ ...btn(!schedOpp.trim()||!schedDate?C.border:C.green, !schedOpp.trim()||!schedDate?C.muted:"#fff"), width:"100%", padding:16, fontSize:15 }}
+          >
+            Save to Schedule
+          </button>
         </Modal>
       )}
     </div>
@@ -1434,14 +1501,14 @@ function makeKeystoneGame(roster) {
     return match ? String(match.id) : null;
   };
   const emilyId    = pid("emily");
-  const lilyKId    = pid("lily","k");
-  const lilyNId    = pid("lily","n");
-  const avaId      = pid("ava");
+  const lilyKId    = pid("lily","k"); // Lily Kaye id:17
+  const lilyNId    = pid("lilly","n"); // Lilly Nipper id:13
+  const avaId      = pid("avah"); // Avah Scott id:16
   const aureliaId  = pid("aurelia");
   const juliaId    = pid("julia");
   const brookeId   = pid("brooke");
-  const laineyId   = pid("lainey");
-  const abbyId     = pid("abby");
+  const laineyId   = pid("lainey"); // Lainey Pearson-Moore id:22
+  const abbyId     = pid("abigail"); // Abigail Yun id:19
   const caitDId    = pid("caitlin","d") || pid("caitlyn","d");
   const maariyahId = pid("maariyah");
   const ashleyId   = pid("ashley");
@@ -1537,6 +1604,16 @@ export default function App() {
   const updateGame=g=>{ setViewing(g);setGames(prev=>prev.map(x=>x.id===g.id?g:x)); };
   const handleDelete=async g=>{ if(window.confirm("Delete "+g.opponent+"? This cannot be undone.")){ await deleteGame(g.id);setGames(prev=>prev.filter(x=>x.id!==g.id));setViewing(null); } };
   const handleEnd=async g=>{ clearGameState();setResumeState(null);await saveGame(g);setScreen("stats"); };
+  const handleSchedule=async({opp,date,type,venue})=>{
+    const scheduled={
+      id:"scheduled-"+date.replace(/-/g,"/")+"-"+opp.slice(0,12).replace(/\s/g,"-").toLowerCase(),
+      opponent:opp, date, type, venue,
+      status:"scheduled",
+      scoreFor:0, scoreAgainst:0,
+      events:[], starting:[], allPlayers:ROSTER,
+    };
+    await saveGame(scheduled);
+  };
 
   // Resume a saved game - pass full state back into gameInfo so Game can restore it
   const handleResume=()=>{
@@ -1569,7 +1646,7 @@ export default function App() {
 
   return (
     <>
-      {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); }} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume}/>}
+      {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); }} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume} onSchedule={handleSchedule}/>}
       {screen==="lineup"&&gameInfo&&<Lineup gameInfo={gameInfo} onKickoff={i=>{ setGameInfo(i);setScreen("game"); }} onBack={()=>setScreen("home")}/>}
       {screen==="game"&&gameInfo&&<Game gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>{ setResumeState(loadGameState());setScreen("home"); }}/>}
       {screen==="stats"&&<Stats games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={statsTab}/>}
