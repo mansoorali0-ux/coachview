@@ -375,9 +375,10 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
-function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume, onDiscardResume, onSchedule }) {
+function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume, onDiscardResume, onSchedule, onEditScheduled, onDeleteScheduled }) {
   const [showNew,setShowNew]=useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
+  const [editingGame, setEditingGame] = useState(null);
   const [schedOpp, setSchedOpp] = useState("");
   const [schedDate, setSchedDate] = useState("");
   const [schedTime, setSchedTime] = useState("");
@@ -467,21 +468,21 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <div>
             <Lbl>Upcoming</Lbl>
             {remaining.map((g, i) => (
-              <button key={i} onClick={() => {
-                if (!isAdmin) return;
-                // Pre-fill and start this game directly
-                onStart({ type: g.type, opponent: g.opp, venue: g.venue, scheduledId: g.id });
-              }}
-                style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, width: "100%", textAlign: "left", cursor: isAdmin ? "pointer" : "default", display: "flex", justifyContent: "space-between", alignItems: "center", opacity: isAdmin ? 1 : 0.8 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>vs {g.opp.split(" ").slice(0, 3).join(" ")}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{g.date}{g.time ? " · "+g.time : ""} · {g.venue}</div>
+              <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>vs {g.opp.split(" ").slice(0,3).join(" ")}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{g.date}{g.time?" · "+g.time:""} · {g.venue}</div>
                 </div>
-                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-                  <span style={{ background: g.type === "tournament" ? C.purple : C.blue, color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700 }}>{g.type === "tournament" ? "CUP" : "LEAGUE"}</span>
-                  {isAdmin && <span style={{ fontSize:9, color:C.green, fontWeight:700 }}>TAP TO START ▶</span>}
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:5, flexShrink:0, marginLeft:8 }}>
+                  <span style={{ background: g.type==="tournament"?C.purple:C.blue, color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700 }}>{g.type==="tournament"?"CUP":"LEAGUE"}</span>
+                  {isAdmin && (
+                    <div style={{ display:"flex", gap:5 }}>
+                      {g.id && <button onClick={()=>setEditingGame(g)} style={{ background:"#0f4c81", border:"none", borderRadius:6, padding:"4px 8px", color:"#93c5fd", fontSize:10, fontWeight:700, cursor:"pointer" }}>EDIT</button>}
+                      <button onClick={()=>onStart({ type:g.type, opponent:g.opp, venue:g.venue, scheduledId:g.id })} style={{ background:C.green, border:"none", borderRadius:6, padding:"4px 8px", color:"#fff", fontSize:10, fontWeight:700, cursor:"pointer" }}>▶ START</button>
+                    </div>
+                  )}
                 </div>
-              </button>
+              </div>
             ))}
             <div style={{ height: 8 }} />
           </div>
@@ -556,6 +557,64 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           >
             Save to Schedule
           </button>
+        </Modal>
+      )}
+
+      {editingGame && (
+        <Modal title="Edit Scheduled Game" onClose={() => setEditingGame(null)}>
+          <Lbl>Opponent Name</Lbl>
+          <input
+            value={editingGame.opp}
+            onChange={e => setEditingGame(g => ({...g, opp: e.target.value}))}
+            placeholder="Opponent name"
+            style={{ ...inp, marginBottom: 12 }}
+          />
+          <Lbl>Date</Lbl>
+          <input
+            type="date"
+            value={editingGame.rawDate || ""}
+            onChange={e => setEditingGame(g => ({...g, rawDate: e.target.value}))}
+            style={{ ...inp, marginBottom: 12 }}
+          />
+          <Lbl>Kick-off Time (optional)</Lbl>
+          <input
+            type="time"
+            value={editingGame.time || ""}
+            onChange={e => setEditingGame(g => ({...g, time: e.target.value}))}
+            style={{ ...inp, marginBottom: 12 }}
+          />
+          <Lbl>Competition</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+            {[["regular","⚽ League"],["tournament","🏆 Cup"]].map(([k,l])=>(
+              <button key={k} onClick={()=>setEditingGame(g=>({...g,type:k}))} style={{ ...btn(editingGame.type===k?C.blue:C.border, editingGame.type===k?"#fff":C.muted), flex:1 }}>{l}</button>
+            ))}
+          </div>
+          <Lbl>Venue</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+            {["Home","Away"].map(v=>(
+              <button key={v} onClick={()=>setEditingGame(g=>({...g,venue:v}))} style={{ ...btn(editingGame.venue===v?C.blue:C.border, editingGame.venue===v?"#fff":C.muted), flex:1 }}>{v}</button>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            {editingGame.id && (
+              <button
+                onClick={()=>{ onDeleteScheduled(editingGame.id); setEditingGame(null); }}
+                style={{ ...btn("#7f1d1d","#fca5a5"), flex:1 }}
+              >Delete</button>
+            )}
+            <button
+              onClick={()=>{
+                onEditScheduled({
+                  ...editingGame,
+                  date: editingGame.rawDate
+                    ? new Date(editingGame.rawDate).toLocaleDateString("en-US")
+                    : editingGame.date,
+                });
+                setEditingGame(null);
+              }}
+              style={{ ...btn(C.green), flex:2, fontSize:15 }}
+            >Save Changes</button>
+          </div>
         </Modal>
       )}
     </div>
@@ -1602,16 +1661,31 @@ export default function App() {
         await saveGame(makeCoppermine());
         await saveGame(makeKeystoneGame(ROSTER));
       } else {
-        seeded.current=true;
-        // Patch existing games missing formation data with 4-4-2
-        const needsPatch = fbGames.filter(g => !g.formation1H);
-        for(const g of needsPatch) {
-          await saveGame({...g, formation1H:"4-4-2", formation2H:"4-4-2"});
+        // Patch only COMPLETED games missing formation (never patch scheduled/in-progress)
+        // Use a localStorage flag so this only ever runs once per device
+        if(!localStorage.getItem("ps_patched_formations")) {
+          const needsPatch = fbGames.filter(g =>
+            !g.formation1H &&
+            g.status !== "scheduled" &&
+            g.status !== "in_progress"
+          );
+          if(needsPatch.length > 0) {
+            for(const g of needsPatch) {
+              await saveGame({...g, formation1H:"4-4-2", formation2H:"4-4-2"});
+            }
+            // Mark as patched so this never runs again
+            localStorage.setItem("ps_patched_formations", "1");
+            // Don't setLoading yet — listener will fire again with patched data
+            return;
+          }
+          localStorage.setItem("ps_patched_formations", "1");
         }
         // Seed Keystone if missing
         if(!fbGames.find(g=>g.id==="5-16-2025-keystone-fc")){
           await saveGame(makeKeystoneGame(ROSTER));
+          return; // listener fires again after save
         }
+        seeded.current=true;
         setGames(fbGames);
         setLoading(false);
       }
@@ -1636,6 +1710,22 @@ export default function App() {
     await saveGame(scheduled);
   };
 
+  const handleEditScheduled=async(g)=>{
+    // g has opp, date, time, type, venue, id
+    const updated = {
+      ...games.find(x=>x.id===g.id),
+      opponent: g.opp,
+      date: g.date,
+      time: g.time || "",
+      type: g.type,
+      venue: g.venue,
+    };
+    await saveGame(updated);
+  };
+  const handleDeleteScheduled=async(id)=>{
+    await deleteGame(id);
+    setGames(prev=>prev.filter(x=>x.id!==id));
+  };
   // Resume a saved game - pass full state back into gameInfo so Game can restore it
   const handleResume=()=>{
     if(!resumeState)return;
@@ -1667,7 +1757,7 @@ export default function App() {
 
   return (
     <>
-      {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); if(i.scheduledId){deleteGame(i.scheduledId).catch(()=>{}); }}} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume} onSchedule={handleSchedule}/>}
+      {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); if(i.scheduledId){deleteGame(i.scheduledId).catch(()=>{}); }}} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume} onSchedule={handleSchedule} onEditScheduled={handleEditScheduled} onDeleteScheduled={handleDeleteScheduled}/>}
       {screen==="lineup"&&gameInfo&&<Lineup gameInfo={gameInfo} onKickoff={i=>{ setGameInfo(i);setScreen("game"); }} onBack={()=>setScreen("home")}/>}
       {screen==="game"&&gameInfo&&<Game gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>{ setResumeState(loadGameState());setScreen("home"); }}/>}
       {screen==="stats"&&<Stats games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={statsTab}/>}
