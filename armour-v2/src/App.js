@@ -7,6 +7,19 @@ import {
   uid, findPlayer
 } from "./constants";
 
+// ─── FORMATIONS ───────────────────────────────────────────────────────────────
+const FORMATIONS = [
+  { id:"4-4-2",  label:"4-4-2",  desc:"Classic, balanced" },
+  { id:"4-3-3",  label:"4-3-3",  desc:"Attack minded" },
+  { id:"3-5-2",  label:"3-5-2",  desc:"Midfield control" },
+  { id:"4-2-3-1",label:"4-2-3-1",desc:"Double pivot" },
+  { id:"3-4-3",  label:"3-4-3",  desc:"Attacking wingbacks" },
+  { id:"4-1-4-1",label:"4-1-4-1",desc:"Defensive anchor" },
+  { id:"5-3-2",  label:"5-3-2",  desc:"Defensive solidity" },
+  { id:"4-5-1",  label:"4-5-1",  desc:"Counter attack" },
+];
+
+
 // ─── THEME ───────────────────────────────────────────────────────────────────
 const C = {
   bg:"#060e1a", card:"#0f172a", border:"#1e3a5f", blue:"#2563eb",
@@ -145,6 +158,37 @@ function LiveOptimumXI({ events, onField, allPlayers, positions, gf, ga, half, s
   );
 }
 
+// ─── FORMATION PICKER ─────────────────────────────────────────────────────────
+function FormationPicker({ value, onChange, label }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <Lbl>{label || "Formation"}</Lbl>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {FORMATIONS.map(f => (
+          <button
+            key={f.id}
+            onClick={() => onChange(f.id)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: value === f.id ? "2px solid #60a5fa" : "1px solid #334155",
+              background: value === f.id ? C.blue : C.border,
+              color: value === f.id ? "#fff" : "#94a3b8",
+              fontWeight: value === f.id ? 800 : 600,
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            {f.label}
+            <div style={{ fontSize: 9, color: value === f.id ? "#bfdbfe" : C.muted, marginTop: 2 }}>{f.desc}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 // ─── PIN SCREEN ───────────────────────────────────────────────────────────────
 function PinScreen({ onAdmin, onViewer }) {
   const [pin,setPin]=useState(""); const [err,setErr]=useState(false);
@@ -197,6 +241,12 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
           <span style={{ background:rc, color:"#fff", borderRadius:8, padding:"6px 16px", fontWeight:800, fontSize:16 }}>{result}</span>
         </div>
         {saving&&<div style={{ fontSize:11, color:C.green, marginTop:6 }}>Saving…</div>}
+        {(game.formation1H || game.formation2H) && (
+          <div style={{ display:"flex", gap:8, marginTop:8 }}>
+            {game.formation1H && <div style={{ background:C.border, borderRadius:8, padding:"4px 10px" }}><div style={{ fontSize:10, color:C.muted }}>1ST HALF</div><div style={{ fontSize:14, fontWeight:800, color:"#60a5fa" }}>{game.formation1H}</div></div>}
+            {game.formation2H && <div style={{ background:C.border, borderRadius:8, padding:"4px 10px" }}><div style={{ fontSize:10, color:C.muted }}>2ND HALF</div><div style={{ fontSize:14, fontWeight:800, color:"#60a5fa" }}>{game.formation2H}</div></div>}
+          </div>
+        )}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:6 }}>
           <div style={{ fontSize:11, color:C.muted }}>{isAdmin?"Tap any event to edit":"View only"}</div>
           {isAdmin&&<button onClick={()=>onDelete(game)} style={{ background:"#7f1d1d", border:"none", borderRadius:8, padding:"5px 12px", color:"#fca5a5", fontWeight:700, fontSize:11, cursor:"pointer" }}>Delete Game</button>}
@@ -437,6 +487,7 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
   // NEW: start 2nd half only mode
   const [halfMode,setHalfMode]=useState("full"); // "full" or "second_only"
   const allP=[...ROSTER,...guests];
+  const [formation1H, setFormation1H] = useState("4-3-3");
   const available=allP.filter(p=>avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent");
   const posFor=id=>overrides[id]||DEFAULT_POS[id]||"MID";
   const toggle=id=>{ if(selected.includes(id))setSelected(s=>s.filter(x=>x!==id)); else if(selected.length<11)setSelected(s=>[...s,id]); };
@@ -445,7 +496,7 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
   const kickoff=()=>{
     if(selected.length!==11)return;
     const positions=Object.fromEntries(selected.map(id=>[id,posFor(id)]));
-    onKickoff({...gameInfo,starting:selected,positions,avail,guests,allPlayers:[...ROSTER,...guests],startFromSecondHalf:halfMode==="second_only"});
+    onKickoff({...gameInfo,starting:selected,positions,avail,guests,allPlayers:[...ROSTER,...guests],startFromSecondHalf:halfMode==="second_only", formation1H});
   };
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:100 }}>
@@ -459,6 +510,18 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
           ))}
         </div>
         {halfMode==="second_only"&&<div style={{ fontSize:10, color:C.amber, marginTop:6 }}>⚡ Clock starts at 40'. 1st half stats skipped — 2nd half tracked only.</div>}
+        <div style={{ marginTop:12, paddingTop:10, borderTop:"1px solid #1e3a5f" }}>
+          <Lbl>1st Half Formation</Lbl>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {FORMATIONS.map(f=>(
+              <button key={f.id} onClick={()=>setFormation1H(f.id)}
+                style={{ padding:"7px 11px", borderRadius:10, border:formation1H===f.id?"2px solid #60a5fa":"1px solid #334155", background:formation1H===f.id?C.blue:C.border, color:formation1H===f.id?"#fff":"#94a3b8", fontWeight:formation1H===f.id?800:600, fontSize:12, cursor:"pointer" }}>
+                {f.label}
+                <div style={{ fontSize:8, color:formation1H===f.id?"#bfdbfe":C.muted }}>{f.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
           <div style={{ fontSize:12, color:"#94a3b8" }}>Tap to select · tap badge to mark unavailable</div>
           <div style={{ fontSize:22, fontWeight:900, color:selected.length===11?C.green:C.amber }}>{selected.length}<span style={{ fontSize:13, color:C.muted }}>/11</span></div>
@@ -883,6 +946,18 @@ function Game({ gameInfo, onEnd, onBack }) {
           </div>
         ))}
         <div style={{ display:"flex", gap:8, marginTop:14 }}>
+        <div style={{ marginTop:10, marginBottom:12 }}>
+          <Lbl>2nd Half Formation</Lbl>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {FORMATIONS.map(f=>(
+              <button key={f.id} onClick={()=>setFormation2H(f.id)}
+                style={{ padding:"7px 11px", borderRadius:10, border:formation2H===f.id?"2px solid #60a5fa":"1px solid #334155", background:formation2H===f.id?C.blue:C.border, color:formation2H===f.id?"#fff":"#94a3b8", fontWeight:formation2H===f.id?800:600, fontSize:12, cursor:"pointer" }}>
+                {f.label}
+                <div style={{ fontSize:8, color:formation2H===f.id?"#bfdbfe":C.muted }}>{f.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
           <button onClick={()=>setModal("sub")} style={{ ...btn("#059669"), flex:1 }}>Make Sub</button>
           <button onClick={start2H} style={{ ...btn(C.blue), flex:2, fontSize:15, fontWeight:800 }}>Start 2nd Half</button>
         </div>
@@ -893,42 +968,60 @@ function Game({ gameInfo, onEnd, onBack }) {
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
-  const [view, setView] = useState(defaultTab || "overview");
-  const [sortBy, setSortBy] = useState("net80");
+  const [view, setView]       = useState(defaultTab || "overview");
+  const [compFilter, setCompFilter] = useState("all");
+  const [sortBy, setSortBy]   = useState("net80");
   const [sortDir, setSortDir] = useState(-1);
-  const [scout, setScout] = useState(null);
+  const [scout, setScout]     = useState(null);
 
+  const filteredGames = compFilter === "all" ? games : games.filter(g => g.type === compFilter);
   const allGuests = games.flatMap(g => g.guests || []).filter((g, i, a) => a.findIndex(x => String(x.id) === String(g.id)) === i);
-  const allP = [...ROSTER, ...allGuests];
-  const allSt = calcStats(games);
-  const allGF = games.flatMap(g => (g.events || []).filter(e => e.type === "goal_for"));
-  const allGA = games.flatMap(g => (g.events || []).filter(e => e.type === "goal_against"));
-  const opps = [...new Set(games.map(g => g.opponent))];
-  const pList = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}) })).filter(p => p.played > 0).sort((a, b) => {
-    const av = sortBy === "net80" ? (a.net80 || 0) : (a[sortBy] || 0);
-    const bv = sortBy === "net80" ? (b.net80 || 0) : (b[sortBy] || 0);
-    return sortDir * (bv - av);
-  });
-  const toggleSort = k => { if (sortBy === k) setSortDir(d => d * -1); else { setSortBy(k); setSortDir(-1); } };
+  const allP   = [...ROSTER, ...allGuests];
+  const allSt  = calcStats(filteredGames);
+  const allGF  = filteredGames.flatMap(g => (g.events || []).filter(e => e.type === "goal_for"));
+  const allGA  = filteredGames.flatMap(g => (g.events || []).filter(e => e.type === "goal_against"));
+  const opps   = [...new Set(filteredGames.map(g => g.opponent))];
+  const gf1H   = allGF.filter(e => e.half === 1).length;
+  const gf2H   = allGF.filter(e => e.half === 2).length;
+  const ga1H   = allGA.filter(e => e.half === 1).length;
+  const ga2H   = allGA.filter(e => e.half === 2).length;
+  const totalGF = filteredGames.reduce((a, g) => a + g.scoreFor, 0);
+  const totalGA = filteredGames.reduce((a, g) => a + g.scoreAgainst, 0);
+  const compLabel = compFilter === "all" ? "All Games" : compFilter === "regular" ? "League" : "Cup";
+
+  const calcImpact = (p) => {
+    const s = allSt[String(p.id)] || {};
+    if (!s.mins || s.mins < 10) return null;
+    const net80 = s.net80 || 0;
+    const goalsPer80 = (s.goals || 0) / s.mins * 80;
+    const assistsPer80 = (s.assists || 0) / s.mins * 80;
+    return net80 + (goalsPer80 * 0.5) + (assistsPer80 * 0.25);
+  };
+  const fmtImpact = (v) => v === null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2);
+
+  const pList = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}), impact: calcImpact(p) }))
+    .filter(p => p.played > 0)
+    .sort((a, b) => {
+      const av = sortBy === "net80" ? (a.net80||0) : sortBy === "impact" ? (a.impact??-999) : (a[sortBy]||0);
+      const bv = sortBy === "net80" ? (b.net80||0) : sortBy === "impact" ? (b.impact??-999) : (b[sortBy]||0);
+      return sortDir * (bv - av);
+    });
+  const toggleSort = k => { if (sortBy === k) setSortDir(d => d*-1); else { setSortBy(k); setSortDir(-1); } };
   const sb = (k, l) => (
-    <button key={k} onClick={() => toggleSort(k)} style={{ flex: 1, padding: "8px 2px", borderRadius: 8, border: "none", fontWeight: 700, fontSize: 10, cursor: "pointer", background: sortBy === k ? C.blue : C.border, color: sortBy === k ? "#fff" : C.muted }}>
-      {l}{sortBy === k ? (sortDir === -1 ? " v" : " ^") : ""}
+    <button key={k} onClick={() => toggleSort(k)} style={{ flex:1, padding:"7px 2px", borderRadius:8, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:sortBy===k?C.blue:C.border, color:sortBy===k?"#fff":C.muted }}>
+      {l}{sortBy===k?(sortDir===-1?" ▼":" ▲"):""}
     </button>
   );
-  const topG = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}) })).filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals);
-  const topA = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}) })).filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists);
-  const buckets = [
-    { l: "0-10", min: 0, max: 10 }, { l: "11-20", min: 11, max: 20 },
-    { l: "21-30", min: 21, max: 30 }, { l: "31-40", min: 31, max: 40 },
-    { l: "41-50", min: 41, max: 50 }, { l: "51-60", min: 51, max: 60 },
-    { l: "61-70", min: 61, max: 70 }, { l: "71-80", min: 71, max: 80 },
-  ];
+
+  const topG = allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.goals>0).sort((a,b)=>b.goals-a.goals);
+  const topA = allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.assists>0).sort((a,b)=>b.assists-a.assists);
+  const buckets = [{l:"0-10",min:0,max:10},{l:"11-20",min:11,max:20},{l:"21-30",min:21,max:30},{l:"31-40",min:31,max:40},{l:"41-50",min:41,max:50},{l:"51-60",min:51,max:60},{l:"61-70",min:61,max:70},{l:"71-80",min:71,max:80}];
 
   if (!games || games.length === 0) {
     return (
-      <div style={{ minHeight: "100vh", background: C.bg, color: C.text, ...T, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32 }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "#60a5fa" }}>No Games Yet</div>
-        <button onClick={onBack} style={{ ...btn(C.blue), padding: "14px 28px" }}>Back</button>
+      <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, padding:32 }}>
+        <div style={{ fontSize:20, fontWeight:700, color:"#60a5fa" }}>No Games Yet</div>
+        <button onClick={onBack} style={{ ...btn(C.blue), padding:"14px 28px" }}>Back</button>
       </div>
     );
   }
@@ -936,92 +1029,104 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   const renderOverview = () => (
     <div>
       <div style={card}>
-        <Lbl>Season Record</Lbl>
-        <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
-          {["W", "D", "L"].map(r => {
-            const c = games.filter(g => r === "W" ? g.scoreFor > g.scoreAgainst : r === "D" ? g.scoreFor === g.scoreAgainst : g.scoreFor < g.scoreAgainst).length;
-            return (
-              <div key={r}>
-                <div style={{ fontSize: 36, fontWeight: 900, color: r === "W" ? "#059669" : r === "D" ? "#d97706" : C.red }}>{c}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{r === "W" ? "Wins" : r === "D" ? "Draws" : "Losses"}</div>
-              </div>
-            );
+        <Lbl>Season Record — {compLabel}</Lbl>
+        <div style={{ display:"flex", justifyContent:"space-around", textAlign:"center" }}>
+          {["W","D","L"].map(r => {
+            const c = filteredGames.filter(g=>r==="W"?g.scoreFor>g.scoreAgainst:r==="D"?g.scoreFor===g.scoreAgainst:g.scoreFor<g.scoreAgainst).length;
+            return <div key={r}><div style={{ fontSize:36, fontWeight:900, color:r==="W"?"#059669":r==="D"?"#d97706":C.red }}>{c}</div><div style={{ fontSize:11, color:C.muted }}>{r==="W"?"Wins":r==="D"?"Draws":"Losses"}</div></div>;
           })}
-          <div>
-            <div style={{ fontSize: 36, fontWeight: 900, color: "#60a5fa" }}>{games.reduce((a, g) => a + g.scoreFor, 0)}-{games.reduce((a, g) => a + g.scoreAgainst, 0)}</div>
-            <div style={{ fontSize: 11, color: C.muted }}>Goals</div>
+          <div><div style={{ fontSize:36, fontWeight:900, color:"#60a5fa" }}>{totalGF}-{totalGA}</div><div style={{ fontSize:11, color:C.muted }}>Goals</div></div>
+        </div>
+      </div>
+      <div style={card}>
+        <Lbl>Goals by Half</Lbl>
+        <div style={{ display:"flex", gap:8, marginBottom:8, textAlign:"center" }}>
+          <div style={{ flex:1, background:"#0a1628", borderRadius:10, padding:10 }}>
+            <div style={{ fontSize:10, color:C.muted, marginBottom:6 }}>TOTAL</div>
+            <div style={{ display:"flex", justifyContent:"space-around" }}>
+              <div><div style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{totalGF}</div><div style={{ fontSize:9, color:C.muted }}>FOR</div></div>
+              <div><div style={{ fontSize:22, fontWeight:900, color:"#f87171" }}>{totalGA}</div><div style={{ fontSize:9, color:C.muted }}>AGAINST</div></div>
+            </div>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, textAlign:"center" }}>
+          <div style={{ flex:1, background:"#0a1628", borderRadius:10, padding:10 }}>
+            <div style={{ fontSize:10, color:C.muted, marginBottom:6 }}>1ST HALF</div>
+            <div style={{ display:"flex", justifyContent:"space-around" }}>
+              <div><div style={{ fontSize:20, fontWeight:900, color:"#60a5fa" }}>{gf1H}</div><div style={{ fontSize:9, color:C.muted }}>FOR</div></div>
+              <div><div style={{ fontSize:20, fontWeight:900, color:"#f87171" }}>{ga1H}</div><div style={{ fontSize:9, color:C.muted }}>AGAINST</div></div>
+            </div>
+          </div>
+          <div style={{ flex:1, background:"#0a1628", borderRadius:10, padding:10 }}>
+            <div style={{ fontSize:10, color:C.muted, marginBottom:6 }}>2ND HALF</div>
+            <div style={{ display:"flex", justifyContent:"space-around" }}>
+              <div><div style={{ fontSize:20, fontWeight:900, color:"#60a5fa" }}>{gf2H}</div><div style={{ fontSize:9, color:C.muted }}>FOR</div></div>
+              <div><div style={{ fontSize:20, fontWeight:900, color:"#f87171" }}>{ga2H}</div><div style={{ fontSize:9, color:C.muted }}>AGAINST</div></div>
+            </div>
           </div>
         </div>
       </div>
       <div style={card}>
         <Lbl>Top Scorers</Lbl>
-        {topG.length === 0 && <div style={{ color: C.muted, fontSize: 13 }}>No goals yet</div>}
-        {topG.slice(0, 8).map((p, i) => (
-          <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: i < Math.min(7, topG.length - 1) ? `1px solid ${C.border}` : "none" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, color: C.muted, fontWeight: 800, width: 18 }}>{i + 1}</span>
-              <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</span>
-            </div>
-            <span style={{ fontSize: 22, fontWeight: 900, color: "#60a5fa" }}>{p.goals}</span>
+        {topG.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No goals yet</div>}
+        {topG.slice(0,8).map((p,i)=>(
+          <div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:i<Math.min(7,topG.length-1)?`1px solid ${C.border}`:"none" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</span></div>
+            <span style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{p.goals}</span>
           </div>
         ))}
       </div>
       <div style={card}>
         <Lbl>Top Assists</Lbl>
-        {topA.length === 0 && <div style={{ color: C.muted, fontSize: 13 }}>No assists yet</div>}
-        {topA.slice(0, 8).map((p, i) => (
-          <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: i < Math.min(7, topA.length - 1) ? `1px solid ${C.border}` : "none" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, color: C.muted, fontWeight: 800, width: 18 }}>{i + 1}</span>
-              <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</span>
-            </div>
-            <span style={{ fontSize: 22, fontWeight: 900, color: C.green }}>{p.assists}</span>
+        {topA.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No assists yet</div>}
+        {topA.slice(0,8).map((p,i)=>(
+          <div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:i<Math.min(7,topA.length-1)?`1px solid ${C.border}`:"none" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</span></div>
+            <span style={{ fontSize:22, fontWeight:900, color:C.green }}>{p.assists}</span>
           </div>
         ))}
       </div>
       <div style={card}>
         <Lbl>Goal Timing (10-min intervals)</Lbl>
-        {buckets.map(b => {
-          const gfC = allGF.filter(g => g.minute >= b.min && g.minute <= b.max).length;
-          const gaC = allGA.filter(g => g.minute >= b.min && g.minute <= b.max).length;
-          const mx = Math.max(gfC, gaC, 1);
-          return (
-            <div key={b.l} style={{ marginBottom: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{b.l}</span>
-                <span style={{ fontSize: 11 }}>
-                  <span style={{ color: "#60a5fa", fontWeight: 700 }}>For: {gfC}</span>{"  "}
-                  <span style={{ color: "#f87171", fontWeight: 700 }}>vs: {gaC}</span>
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                <span style={{ fontSize: 9, color: "#60a5fa", width: 16 }}>F</span>
-                <div style={{ flex: 1, background: "#1e293b", borderRadius: 3, height: 6 }}>
-                  <div style={{ width: (gfC / mx * 100) + "%", background: C.blue, borderRadius: 3, height: "100%" }} />
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: 9, color: "#f87171", width: 16 }}>V</span>
-                <div style={{ flex: 1, background: "#1e293b", borderRadius: 3, height: 6 }}>
-                  <div style={{ width: (gaC / mx * 100) + "%", background: C.red, borderRadius: 3, height: "100%" }} />
-                </div>
-              </div>
-            </div>
-          );
+        {buckets.map(b=>{
+          const gfC=allGF.filter(g=>g.minute>=b.min&&g.minute<=b.max).length;
+          const gaC=allGA.filter(g=>g.minute>=b.min&&g.minute<=b.max).length;
+          const mx=Math.max(gfC,gaC,1);
+          return <div key={b.l} style={{ marginBottom:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}><span style={{ fontSize:11, color:"#94a3b8" }}>{b.l}</span><span style={{ fontSize:11 }}><span style={{ color:"#60a5fa", fontWeight:700 }}>For: {gfC}</span>{"  "}<span style={{ color:"#f87171", fontWeight:700 }}>vs: {gaC}</span></span></div>
+            <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:2 }}><span style={{ fontSize:9, color:"#60a5fa", width:16 }}>F</span><div style={{ flex:1, background:"#1e293b", borderRadius:3, height:6 }}><div style={{ width:(gfC/mx*100)+"%", background:C.blue, borderRadius:3, height:"100%" }}/></div></div>
+            <div style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ fontSize:9, color:"#f87171", width:16 }}>V</span><div style={{ flex:1, background:"#1e293b", borderRadius:3, height:6 }}><div style={{ width:(gaC/mx*100)+"%", background:C.red, borderRadius:3, height:"100%" }}/></div></div>
+          </div>;
         })}
       </div>
+      {(() => {
+        const gamesWithF = filteredGames.filter(g=>g.formation1H);
+        if (gamesWithF.length===0) return null;
+        const fStats = {};
+        gamesWithF.forEach(g=>{ const f=g.formation1H; if(!fStats[f])fStats[f]={played:0,won:0,drawn:0,lost:0,gf:0,ga:0}; fStats[f].played++; if(g.scoreFor>g.scoreAgainst)fStats[f].won++; else if(g.scoreFor===g.scoreAgainst)fStats[f].drawn++; else fStats[f].lost++; fStats[f].gf+=g.scoreFor; fStats[f].ga+=g.scoreAgainst; });
+        return (
+          <div style={card}>
+            <Lbl>Formations</Lbl>
+            {Object.entries(fStats).map(([f,s])=>(
+              <div key={f} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid #1e3a5f" }}>
+                <div><div style={{ fontSize:16, fontWeight:800, color:"#60a5fa" }}>{f}</div><div style={{ fontSize:11, color:C.muted }}>{s.played} games</div></div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:"#059669" }}>{s.won}</div><div style={{ fontSize:8, color:C.muted }}>W</div></div>
+                  <div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:"#d97706" }}>{s.drawn}</div><div style={{ fontSize:8, color:C.muted }}>D</div></div>
+                  <div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:C.red }}>{s.lost}</div><div style={{ fontSize:8, color:C.muted }}>L</div></div>
+                  <div style={{ textAlign:"center" }}><div style={{ fontSize:13, fontWeight:700, color:"#94a3b8" }}>{s.gf}-{s.ga}</div><div style={{ fontSize:8, color:C.muted }}>GF-GA</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
       <Lbl>All Results</Lbl>
-      {games.slice().reverse().map((g, i) => (
-        <button key={i} onClick={() => onView(g)} style={{ ...card, width: "100%", textAlign: "left", cursor: "pointer", marginBottom: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>vs {g.opponent.split(" ").slice(0, 3).join(" ")}</div>
-              <div style={{ fontSize: 11, color: C.muted }}>{g.date} · {g.venue}</div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 22, fontWeight: 900, color: "#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span>
-              <WinBadge gf={g.scoreFor} ga={g.scoreAgainst} />
-            </div>
+      {filteredGames.slice().reverse().map((g,i)=>(
+        <button key={i} onClick={()=>onView(g)} style={{ ...card, width:"100%", textAlign:"left", cursor:"pointer", marginBottom:8 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div><div style={{ fontSize:13, fontWeight:700, color:C.text }}>vs {g.opponent.split(" ").slice(0,3).join(" ")}</div><div style={{ fontSize:11, color:C.muted }}>{g.date} · {g.venue}{g.formation1H?" · "+g.formation1H:""}</div></div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:22, fontWeight:900, color:"#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span><WinBadge gf={g.scoreFor} ga={g.scoreAgainst}/></div>
           </div>
         </button>
       ))}
@@ -1030,217 +1135,202 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
 
   const renderPlayers = () => (
     <div>
-      <div style={{ display: "flex", gap: 5, marginBottom: 12 }}>
-        {["goals", "assists", "gf", "ga", "net80"].map(k => sb(k, k === "net80" ? "Net/80" : k.toUpperCase()))}
+      <div style={{ display:"flex", gap:4, marginBottom:8, flexWrap:"wrap" }}>
+        {sb("goals","Goals")}{sb("assists","Asst")}{sb("gf","GF")}{sb("ga","GA")}{sb("net80","Net/80")}{sb("impact","Impact")}
       </div>
-      <p style={{ color: C.muted, fontSize: 11, marginTop: 0, marginBottom: 12 }}>Net/80: goals scored minus conceded per 80 mins on field. * = Maariyah</p>
-      {pList.map(p => {
-        const s = allSt[String(p.id)] || {};
-        return (
-          <div key={p.id} style={{ ...card, border: `1px solid ${C.border}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{s.played} games - {s.mins} mins - avg {s.avgMins} min/game</div>
+      <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Net/80: team +/- per 80 mins. Impact adds goals×0.5 + assists×0.25 per 80 mins. Min 10 mins.</p>
+      {pList.map(p=>{
+        const s=allSt[String(p.id)]||{};
+        const impact=calcImpact(p);
+        const ic=impact===null?"#94a3b8":impact>0?C.green:impact<0?C.red:"#94a3b8";
+        const ibg=impact===null?C.border:impact>0?"#064e3b":impact<0?"#450a0a":C.border;
+        return <div key={p.id} style={{ ...card, border:`1px solid ${C.border}` }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+            <div><div style={{ fontWeight:800, fontSize:15, color:C.text }}>{p.name}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.played} games · {s.mins} mins · avg {s.avgMins}'</div></div>
+            <div style={{ display:"flex", gap:6 }}>
+              <div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:8, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
+                <div style={{ fontSize:13, fontWeight:900, color:parseFloat(s.net80)>0?C.green:parseFloat(s.net80)<0?C.red:"#94a3b8" }}>{s.net80s||"-"}</div>
+                <div style={{ fontSize:8, color:C.muted }}>NET/80</div>
               </div>
-              <div style={{ background: parseFloat(s.net80) > 0 ? "#064e3b" : parseFloat(s.net80) < 0 ? "#450a0a" : C.border, borderRadius: 8, padding: "6px 10px", textAlign: "center", minWidth: 54 }}>
-                <div style={{ fontSize: 16, fontWeight: 900, color: parseFloat(s.net80) > 0 ? C.green : parseFloat(s.net80) < 0 ? C.red : "#94a3b8" }}>{s.net80s || "-"}</div>
-                <div style={{ fontSize: 9, color: C.muted }}>NET/80</div>
+              <div style={{ background:ibg, borderRadius:8, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
+                <div style={{ fontSize:13, fontWeight:900, color:ic }}>{fmtImpact(impact)}</div>
+                <div style={{ fontSize:8, color:C.muted }}>IMPACT</div>
               </div>
-            </div>
-            <div style={{ display: "flex", gap: 5 }}>
-              {[["G", s.goals, "#60a5fa"], ["A", s.assists, C.green], ["GF", s.gf, "#3b82f6"], ["GA", s.ga, "#f87171"]].map(([l, v, co]) => (
-                <div key={l} style={{ flex: 1, background: C.border, borderRadius: 8, padding: "7px 4px", textAlign: "center" }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: co }}>{v || 0}</div>
-                  <div style={{ fontSize: 8, color: C.muted }}>{l}</div>
-                </div>
-              ))}
             </div>
           </div>
-        );
+          <div style={{ display:"flex", gap:5 }}>
+            {[["G",s.goals,"#60a5fa"],["A",s.assists,C.green],["GF",s.gf,"#3b82f6"],["GA",s.ga,"#f87171"]].map(([l,v,co])=>(
+              <div key={l} style={{ flex:1, background:C.border, borderRadius:8, padding:"7px 4px", textAlign:"center" }}>
+                <div style={{ fontSize:18, fontWeight:800, color:co }}>{v||0}</div>
+                <div style={{ fontSize:8, color:C.muted }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>;
       })}
     </div>
   );
 
   const renderOptimum = () => {
-    const el = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}) })).filter(p => p.played > 0 && p.net80 !== null);
-    const top11 = [...el].sort((a, b) => (b.net80 || 0) - (a.net80 || 0)).slice(0, 11);
-    const rest = [...el].sort((a, b) => (b.net80 || 0) - (a.net80 || 0)).slice(11);
-    const byPos = { GK: [], DEF: [], MID: [], FWD: [] };
-    top11.forEach(p => { if (byPos[p.pos]) byPos[p.pos].push(p); });
-    return (
-      <div>
-        <div style={{ ...card, border: `2px solid ${C.amber}`, marginBottom: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: C.amber, marginBottom: 4 }}>Season Optimum XI</div>
-          <div style={{ fontSize: 11, color: C.muted }}>Best 11 by Net/80 across all games.</div>
-        </div>
-        {["GK", "DEF", "MID", "FWD"].map(pos => byPos[pos].length > 0 && (
-          <div key={pos} style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: POS_COLOR[pos], letterSpacing: 1, marginBottom: 6 }}>{pos}</div>
-            {byPos[pos].map(p => (
-              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, ...card, border: `1px solid ${C.border}`, marginBottom: 5 }}>
-                <span style={{ width: 28, height: 28, borderRadius: "50%", background: POS_COLOR[pos], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#fff", flexShrink: 0 }}>{p.num}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</div>
-                  <div style={{ fontSize: 10, color: C.muted }}>{p.played} games - {p.mins} mins</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: parseFloat(p.net80) >= 0 ? C.green : C.red }}>{p.net80s}</div>
-                  <div style={{ fontSize: 9, color: C.muted }}>NET/80</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-        {rest.length > 0 && (
-          <div>
-            <Lbl>Others</Lbl>
-            {rest.map((p, i) => (
-              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#0a1222", border: `1px solid #1e293b`, borderRadius: 10, padding: "9px 14px", marginBottom: 4, opacity: 0.75 }}>
-                <span style={{ fontSize: 12, color: C.muted, width: 20 }}>{i + 12}.</span>
-                <span style={{ flex: 1, fontSize: 13, color: "#94a3b8" }}>{p.name}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: parseFloat(p.net80) >= 0 ? C.green : C.red }}>{p.net80s}</span>
-                <span style={{ fontSize: 10, color: C.muted }}>{p.mins}m</span>
-              </div>
-            ))}
-          </div>
-        )}
+    const el=allP.map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcImpact(p)})).filter(p=>p.played>0&&p.net80!==null);
+    const top11=[...el].sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(0,11);
+    const rest=[...el].sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(11);
+    const byPos={GK:[],DEF:[],MID:[],FWD:[]};
+    top11.forEach(p=>{ if(byPos[p.pos])byPos[p.pos].push(p); });
+    return <div>
+      <div style={{ ...card, border:`2px solid ${C.amber}`, marginBottom:14 }}>
+        <div style={{ fontSize:13, fontWeight:800, color:C.amber, marginBottom:4 }}>Season Optimum XI — {compLabel}</div>
+        <div style={{ fontSize:11, color:C.muted }}>Best 11 by Net/80. Impact Score shown alongside.</div>
       </div>
-    );
+      {["GK","DEF","MID","FWD"].map(pos=>byPos[pos].length>0&&<div key={pos} style={{ marginBottom:12 }}>
+        <div style={{ fontSize:10, fontWeight:800, color:POS_COLOR[pos], letterSpacing:1, marginBottom:6 }}>{pos}</div>
+        {byPos[pos].map(p=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, ...card, border:`1px solid ${C.border}`, marginBottom:5 }}>
+          <span style={{ width:28, height:28, borderRadius:"50%", background:POS_COLOR[pos], display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:11, color:"#fff", flexShrink:0 }}>{p.num}</span>
+          <div style={{ flex:1 }}><div style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</div><div style={{ fontSize:10, color:C.muted }}>{p.played} games · {p.mins} mins</div></div>
+          <div style={{ display:"flex", gap:6 }}>
+            <div style={{ textAlign:"right" }}><div style={{ fontSize:14, fontWeight:900, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
+            <div style={{ textAlign:"right" }}><div style={{ fontSize:14, fontWeight:900, color:p.impact>0?C.amber:p.impact<0?C.red:"#94a3b8" }}>{fmtImpact(p.impact)}</div><div style={{ fontSize:8, color:C.muted }}>IMPACT</div></div>
+          </div>
+        </div>)}
+      </div>)}
+      {rest.length > 0 && (
+        <div>
+          <Lbl>Others</Lbl>
+          {rest.map((p,i) => (
+            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#0a1222", border:"1px solid #1e293b", borderRadius:10, padding:"9px 14px", marginBottom:4, opacity:0.75 }}>
+              <span style={{ fontSize:12, color:C.muted, width:20 }}>{i+12}.</span>
+              <span style={{ flex:1, fontSize:13, color:"#94a3b8" }}>{p.name}</span>
+              <span style={{ fontSize:12, fontWeight:700, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</span>
+              <span style={{ fontSize:11, color:C.amber, fontWeight:700, marginLeft:6 }}>{fmtImpact(p.impact)}</span>
+              <span style={{ fontSize:10, color:C.muted, marginLeft:4 }}>{p.mins}m</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>;
   };
 
   const renderScoutList = () => (
     <div>
-      <p style={{ color: C.muted, fontSize: 12, marginTop: 0 }}>Tap opponent for full report</p>
-      {opps.map(opp => {
-        const og = games.filter(g => g.opponent === opp);
-        const w = og.filter(g => g.scoreFor > g.scoreAgainst).length;
-        const d = og.filter(g => g.scoreFor === g.scoreAgainst).length;
-        const l = og.filter(g => g.scoreFor < g.scoreAgainst).length;
-        const tf = og.reduce((a, g) => a + g.scoreFor, 0);
-        const ta = og.reduce((a, g) => a + g.scoreAgainst, 0);
-        return (
-          <button key={opp} onClick={() => setScout(opp)} style={{ ...card, width: "100%", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{opp.split(" ").slice(0, 4).join(" ")}</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>GF: {tf} GA: {ta}</div>
-            </div>
-            <div style={{ display: "flex", gap: 4 }}>
-              {w > 0 && <span style={{ background: "#059669", color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 12, fontWeight: 700 }}>{w}W</span>}
-              {d > 0 && <span style={{ background: "#d97706", color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 12, fontWeight: 700 }}>{d}D</span>}
-              {l > 0 && <span style={{ background: C.red, color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 12, fontWeight: 700 }}>{l}L</span>}
-            </div>
-          </button>
-        );
+      <p style={{ color:C.muted, fontSize:12, marginTop:0 }}>Tap opponent for full report</p>
+      {opps.map(opp=>{
+        const og=filteredGames.filter(g=>g.opponent===opp);
+        const w=og.filter(g=>g.scoreFor>g.scoreAgainst).length,d=og.filter(g=>g.scoreFor===g.scoreAgainst).length,l=og.filter(g=>g.scoreFor<g.scoreAgainst).length;
+        const tf=og.reduce((a,g)=>a+g.scoreFor,0),ta=og.reduce((a,g)=>a+g.scoreAgainst,0);
+        return <button key={opp} onClick={()=>setScout(opp)} style={{ ...card, width:"100%", textAlign:"left", cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <div><div style={{ fontSize:13, fontWeight:700, color:C.text }}>{opp.split(" ").slice(0,4).join(" ")}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>GF: {tf} GA: {ta}</div></div>
+          <div style={{ display:"flex", gap:4 }}>
+            {w>0&&<span style={{ background:"#059669", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:12, fontWeight:700 }}>{w}W</span>}
+            {d>0&&<span style={{ background:"#d97706", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:12, fontWeight:700 }}>{d}D</span>}
+            {l>0&&<span style={{ background:C.red, color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:12, fontWeight:700 }}>{l}L</span>}
+          </div>
+        </button>;
       })}
     </div>
   );
 
   const renderScoutDetail = () => {
-    const og = games.filter(g => g.opponent === scout);
-    const ss = calcStats(og);
-    const tf = og.reduce((a, g) => a + g.scoreFor, 0);
-    const ta = og.reduce((a, g) => a + g.scoreAgainst, 0);
-    const sc = allP.map(p => ({ ...p, ...(ss[String(p.id)] || {}) })).filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals);
-    const sa = allP.map(p => ({ ...p, ...(ss[String(p.id)] || {}) })).filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists);
-    const sm = allP.map(p => ({ ...p, ...(ss[String(p.id)] || {}) })).filter(p => p.played > 0).sort((a, b) => b.mins - a.mins);
-    const opt = allP.map(p => ({ ...p, ...(ss[String(p.id)] || {}) })).filter(p => p.played > 0 && p.net80 !== null).sort((a, b) => (b.net80 || 0) - (a.net80 || 0)).slice(0, 11);
-    return (
-      <div>
-        <button onClick={() => setScout(null)} style={{ background: "none", border: "none", color: "#60a5fa", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 12 }}>{"< All Opponents"}</button>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#60a5fa", marginBottom: 10 }}>{scout.split(" ").slice(0, 4).join(" ")}</div>
-        <div style={{ ...card, marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
-            {[["Played", og.length, "#94a3b8"], ["GF", tf, "#60a5fa"], ["GA", ta, "#f87171"], ["GD", tf - ta >= 0 ? "+" + String(tf - ta) : String(tf - ta), C.green]].map(([l, v, co]) => (
-              <div key={l}>
-                <div style={{ fontSize: 28, fontWeight: 900, color: co }}>{v}</div>
-                <div style={{ fontSize: 10, color: C.muted }}>{l}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {sc.length > 0 && (
-          <div style={card}>
-            <Lbl>Scorers & Assists</Lbl>
-            {sc.map((p, i) => (
-              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: i < sc.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.name}</span>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {p.goals > 0 && <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 800, color: "#60a5fa" }}>{p.goals}</div><div style={{ fontSize: 8, color: C.muted }}>G</div></div>}
-                  {p.assists > 0 && <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 800, color: C.green }}>{p.assists}</div><div style={{ fontSize: 8, color: C.muted }}>A</div></div>}
-                </div>
-              </div>
-            ))}
-            {sa.filter(p => !sc.find(s => String(s.id) === String(p.id))).map((p, i) => (
-              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.name}</span>
-                <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 800, color: C.green }}>{p.assists}</div><div style={{ fontSize: 8, color: C.muted }}>A</div></div>
-              </div>
-            ))}
-          </div>
-        )}
+    const og=filteredGames.filter(g=>g.opponent===scout);
+    const ss=calcStats(og);
+    const tf=og.reduce((a,g)=>a+g.scoreFor,0),ta=og.reduce((a,g)=>a+g.scoreAgainst,0);
+    const sc=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.goals>0).sort((a,b)=>b.goals-a.goals);
+    const sa=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.assists>0).sort((a,b)=>b.assists-a.assists);
+    const sm=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>b.mins-a.mins);
+    const opt=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.played>0&&p.net80!==null).sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(0,11);
+    const gamesWithF=og.filter(g=>g.formation1H);
+    const fStats={};
+    gamesWithF.forEach(g=>{ const f=g.formation1H; if(!fStats[f])fStats[f]={played:0,won:0,gf:0,ga:0}; fStats[f].played++; if(g.scoreFor>g.scoreAgainst)fStats[f].won++; fStats[f].gf+=g.scoreFor; fStats[f].ga+=g.scoreAgainst; });
+    const bestF=Object.entries(fStats).sort((a,b)=>(b[1].won/b[1].played)-(a[1].won/a[1].played))[0];
+    return <div>
+      <button onClick={()=>setScout(null)} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:700, cursor:"pointer", padding:0, marginBottom:12 }}>{"< All Opponents"}</button>
+      <div style={{ fontSize:16, fontWeight:800, color:"#60a5fa", marginBottom:10 }}>{scout.split(" ").slice(0,4).join(" ")}</div>
+      <div style={{ ...card, marginBottom:12 }}><div style={{ display:"flex", justifyContent:"space-around", textAlign:"center" }}>{[["Played",og.length,"#94a3b8"],["GF",tf,"#60a5fa"],["GA",ta,"#f87171"],["GD",tf-ta>=0?"+"+String(tf-ta):String(tf-ta),C.green]].map(([l,v,co])=><div key={l}><div style={{ fontSize:28, fontWeight:900, color:co }}>{v}</div><div style={{ fontSize:10, color:C.muted }}>{l}</div></div>)}</div></div>
+      {gamesWithF.length>0&&<div style={{ ...card, border:"1px solid #f59e0b", marginBottom:12 }}>
+        <Lbl>Formation vs {scout.split(" ")[0]}</Lbl>
+        {Object.entries(fStats).map(([f,s])=><div key={f} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderBottom:"1px solid #1e3a5f" }}><span style={{ fontSize:15, fontWeight:800, color:"#60a5fa" }}>{f}</span><div style={{ display:"flex", gap:12 }}><span style={{ fontSize:12, color:"#6ee7b7" }}>{s.won}W/{s.played}P</span><span style={{ fontSize:12, color:"#94a3b8" }}>{s.gf}-{s.ga}</span></div></div>)}
+        {bestF&&<div style={{ marginTop:8, padding:"6px 10px", background:"linear-gradient(135deg,#064e3b,#065f46)", borderRadius:8 }}><div style={{ fontSize:10, color:"#6ee7b7" }}>BEST FORMATION vs {scout.split(" ")[0]}</div><div style={{ fontSize:18, fontWeight:900, color:"#fff" }}>{bestF[0]}</div></div>}
+      </div>}
+      {sc.length > 0 && (
         <div style={card}>
-          <Lbl>Minutes Played</Lbl>
-          {sm.map((p, i) => (
-            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: i < sm.length - 1 ? `1px solid ${C.border}` : "none" }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.name}</span>
-              <span style={{ fontSize: 13, color: C.amber, fontWeight: 700 }}>{p.mins}' <span style={{ fontSize: 10, color: C.muted }}>avg {p.avgMins}'</span></span>
+          <Lbl>Scorers & Assists</Lbl>
+          {sc.map((p,i) => (
+            <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:i<sc.length-1?`1px solid ${C.border}`:"none" }}>
+              <span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span>
+              <div style={{ display:"flex", gap:8 }}>
+                {p.goals > 0 && <div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:"#60a5fa" }}>{p.goals}</div><div style={{ fontSize:8, color:C.muted }}>G</div></div>}
+                {p.assists > 0 && <div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:C.green }}>{p.assists}</div><div style={{ fontSize:8, color:C.muted }}>A</div></div>}
+              </div>
+            </div>
+          ))}
+          {sa.filter(p=>!sc.find(s=>String(s.id)===String(p.id))).map((p,i) => (
+            <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
+              <span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span>
+              <div style={{ textAlign:"center" }}><div style={{ fontSize:16, fontWeight:800, color:C.green }}>{p.assists}</div><div style={{ fontSize:8, color:C.muted }}>A</div></div>
             </div>
           ))}
         </div>
-        {opt.length > 0 && (
-          <div style={card}>
-            <Lbl>Optimum Team vs {scout.split(" ")[0]}</Lbl>
-            <p style={{ fontSize: 11, color: C.muted, marginTop: 0, marginBottom: 8 }}>{og.length} game{og.length !== 1 ? "s" : ""} of data</p>
-            {opt.map((p, i) => (
-              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: i < opt.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                <span style={{ fontSize: 12, color: C.muted, width: 20 }}>{i + 1}.</span>
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.text }}>{p.name}</span>
-                <span style={{ fontSize: 10, color: POS_COLOR[p.pos] || C.muted, fontWeight: 700, marginRight: 6 }}>{p.pos}</span>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {p.goals > 0 && <span style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700 }}>{p.goals}G</span>}
-                  {p.assists > 0 && <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>{p.assists}A</span>}
-                  <span style={{ fontSize: 11, color: "#94a3b8" }}>{p.net80s}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <Lbl>Results</Lbl>
-        {og.map((g, i) => (
-          <button key={i} onClick={() => onView(g)} style={{ ...card, width: "100%", textAlign: "left", cursor: "pointer", marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: C.muted }}>{g.date} · {g.venue}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span>
-                <WinBadge gf={g.scoreFor} ga={g.scoreAgainst} />
+      )}
+      <div style={card}><Lbl>Minutes Played</Lbl>{sm.map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:i<sm.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><span style={{ fontSize:13, color:C.amber, fontWeight:700 }}>{p.mins}'</span></div>)}</div>
+      {opt.length > 0 && (
+        <div style={card}>
+          <Lbl>Optimum Team vs {scout.split(" ")[0]}</Lbl>
+          <p style={{ fontSize:11, color:C.muted, marginTop:0, marginBottom:8 }}>{og.length} game{og.length!==1?"s":""} · Best XI by Net/80</p>
+          {opt.map((p,i) => (
+            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderBottom:i<opt.length-1?`1px solid ${C.border}`:"none" }}>
+              <span style={{ fontSize:12, color:C.muted, width:20 }}>{i+1}.</span>
+              <span style={{ flex:1, fontSize:13, fontWeight:700, color:C.text }}>{p.name}</span>
+              <span style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:6 }}>{p.pos}</span>
+              <div style={{ display:"flex", gap:6 }}>
+                {p.goals > 0 && <span style={{ fontSize:11, color:"#60a5fa", fontWeight:700 }}>{p.goals}G</span>}
+                {p.assists > 0 && <span style={{ fontSize:11, color:C.green, fontWeight:700 }}>{p.assists}A</span>}
+                <span style={{ fontSize:11, color:"#94a3b8" }}>{p.net80s}</span>
               </div>
             </div>
-          </button>
-        ))}
-      </div>
-    );
+          ))}
+        </div>
+      )}
+      <Lbl>Results</Lbl>
+      <Lbl>Results</Lbl>
+      {og.map((g,i) => (
+        <button key={i} onClick={() => onView(g)} style={{ ...card, width:"100%", textAlign:"left", cursor:"pointer", marginBottom:8 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span style={{ fontSize:12, color:C.muted }}>{g.date} · {g.venue}</span>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontSize:18, fontWeight:900, color:"#fff" }}>{g.scoreFor}-{g.scoreAgainst}</span>
+              <WinBadge gf={g.scoreFor} ga={g.scoreAgainst} />
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>;
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, ...T, paddingBottom: 32 }}>
-      <div style={{ background: "linear-gradient(135deg,#1e3a5f,#0f2544)", padding: 16, borderBottom: `3px solid ${C.blue}`, display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", color: "#60a5fa", fontSize: 20, cursor: "pointer", padding: 0, fontWeight: 800 }}>{"<"}</button>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#60a5fa" }}>Season Stats</div>
-          <div style={{ fontSize: 11, color: C.muted }}>{games.length} games played</div>
-        </div>
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:32 }}>
+      <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:16, borderBottom:`3px solid ${C.blue}`, display:"flex", alignItems:"center", gap:12 }}>
+        <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:20, cursor:"pointer", padding:0, fontWeight:800 }}>{"<"}</button>
+        <div><div style={{ fontSize:18, fontWeight:800, color:"#60a5fa" }}>Season Stats</div><div style={{ fontSize:11, color:C.muted }}>{filteredGames.length} games · {compLabel}</div></div>
       </div>
-      <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, background: "#0a1628" }}>
-        {[["overview", "Overview"], ["players", "Players"], ["optimum", "Optimum"], ["scouting", "Scouting"]].map(([t, l]) => (
-          <button key={t} onClick={() => setView(t)} style={{ flex: 1, padding: "13px 2px", background: "none", border: "none", borderBottom: view === t ? `3px solid ${C.blue}` : "3px solid transparent", color: view === t ? "#60a5fa" : C.muted, fontWeight: 700, fontSize: 11, cursor: "pointer" }}>{l}</button>
+      <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#0a1628" }}>
+        {[["overview","Overview"],["players","Players"],["optimum","Optimum"],["scouting","Scouting"]].map(([t,l])=>(
+          <button key={t} onClick={()=>{ setView(t);setScout(null); }} style={{ flex:1, padding:"13px 2px", background:"none", border:"none", borderBottom:view===t?`3px solid ${C.blue}`:"3px solid transparent", color:view===t?"#60a5fa":C.muted, fontWeight:700, fontSize:11, cursor:"pointer" }}>{l}</button>
         ))}
       </div>
-      <div style={{ padding: 14, maxWidth: 480, margin: "0 auto" }}>
-        {view === "overview" && renderOverview()}
-        {view === "players" && renderPlayers()}
-        {view === "optimum" && renderOptimum()}
-        {view === "scouting" && (scout ? renderScoutDetail() : renderScoutList())}
+      <div style={{ display:"flex", background:"#060e1a", borderBottom:"1px solid #0f172a" }}>
+        {[["all","All"],["regular","⚽ League"],["tournament","🏆 Cup"]].map(([k,l])=>(
+          <button key={k} onClick={()=>{ setCompFilter(k);setScout(null); }} style={{ flex:1, padding:"9px 2px", background:"none", border:"none", borderBottom:compFilter===k?(k==="tournament"?`3px solid ${C.purple}`:k==="regular"?`3px solid ${C.green}`:`3px solid ${C.blue}`):"3px solid transparent", color:compFilter===k?(k==="tournament"?"#a78bfa":k==="regular"?"#6ee7b7":"#60a5fa"):C.muted, fontWeight:700, fontSize:11, cursor:"pointer" }}>{l}</button>
+        ))}
+      </div>
+      <div style={{ padding:14, maxWidth:480, margin:"0 auto" }}>
+        {filteredGames.length===0
+          ? <div style={{ textAlign:"center", color:C.muted, fontSize:14, marginTop:40 }}>No {compLabel} games yet</div>
+          : <div>
+              {view==="overview"  && renderOverview()}
+              {view==="players"   && renderPlayers()}
+              {view==="optimum"   && renderOptimum()}
+              {view==="scouting"  && (scout ? renderScoutDetail() : renderScoutList())}
+            </div>
+        }
       </div>
     </div>
   );
@@ -1348,6 +1438,7 @@ function makeKeystoneGame(roster) {
   const emmaId     = pid("emma");
 
   // 1st half starting XI: Emily, Lily K, Ava, Aurelia, Julia, Brooke, Lainey, Abby, Caitlin D, Lily N, Ashley
+  // 1st half XI: Emily, Lily K, Ava, Aurelia, Julia, Brooke, Lainey, Abby, Caitlin D, Lily N, Ashley
   const starting = [emilyId, lilyKId, avaId, aureliaId, juliaId, brookeId, laineyId, abbyId, caitDId, lilyNId, ashleyId].filter(Boolean);
 
   const events = [];
@@ -1368,8 +1459,9 @@ function makeKeystoneGame(roster) {
   events.push({ type:"goal_against", minute:71, score:"0-1", half:2, id:uid() });
   events.push({ type:"goal_for", minute:72, scorer:caitDId, assist:laineyId, score:"1-1", half:2, id:uid() });
 
-  // 2nd half XI: Ashley, Lily N, Abby, Caitlin D, Lainey, Maariyah, Ava, Lily K, Aurelia, Emily, Julia
-  const secondHalfStarting = [ashleyId, lilyNId, abbyId, caitDId, laineyId, maariyahId, avaId, lilyKId, aureliaId, emilyId, juliaId].filter(Boolean);
+  // 2nd half XI: Ashley, Lily K, Abby, Caitlin D, Lainey, Maariyah, Ava, Lily N, Aurelia, Emily, Julia
+  // (Lily N must be here as she is subbed off @52min of 2nd half)
+  const secondHalfStarting = [ashleyId, lilyKId, abbyId, caitDId, laineyId, maariyahId, avaId, lilyNId, aureliaId, emilyId, juliaId].filter(Boolean);
 
   return {
     id: "5-16-2025-keystone-fc",
@@ -1379,6 +1471,8 @@ function makeKeystoneGame(roster) {
     type: "regular",
     scoreFor: 1,
     scoreAgainst: 1,
+    formation1H: "4-4-2",
+    formation2H: "4-4-2",
     starting,
     secondHalfStarting,
     positions: Object.fromEntries(starting.map(id => [id, roster.find(p => String(p.id) === String(id))?.pos || "MID"])),
@@ -1411,14 +1505,16 @@ export default function App() {
         await saveGame(makeLVURush());
         await saveGame(makeCoppermine());
         await saveGame(makeKeystoneGame(ROSTER));
-        await saveGame(makeKeystoneGame(ROSTER));
       } else {
-        // Seed Keystone if not already saved
-        if(!seeded.current && !fbGames.find(g=>g.id==="5-16-2025-keystone-fc")){
-          seeded.current=true;
+        seeded.current=true;
+        // Patch existing games missing formation data with 4-4-2
+        const needsPatch = fbGames.filter(g => !g.formation1H);
+        for(const g of needsPatch) {
+          await saveGame({...g, formation1H:"4-4-2", formation2H:"4-4-2"});
+        }
+        // Seed Keystone if missing
+        if(!fbGames.find(g=>g.id==="5-16-2025-keystone-fc")){
           await saveGame(makeKeystoneGame(ROSTER));
-        } else {
-          seeded.current=true;
         }
         setGames(fbGames);
         setLoading(false);
@@ -1489,12 +1585,19 @@ export default function App() {
               <span style={{ fontSize:10, color:screen===key?"#60a5fa":C.muted, fontWeight:screen===key?700:400 }}>{label}</span>
             </button>
           ))}
-        </div>
-      )}
-      {screen!=="game"&&screen!=="lineup"&&!viewing&&(
-        <div style={{ position:"fixed", bottom:70, right:16, display:"flex", gap:8, zIndex:101 }}>
-          {!isAdmin&&<div onClick={()=>setShowPin(true)} style={{ background:C.border, border:`1px solid #334155`, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:C.muted, fontWeight:700 }}>Admin Login</div>}
-          {isAdmin&&<div onClick={()=>{ setIsAdmin(false);localStorage.removeItem("ps_admin"); }} style={{ background:"#7f1d1d", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:11, color:"#fca5a5", fontWeight:700 }}>Logout</div>}
+        {/* Admin Login / Logout as nav tab */}
+          {!isAdmin && (
+            <button onClick={()=>setShowPin(true)} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:"2px solid transparent" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={C.muted}><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4a3 3 0 110 6 3 3 0 010-6zm0 14c-2.67 0-8 1.34-8 4v1h16v-1c0-2.66-5.33-4-8-4z"/></svg>
+              <span style={{ fontSize:9, color:C.muted }}>Login</span>
+            </button>
+          )}
+          {isAdmin && (
+            <button onClick={()=>{setIsAdmin(false);localStorage.removeItem("ps_admin");}} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:"2px solid transparent" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#f87171"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+              <span style={{ fontSize:9, color:"#f87171" }}>Logout</span>
+            </button>
+          )}
         </div>
       )}
     </>
