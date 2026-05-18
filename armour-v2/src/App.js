@@ -1039,34 +1039,6 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
         </div>
       </div>
       <div style={card}>
-        <Lbl>Goals by Half</Lbl>
-        <div style={{ display:"flex", gap:8, marginBottom:8, textAlign:"center" }}>
-          <div style={{ flex:1, background:"#0a1628", borderRadius:10, padding:10 }}>
-            <div style={{ fontSize:10, color:C.muted, marginBottom:6 }}>TOTAL</div>
-            <div style={{ display:"flex", justifyContent:"space-around" }}>
-              <div><div style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{totalGF}</div><div style={{ fontSize:9, color:C.muted }}>FOR</div></div>
-              <div><div style={{ fontSize:22, fontWeight:900, color:"#f87171" }}>{totalGA}</div><div style={{ fontSize:9, color:C.muted }}>AGAINST</div></div>
-            </div>
-          </div>
-        </div>
-        <div style={{ display:"flex", gap:8, textAlign:"center" }}>
-          <div style={{ flex:1, background:"#0a1628", borderRadius:10, padding:10 }}>
-            <div style={{ fontSize:10, color:C.muted, marginBottom:6 }}>1ST HALF</div>
-            <div style={{ display:"flex", justifyContent:"space-around" }}>
-              <div><div style={{ fontSize:20, fontWeight:900, color:"#60a5fa" }}>{gf1H}</div><div style={{ fontSize:9, color:C.muted }}>FOR</div></div>
-              <div><div style={{ fontSize:20, fontWeight:900, color:"#f87171" }}>{ga1H}</div><div style={{ fontSize:9, color:C.muted }}>AGAINST</div></div>
-            </div>
-          </div>
-          <div style={{ flex:1, background:"#0a1628", borderRadius:10, padding:10 }}>
-            <div style={{ fontSize:10, color:C.muted, marginBottom:6 }}>2ND HALF</div>
-            <div style={{ display:"flex", justifyContent:"space-around" }}>
-              <div><div style={{ fontSize:20, fontWeight:900, color:"#60a5fa" }}>{gf2H}</div><div style={{ fontSize:9, color:C.muted }}>FOR</div></div>
-              <div><div style={{ fontSize:20, fontWeight:900, color:"#f87171" }}>{ga2H}</div><div style={{ fontSize:9, color:C.muted }}>AGAINST</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div style={card}>
         <Lbl>Top Scorers</Lbl>
         {topG.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No goals yet</div>}
         {topG.slice(0,8).map((p,i)=>(
@@ -1087,15 +1059,54 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
         ))}
       </div>
       <div style={card}>
+        <Lbl>Goals by Half</Lbl>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, textAlign:"center" }}>
+          {[
+            { label:"TOTAL",    gf:totalGF, ga:totalGA, border:`1px solid ${C.border}` },
+            { label:"1ST HALF", gf:gf1H,    ga:ga1H,    border:"1px solid #1e3a5f" },
+            { label:"2ND HALF", gf:gf2H,    ga:ga2H,    border:"1px solid #1e3a5f" },
+          ].map(col => (
+            <div key={col.label} style={{ background:"#0a1628", borderRadius:10, padding:"10px 6px", border:col.border }}>
+              <div style={{ fontSize:9, color:C.muted, fontWeight:700, letterSpacing:1, marginBottom:8 }}>{col.label}</div>
+              <div style={{ marginBottom:6 }}>
+                <div style={{ fontSize:col.label==="TOTAL"?24:20, fontWeight:900, color:"#60a5fa" }}>{col.gf}</div>
+                <div style={{ fontSize:9, color:"#60a5fa", opacity:0.7 }}>SCORED</div>
+              </div>
+              <div style={{ width:"100%", height:1, background:C.border, marginBottom:6 }} />
+              <div>
+                <div style={{ fontSize:col.label==="TOTAL"?24:20, fontWeight:900, color:"#f87171" }}>{col.ga}</div>
+                <div style={{ fontSize:9, color:"#f87171", opacity:0.7 }}>CONCEDED</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={card}>
         <Lbl>Goal Timing (10-min intervals)</Lbl>
         {buckets.map(b=>{
           const gfC=allGF.filter(g=>g.minute>=b.min&&g.minute<=b.max).length;
           const gaC=allGA.filter(g=>g.minute>=b.min&&g.minute<=b.max).length;
           const mx=Math.max(gfC,gaC,1);
           return <div key={b.l} style={{ marginBottom:10 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}><span style={{ fontSize:11, color:"#94a3b8" }}>{b.l}</span><span style={{ fontSize:11 }}><span style={{ color:"#60a5fa", fontWeight:700 }}>For: {gfC}</span>{"  "}<span style={{ color:"#f87171", fontWeight:700 }}>vs: {gaC}</span></span></div>
-            <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:2 }}><span style={{ fontSize:9, color:"#60a5fa", width:16 }}>F</span><div style={{ flex:1, background:"#1e293b", borderRadius:3, height:6 }}><div style={{ width:(gfC/mx*100)+"%", background:C.blue, borderRadius:3, height:"100%" }}/></div></div>
-            <div style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ fontSize:9, color:"#f87171", width:16 }}>V</span><div style={{ flex:1, background:"#1e293b", borderRadius:3, height:6 }}><div style={{ width:(gaC/mx*100)+"%", background:C.red, borderRadius:3, height:"100%" }}/></div></div>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
+              <span style={{ fontSize:11, color:"#94a3b8" }}>{b.l}</span>
+              <span style={{ fontSize:11 }}>
+                <span style={{ color:"#60a5fa", fontWeight:700 }}>For: {gfC}</span>{"  "}
+                <span style={{ color:"#f87171", fontWeight:700 }}>Against: {gaC}</span>
+              </span>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:2 }}>
+              <span style={{ fontSize:9, color:"#60a5fa", width:16 }}>F</span>
+              <div style={{ flex:1, background:"#1e293b", borderRadius:3, height:6 }}>
+                <div style={{ width:(gfC/mx*100)+"%", background:C.blue, borderRadius:3, height:"100%" }}/>
+              </div>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+              <span style={{ fontSize:9, color:"#f87171", width:16 }}>A</span>
+              <div style={{ flex:1, background:"#1e293b", borderRadius:3, height:6 }}>
+                <div style={{ width:(gaC/mx*100)+"%", background:C.red, borderRadius:3, height:"100%" }}/>
+              </div>
+            </div>
           </div>;
         })}
       </div>
