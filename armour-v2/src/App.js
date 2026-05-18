@@ -380,6 +380,7 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
   const [showSchedule, setShowSchedule] = useState(false);
   const [schedOpp, setSchedOpp] = useState("");
   const [schedDate, setSchedDate] = useState("");
+  const [schedTime, setSchedTime] = useState("");
   const [schedType, setSchedType] = useState("regular");
   const [schedVenue, setSchedVenue] = useState("Away");
   const [type,setType]=useState("regular"); const [opp,setOpp]=useState(""); const [customOpp,setCustomOpp]=useState(""); const [venue,setVenue]=useState("Home");
@@ -395,7 +396,7 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
   });
   // Also include Firebase-scheduled games
   const firebaseScheduled = games.filter(g=>g.status==="scheduled").map(g=>({
-    opp:g.opponent, date:g.date, venue:g.venue, type:g.type, id:g.id
+    opp:g.opponent, date:g.date, time:g.time||"" , venue:g.venue, type:g.type, id:g.id
   }));
   const remaining = [
     ...hardcodedRemaining,
@@ -403,8 +404,9 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
   ].sort((a,b)=>new Date(a.date)-new Date(b.date));
   const teams=type==="regular"?LEAGUE_TEAMS:TOURNAMENT_TEAMS;
   const go=()=>{ const opponent=opp==="__custom__"?customOpp.trim():opp; if(!opponent)return; onStart({type,opponent,venue}); setShowNew(false); };
-  const record={W:games.filter(g=>g.scoreFor>g.scoreAgainst).length,D:games.filter(g=>g.scoreFor===g.scoreAgainst).length,L:games.filter(g=>g.scoreFor<g.scoreAgainst).length};
-  const totalGF=games.reduce((a,g)=>a+g.scoreFor,0), totalGA=games.reduce((a,g)=>a+g.scoreAgainst,0);
+  const completedGames=games.filter(g=>g.status==="completed"||(g.scoreFor!==undefined&&g.status!=="scheduled"&&g.status!=="in_progress"));
+  const record={W:completedGames.filter(g=>g.scoreFor>g.scoreAgainst).length,D:completedGames.filter(g=>g.scoreFor===g.scoreAgainst).length,L:completedGames.filter(g=>g.scoreFor<g.scoreAgainst).length};
+  const totalGF=completedGames.reduce((a,g)=>a+g.scoreFor,0), totalGA=completedGames.reduce((a,g)=>a+g.scoreAgainst,0);
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
       <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:"28px 16px 18px", borderBottom:`3px solid ${C.blue}`, textAlign:"center" }}>
@@ -443,10 +445,10 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           </div>
         )}
 
-        {games.length > 0 && (
+        {games.filter(g=>g.status==="completed"||(!g.status&&g.scoreFor!==undefined)).length > 0 && (
           <div>
             <Lbl>Recent Results</Lbl>
-            {games.slice().reverse().map((g, i) => (
+            {games.filter(g=>g.status==="completed"||(!g.status&&g.scoreFor!==undefined)).slice().reverse().map((g, i) => (
               <button key={i} onClick={() => onView(g)} style={{ background: "#0d2137", border: "1px solid #065f46", borderRadius: 12, padding: 14, marginBottom: 8, width: "100%", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>vs {g.opponent.split(" ").slice(0, 3).join(" ")}</div>
@@ -465,13 +467,20 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <div>
             <Lbl>Upcoming</Lbl>
             {remaining.map((g, i) => (
-              <button key={i} onClick={() => { if (!isAdmin) return; setType(g.type); setOpp(g.opp); setVenue(g.venue); setShowNew(true); }}
+              <button key={i} onClick={() => {
+                if (!isAdmin) return;
+                // Pre-fill and start this game directly
+                onStart({ type: g.type, opponent: g.opp, venue: g.venue, scheduledId: g.id });
+              }}
                 style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, width: "100%", textAlign: "left", cursor: isAdmin ? "pointer" : "default", display: "flex", justifyContent: "space-between", alignItems: "center", opacity: isAdmin ? 1 : 0.8 }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>vs {g.opp.split(" ").slice(0, 3).join(" ")}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{g.date} · {g.venue}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{g.date}{g.time ? " · "+g.time : ""} · {g.venue}</div>
                 </div>
-                <span style={{ background: g.type === "tournament" ? C.purple : C.blue, color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700 }}>{g.type === "tournament" ? "CUP" : "LEAGUE"}</span>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                  <span style={{ background: g.type === "tournament" ? C.purple : C.blue, color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700 }}>{g.type === "tournament" ? "CUP" : "LEAGUE"}</span>
+                  {isAdmin && <span style={{ fontSize:9, color:C.green, fontWeight:700 }}>TAP TO START ▶</span>}
+                </div>
               </button>
             ))}
             <div style={{ height: 8 }} />
@@ -516,6 +525,13 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
             onChange={e => setSchedDate(e.target.value)}
             style={{ ...inp, marginBottom: 12 }}
           />
+          <Lbl>Kick-off Time (optional)</Lbl>
+          <input
+            type="time"
+            value={schedTime}
+            onChange={e => setSchedTime(e.target.value)}
+            style={{ ...inp, marginBottom: 12 }}
+          />
           <Lbl>Competition</Lbl>
           <div style={{ display:"flex", gap:8, marginBottom:12 }}>
             {[["regular","⚽ League"],["tournament","🏆 Cup"]].map(([k,l])=>(
@@ -531,8 +547,8 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <button
             onClick={()=>{
               if(!schedOpp.trim()||!schedDate)return;
-              onSchedule({ opp:schedOpp.trim(), date:schedDate, type:schedType, venue:schedVenue });
-              setSchedOpp(""); setSchedDate(""); setSchedType("regular"); setSchedVenue("Away");
+              onSchedule({ opp:schedOpp.trim(), date:schedDate, time:schedTime, type:schedType, venue:schedVenue });
+              setSchedOpp(""); setSchedDate(""); setSchedTime(""); setSchedType("regular"); setSchedVenue("Away");
               setShowSchedule(false);
             }}
             disabled={!schedOpp.trim()||!schedDate}
@@ -1041,7 +1057,9 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   const [sortDir, setSortDir] = useState(-1);
   const [scout, setScout]     = useState(null);
 
-  const filteredGames = compFilter === "all" ? games : games.filter(g => g.type === compFilter);
+  // Never include scheduled games in stats
+  const playedGames = games.filter(g => g.status !== "scheduled");
+  const filteredGames = compFilter === "all" ? playedGames : playedGames.filter(g => g.type === compFilter);
   const allGuests = games.flatMap(g => g.guests || []).filter((g, i, a) => a.findIndex(x => String(x.id) === String(g.id)) === i);
   const allP   = [...ROSTER, ...allGuests];
   const allSt  = calcStats(filteredGames);
@@ -1604,10 +1622,13 @@ export default function App() {
   const updateGame=g=>{ setViewing(g);setGames(prev=>prev.map(x=>x.id===g.id?g:x)); };
   const handleDelete=async g=>{ if(window.confirm("Delete "+g.opponent+"? This cannot be undone.")){ await deleteGame(g.id);setGames(prev=>prev.filter(x=>x.id!==g.id));setViewing(null); } };
   const handleEnd=async g=>{ clearGameState();setResumeState(null);await saveGame(g);setScreen("stats"); };
-  const handleSchedule=async({opp,date,type,venue})=>{
+  const handleSchedule=async({opp,date,time,type,venue})=>{
     const scheduled={
-      id:"scheduled-"+date.replace(/-/g,"/")+"-"+opp.slice(0,12).replace(/\s/g,"-").toLowerCase(),
-      opponent:opp, date, type, venue,
+      id:"scheduled-"+Date.now(),
+      opponent:opp,
+      date: date ? new Date(date).toLocaleDateString("en-US") : "",
+      time: time || "",
+      type, venue,
       status:"scheduled",
       scoreFor:0, scoreAgainst:0,
       events:[], starting:[], allPlayers:ROSTER,
@@ -1646,7 +1667,7 @@ export default function App() {
 
   return (
     <>
-      {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); }} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume} onSchedule={handleSchedule}/>}
+      {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); if(i.scheduledId){deleteGame(i.scheduledId).catch(()=>{}); }}} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume} onSchedule={handleSchedule}/>}
       {screen==="lineup"&&gameInfo&&<Lineup gameInfo={gameInfo} onKickoff={i=>{ setGameInfo(i);setScreen("game"); }} onBack={()=>setScreen("home")}/>}
       {screen==="game"&&gameInfo&&<Game gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>{ setResumeState(loadGameState());setScreen("home"); }}/>}
       {screen==="stats"&&<Stats games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={statsTab}/>}
