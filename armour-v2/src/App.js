@@ -1419,7 +1419,10 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
     const sortedGuests = guestEl.sort((a,b)=>{ const aV=optimumSort==="impact"?(a.impact??-999):(a.net80||0); const bV=optimumSort==="impact"?(b.impact??-999):(b.net80||0); const d=bV-aV; return d!==0?d:(b.mins||0)-(a.mins||0); });
     const bestGK=sortedRoster.find(p=>p.pos==="GK");
     const topOutfield=sortedRoster.filter(p=>p.pos!=="GK").slice(0,10);
-    const top11=bestGK?[bestGK,...topOutfield]:sortedRoster.slice(0,11);
+    // Fallback: if we don't have 11, pull from all roster players with any mins
+    const top11=(bestGK && topOutfield.length>=10)
+      ? [bestGK,...topOutfield]
+      : sortedEl.filter(p=>rosterIds.has(String(p.id))).slice(0,11);
     const top11ids=new Set(top11.map(p=>String(p.id)));
     const restRoster=sortedRoster.filter(p=>!top11ids.has(String(p.id)));
     const rest=[...restRoster, ...sortedGuests];
@@ -1798,21 +1801,24 @@ export default function App() {
           }
           localStorage.setItem("ps_patched_formations", "1");
         }
-        // Force-rebuild Keystone game completely from scratch each time until correct
+        // KEYSTONE FIX: Delete old record and reseed with correct 11-player lineups
         {
           const existing = fbGames.find(g=>g.id==="5-16-2025-keystone-fc");
           const correctStarting = ["1","17","16","15","7","14","22","19","2","13","3"];
           const correct2H       = ["3","17","19","2","22","5","16","13","15","1","7"];
-          const needsRebuild = !existing ||
-            (existing.starting||[]).length !== 11 ||
-            (existing.secondHalfStarting||[]).length !== 11 ||
-            !(existing.starting||[]).map(String).includes("16") || // Avah must be in 1H
-            !(existing.secondHalfStarting||[]).map(String).includes("13"); // LillyN in 2H
-          if(needsRebuild) {
-            // Completely rebuild the Keystone game with correct data
+          const s1H = (existing?.starting||[]).map(String).sort().join(",");
+          const e1H = [...correctStarting].sort().join(",");
+          const s2H = (existing?.secondHalfStarting||[]).map(String).sort().join(",");
+          const e2H = [...correct2H].sort().join(",");
+          if(!existing || s1H !== e1H || s2H !== e2H) {
+            if(existing) {
+              // Delete the corrupted record first
+              await deleteGame(existing.id);
+            }
+            // Reseed with correct data
             const freshKeystone = makeKeystoneGame(ROSTER);
             await saveGame(freshKeystone);
-            return;
+            return; // listener fires again with correct data
           }
         }
         }
