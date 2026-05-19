@@ -1192,6 +1192,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   const [sortBy, setSortBy]   = useState("net80");
   const [sortDir, setSortDir] = useState(-1);
   const [scout, setScout]     = useState(null);
+  const [scoutOptSort, setScoutOptSort] = useState("net80");
 
   // Never include scheduled games in stats
   const playedGames = games.filter(g => g.status !== "scheduled");
@@ -1528,22 +1529,38 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
       {opt.length > 0 && (
         <div style={card}>
           <Lbl>Optimum Team vs {scout.split(" ")[0]}</Lbl>
-          <p style={{ fontSize:11, color:C.muted, marginTop:0, marginBottom:8 }}>{og.length} game{og.length!==1?"s":""} · Best XI by Net/80</p>
-          {opt.map((p,i) => (
-            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderBottom:i<opt.length-1?`1px solid ${C.border}`:"none" }}>
-              <span style={{ fontSize:12, color:C.muted, width:20 }}>{i+1}.</span>
-              <span style={{ flex:1, fontSize:13, fontWeight:700, color:C.text }}>{p.name}</span>
-              <span style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:6 }}>{p.pos}</span>
-              <div style={{ display:"flex", gap:6 }}>
-                {p.goals > 0 && <span style={{ fontSize:11, color:"#60a5fa", fontWeight:700 }}>{p.goals}G</span>}
-                {p.assists > 0 && <span style={{ fontSize:11, color:C.green, fontWeight:700 }}>{p.assists}A</span>}
-                <span style={{ fontSize:11, color:"#94a3b8" }}>{p.net80s}</span>
+          <p style={{ fontSize:11, color:C.muted, marginTop:0, marginBottom:8 }}>{og.length} game{og.length!==1?"s":""} · 1 GK · tiebreak by minutes</p>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <button onClick={()=>setScoutOptSort("net80")} style={{ flex:1, padding:"7px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:(scoutOptSort||"net80")==="net80"?C.blue:C.border, color:(scoutOptSort||"net80")==="net80"?"#fff":C.muted }}>Net/80 ▼</button>
+            <button onClick={()=>setScoutOptSort("impact")} style={{ flex:1, padding:"7px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:scoutOptSort==="impact"?C.amber:C.border, color:scoutOptSort==="impact"?"#000":C.muted }}>Impact ▼</button>
+          </div>
+          {(() => {
+            const scImpact = (p) => {
+              const s = ss[String(p.id)] || {};
+              if(!s.mins || s.mins < 5) return null;
+              return (s.net80||0) + (s.goals||0)/s.mins*80*0.5 + (s.assists||0)/s.mins*80*0.25;
+            };
+            const fmtSI = (v) => v===null?"-":(v>=0?"+":"")+v.toFixed(2);
+            const scRosterIds = new Set(ROSTER.map(p=>String(p.id)));
+            const optFull = allP.map(p=>({...p,...(ss[String(p.id)]||{}),impact:scImpact(p)})).filter(p=>p.played>0&&p.net80!==null&&scRosterIds.has(String(p.id)));
+            const sortedFull = [...optFull].sort((a,b)=>{ const av=(scoutOptSort||"net80")==="impact"?(a.impact??-999):(a.net80||0); const bv=(scoutOptSort||"net80")==="impact"?(b.impact??-999):(b.net80||0); const d=bv-av; return d!==0?d:(b.mins||0)-(a.mins||0); });
+            const sGK=sortedFull.find(p=>p.pos==="GK");
+            const sOut=sortedFull.filter(p=>p.pos!=="GK").slice(0,10);
+            const sXI=sGK?[sGK,...sOut]:sortedFull.slice(0,11);
+            return sXI.map((p,i)=>(
+              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderBottom:i<sXI.length-1?`1px solid ${C.border}`:"none" }}>
+                <span style={{ fontSize:12, color:C.muted, width:18 }}>{i+1}.</span>
+                <span style={{ flex:1, fontSize:13, fontWeight:700, color:C.text }}>{p.name}</span>
+                <span style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
+                <div style={{ display:"flex", gap:6 }}>
+                  <div style={{ textAlign:"center" }}><div style={{ fontSize:12, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
+                  <div style={{ textAlign:"center" }}><div style={{ fontSize:12, fontWeight:800, color:p.impact>0?C.amber:p.impact<0?C.red:"#94a3b8" }}>{fmtSI(p.impact)}</div><div style={{ fontSize:8, color:C.muted }}>IMPACT</div></div>
+                </div>
               </div>
-            </div>
-          ))}
+            ));
+          })()}
         </div>
       )}
-      <Lbl>Results</Lbl>
       <Lbl>Results</Lbl>
       {og.map((g,i) => (
         <button key={i} onClick={() => onView(g)} style={{ ...card, width:"100%", textAlign:"left", cursor:"pointer", marginBottom:8 }}>
@@ -1781,10 +1798,26 @@ export default function App() {
           }
           localStorage.setItem("ps_patched_formations", "1");
         }
-        // Seed Keystone if missing
-        if(!fbGames.find(g=>g.id==="5-16-2025-keystone-fc")){
-          await saveGame(makeKeystoneGame(ROSTER));
-          return; // listener fires again after save
+        // Patch Keystone lineup if wrong (version flag ensures once only)
+        if(!localStorage.getItem("ps_keystone_v3")) {
+          const correctStarting = ["1","17","16","15","7","14","22","19","2","13","3"];
+          const correct2H       = ["3","17","19","2","22","5","16","13","15","1","7"];
+          const existing = fbGames.find(g=>g.id==="5-16-2025-keystone-fc");
+          if(existing) {
+            // Force update with correct 11-player lineups
+            await saveGame({
+              ...existing,
+              starting: correctStarting,
+              secondHalfStarting: correct2H,
+              formation1H: "4-4-2",
+              formation2H: "4-4-2",
+            });
+          } else {
+            await saveGame(makeKeystoneGame(ROSTER));
+          }
+          localStorage.setItem("ps_keystone_v3", "1");
+          return; // listener fires again with updated data
+        }
         }
         seeded.current=true;
         setGames(fbGames);
