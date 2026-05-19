@@ -1976,13 +1976,14 @@ export default function App() {
               onClick={() => {
                 if (key === "games") { setStatsTab("scouting"); setScreen("games_view"); }
                 else if (key === "analytics") { setStatsTab("overview"); setScreen("stats_view"); }
+                else if (key === "players") { setStatsTab("players"); setScreen("stats_view"); }
                 else setScreen(key);
               }}
               style={{ flex: 1, padding: "10px 0 8px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, borderTop: (
                 (key === "home" && screen === "home") ||
                 (key === "games" && screen === "games_view") ||
                 (key === "analytics" && screen === "stats" && statsTab !== "scouting") ||
-                (key === "players" && screen === "players")
+                (key === "players" && screen === "stats_view" && statsTab === "players")
               ) ? `2px solid ${C.blue}` : "2px solid transparent" }}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill={(key==="home"&&screen==="home")||(key==="games"&&screen==="games_view")||(key==="analytics"&&screen==="stats_view")||(key==="players"&&screen==="players")?"#60a5fa":C.muted}><path d={icon}/></svg>
