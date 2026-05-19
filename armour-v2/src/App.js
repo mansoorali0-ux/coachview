@@ -1798,29 +1798,20 @@ export default function App() {
           }
           localStorage.setItem("ps_patched_formations", "1");
         }
-        // Always verify Keystone has correct 11-player lineups
+        // Force-rebuild Keystone game completely from scratch each time until correct
         {
+          const existing = fbGames.find(g=>g.id==="5-16-2025-keystone-fc");
           const correctStarting = ["1","17","16","15","7","14","22","19","2","13","3"];
           const correct2H       = ["3","17","19","2","22","5","16","13","15","1","7"];
-          const existing = fbGames.find(g=>g.id==="5-16-2025-keystone-fc");
-          if(existing) {
-            // Check if lineup is wrong (wrong count OR wrong players)
-            const cur1H = (existing.starting || []).map(String).sort().join(",");
-            const exp1H = [...correctStarting].sort().join(",");
-            const cur2H = (existing.secondHalfStarting || []).map(String).sort().join(",");
-            const exp2H = [...correct2H].sort().join(",");
-            if(cur1H !== exp1H || cur2H !== exp2H) {
-              await saveGame({
-                ...existing,
-                starting: correctStarting,
-                secondHalfStarting: correct2H,
-                formation1H: "4-4-2",
-                formation2H: "4-4-2",
-              });
-              return; // listener fires again with corrected data
-            }
-          } else {
-            await saveGame(makeKeystoneGame(ROSTER));
+          const needsRebuild = !existing ||
+            (existing.starting||[]).length !== 11 ||
+            (existing.secondHalfStarting||[]).length !== 11 ||
+            !(existing.starting||[]).map(String).includes("16") || // Avah must be in 1H
+            !(existing.secondHalfStarting||[]).map(String).includes("13"); // LillyN in 2H
+          if(needsRebuild) {
+            // Completely rebuild the Keystone game with correct data
+            const freshKeystone = makeKeystoneGame(ROSTER);
+            await saveGame(freshKeystone);
             return;
           }
         }
