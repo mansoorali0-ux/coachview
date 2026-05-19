@@ -1782,8 +1782,7 @@ export default function App() {
         await saveGame(makeCoppermine());
         await saveGame(makeKeystoneGame(ROSTER));
       } else {
-        // Patch only COMPLETED games missing formation (never patch scheduled/in-progress)
-        // Use a localStorage flag so this only ever runs once per device
+        // Patch formations once (localStorage flag prevents repeat)
         if(!localStorage.getItem("ps_patched_formations")) {
           const needsPatch = fbGames.filter(g =>
             !g.formation1H &&
@@ -1794,29 +1793,22 @@ export default function App() {
             for(const g of needsPatch) {
               await saveGame({...g, formation1H:"4-4-2", formation2H:"4-4-2"});
             }
-            // Mark as patched so this never runs again
             localStorage.setItem("ps_patched_formations", "1");
-            // Don't setLoading yet — listener will fire again with patched data
             return;
           }
           localStorage.setItem("ps_patched_formations", "1");
         }
-        // KEYSTONE FIX: Always verify and rebuild if needed
-        {
-          const existing = fbGames.find(g=>g.id==="5-16-2025-keystone-fc");
-          const correctStarting = ["1","17","16","15","7","14","22","19","2","13","3"];
-          const correct2H       = ["3","17","19","2","22","5","16","13","15","1","7"];
-          const cur1H = (existing?.starting||[]).map(String);
-          const cur2H = (existing?.secondHalfStarting||[]).map(String);
-          // Rebuild if: missing, wrong count, or missing key players
-          const bad1H = cur1H.length !== 11 || !cur1H.includes("16") || !cur1H.includes("13");
-          const bad2H = cur2H.length !== 11 || !cur2H.includes("16") || !cur2H.includes("13");
-          if(!existing || bad1H || bad2H) {
-            if(existing) { await deleteGame(existing.id); }
-            await saveGame(makeKeystoneGame(ROSTER));
-            return;
-          }
-        }
+        // Fix Keystone if lineup data is wrong or missing
+        const keystoneGame = fbGames.find(g=>g.id==="5-16-2025-keystone-fc");
+        const k1H = (keystoneGame?.starting||[]).map(String);
+        const k2H = (keystoneGame?.secondHalfStarting||[]).map(String);
+        const keystoneBad = !keystoneGame || k1H.length!==11 || k2H.length!==11 ||
+                            !k1H.includes("16") || !k1H.includes("13") ||
+                            !k2H.includes("16") || !k2H.includes("13");
+        if(keystoneBad) {
+          if(keystoneGame) await deleteGame(keystoneGame.id);
+          await saveGame(makeKeystoneGame(ROSTER));
+          return;
         }
         seeded.current=true;
         setGames(fbGames);
