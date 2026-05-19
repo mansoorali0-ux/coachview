@@ -310,6 +310,73 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
             {isAdmin&&<span style={{ fontSize:10, color:C.blue }}>edit</span>}
           </div>
         ))}
+        <Lbl mt={12}>Optimum Team This Game</Lbl>
+        {(() => {
+          const gStats = calcStats([{ ...game, events }]);
+          const allPlayers = game.allPlayers || ROSTER;
+          // Impact for this game only
+          const gameImpact = (p) => {
+            const s = gStats[String(p.id)] || {};
+            if (!s.mins || s.mins < 5) return null;
+            const net80 = s.net80 || 0;
+            const g80 = (s.goals || 0) / s.mins * 80;
+            const a80 = (s.assists || 0) / s.mins * 80;
+            return net80 + g80 * 0.5 + a80 * 0.25;
+          };
+          const fmtI = (v) => v === null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2);
+          const rIds = new Set(ROSTER.map(p=>String(p.id)));
+          const eligibleRoster = allPlayers.filter(p=>rIds.has(String(p.id))).map(p => ({ ...p, ...(gStats[String(p.id)] || {}), impact: gameImpact(p) })).filter(p => p.played > 0 && p.net80 !== null);
+          const eligibleGuests = allPlayers.filter(p=>!rIds.has(String(p.id))).map(p => ({ ...p, ...(gStats[String(p.id)] || {}), impact: gameImpact(p) })).filter(p => p.played > 0 && p.net80 !== null);
+          const eligible = [...eligibleRoster, ...eligibleGuests];
+          const sortedRosterE = eligibleRoster.sort((a, b) => { const d = (b.net80||0)-(a.net80||0); return d!==0?d:(b.mins||0)-(a.mins||0); });
+          const sortedGuestE = eligibleGuests.sort((a, b) => { const d = (b.net80||0)-(a.net80||0); return d!==0?d:(b.mins||0)-(a.mins||0); });
+          const gkOpt = sortedRosterE.find(p => p.pos === "GK");
+          const outOpt = sortedRosterE.filter(p => p.pos !== "GK").slice(0, 10);
+          const optXI = gkOpt ? [gkOpt, ...outOpt] : sortedRosterE.slice(0, 11);
+          const optRest = sortedRosterE.filter(p=>!optXI.find(x=>String(x.id)===String(p.id)));
+          if (optXI.length === 0) return null;
+          return (
+            <div style={{ ...card, border: `1px solid ${C.amber}`, marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: C.amber, fontWeight: 800, marginBottom: 8 }}>Best XI · Rostered Players · Net/80 highest first</div>
+              {optXI.map((p, i) => (
+                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: i < optXI.length-1 ? `1px solid ${C.border}` : "none" }}>
+                  <span style={{ fontSize: 11, color: C.muted, width: 18 }}>{i+1}.</span>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.text }}>{p.name}</span>
+                  <span style={{ fontSize: 10, color: POS_COLOR[p.pos] || C.muted, fontWeight: 700, marginRight: 4 }}>{p.pos}</span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: parseFloat(p.net80) >= 0 ? C.green : C.red }}>{p.net80s}</div>
+                      <div style={{ fontSize: 8, color: C.muted }}>NET/80</div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: p.impact > 0 ? C.amber : p.impact < 0 ? C.red : "#94a3b8" }}>{fmtI(p.impact)}</div>
+                      <div style={{ fontSize: 8, color: C.muted }}>IMPACT</div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa" }}>{p.mins}'</div>
+                      <div style={{ fontSize: 8, color: C.muted }}>MINS</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {sortedGuestE.length > 0 && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, marginBottom: 6 }}>GUEST PLAYERS</div>
+                  {sortedGuestE.map((p, i) => (
+                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < sortedGuestE.length-1 ? `1px solid ${C.border}` : "none", opacity: 0.75 }}>
+                      <span style={{ fontSize: 11, color: C.muted, width: 18 }}>G</span>
+                      <span style={{ flex: 1, fontSize: 13, color: "#94a3b8" }}>{p.name}</span>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 800, color: parseFloat(p.net80) >= 0 ? C.green : C.red }}>{p.net80s}</div><div style={{ fontSize: 8, color: C.muted }}>NET/80</div></div>
+                        <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 800, color: p.impact > 0 ? C.amber : "#94a3b8" }}>{fmtI(p.impact)}</div><div style={{ fontSize: 8, color: C.muted }}>IMPACT</div></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <Lbl mt={12}>Minutes Played</Lbl>
         {playerList.map(p => {
           const s = stats[String(p.id)];
@@ -415,7 +482,7 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
         <div style={{ fontSize:22, fontWeight:900, color:"#fff", letterSpacing:1 }}>Baltimore Armour</div>
         <div style={{ fontSize:12, color:"#93c5fd", letterSpacing:2, marginTop:2 }}>11G ASPIRE - 2025/26</div>
         {games.length>0&&(()=>{
-          const sorted=games.slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+          const sorted=games.filter(g=>g.status==="completed"||(g.status!=="scheduled"&&(g.scoreFor>0||g.scoreAgainst>0||((g.events||[]).length>0)))).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
           let streak=0;
           for(let i=sorted.length-1;i>=0;i--){if(sorted[i].scoreFor>=sorted[i].scoreAgainst)streak++;else break;}
           return(<div style={{ marginTop:14 }}>
@@ -1336,22 +1403,35 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
     </div>
   );
 
+  const [optimumSort, setOptimumSort] = useState("net80");
   const renderOptimum = () => {
-    const el=allP.map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcImpact(p)})).filter(p=>p.played>0&&p.net80!==null);
+    const rosterIds = new Set(ROSTER.map(p=>String(p.id)));
+    // Separate rostered players from guests
+    const rosterEl = allP.filter(p=>rosterIds.has(String(p.id))).map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcImpact(p)})).filter(p=>p.played>0&&p.net80!==null);
+    const guestEl  = allP.filter(p=>!rosterIds.has(String(p.id))).map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcImpact(p)})).filter(p=>p.played>0&&p.net80!==null);
+    const el = [...rosterEl, ...guestEl];
     // Sort by Net/80 desc, tiebreak by minutes played desc
-    const sortedEl=[...el].sort((a,b)=>{ const d=(b.net80||0)-(a.net80||0); return d!==0?d:(b.mins||0)-(a.mins||0); });
+    const sortedEl=[...el].sort((a,b)=>{ const aV=optimumSort==="impact"?(a.impact??-999):(a.net80||0); const bV=optimumSort==="impact"?(b.impact??-999):(b.net80||0); const d=bV-aV; return d!==0?d:(b.mins||0)-(a.mins||0); });
     // Enforce exactly 1 GK in top 11
-    const bestGK=sortedEl.find(p=>p.pos==="GK");
-    const topOutfield=sortedEl.filter(p=>p.pos!=="GK").slice(0,10);
-    const top11=bestGK?[bestGK,...topOutfield]:sortedEl.slice(0,11);
+    // Build Optimum XI from ROSTERED players only
+    const sortedRoster = rosterEl.sort((a,b)=>{ const aV=optimumSort==="impact"?(a.impact??-999):(a.net80||0); const bV=optimumSort==="impact"?(b.impact??-999):(b.net80||0); const d=bV-aV; return d!==0?d:(b.mins||0)-(a.mins||0); });
+    const sortedGuests = guestEl.sort((a,b)=>{ const aV=optimumSort==="impact"?(a.impact??-999):(a.net80||0); const bV=optimumSort==="impact"?(b.impact??-999):(b.net80||0); const d=bV-aV; return d!==0?d:(b.mins||0)-(a.mins||0); });
+    const bestGK=sortedRoster.find(p=>p.pos==="GK");
+    const topOutfield=sortedRoster.filter(p=>p.pos!=="GK").slice(0,10);
+    const top11=bestGK?[bestGK,...topOutfield]:sortedRoster.slice(0,11);
     const top11ids=new Set(top11.map(p=>String(p.id)));
-    const rest=sortedEl.filter(p=>!top11ids.has(String(p.id)));
+    const restRoster=sortedRoster.filter(p=>!top11ids.has(String(p.id)));
+    const rest=[...restRoster, ...sortedGuests];
     const byPos={GK:[],DEF:[],MID:[],FWD:[]};
     top11.forEach(p=>{ if(byPos[p.pos])byPos[p.pos].push(p); });
     return <div>
       <div style={{ ...card, border:`2px solid ${C.amber}`, marginBottom:14 }}>
-        <div style={{ fontSize:13, fontWeight:800, color:C.amber, marginBottom:4 }}>Season Optimum XI — {compLabel}</div>
-        <div style={{ fontSize:11, color:C.muted }}>Best 11 by Net/80. Impact Score shown alongside.</div>
+        <div style={{ fontSize:13, fontWeight:800, color:C.amber, marginBottom:8 }}>Season Optimum XI — {compLabel}</div>
+        <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+          <button onClick={()=>setOptimumSort("net80")} style={{ flex:1, padding:"8px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:optimumSort==="net80"?C.blue:C.border, color:optimumSort==="net80"?"#fff":C.muted }}>Net/80 ▼</button>
+          <button onClick={()=>setOptimumSort("impact")} style={{ flex:1, padding:"8px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:optimumSort==="impact"?C.amber:C.border, color:optimumSort==="impact"?"#000":C.muted }}>Impact ▼</button>
+        </div>
+        <div style={{ fontSize:10, color:C.muted }}>1 GK guaranteed · tiebreak by minutes</div>
       </div>
       {["GK","DEF","MID","FWD"].map(pos=>byPos[pos].length>0&&<div key={pos} style={{ marginBottom:12 }}>
         <div style={{ fontSize:10, fontWeight:800, color:POS_COLOR[pos], letterSpacing:1, marginBottom:6 }}>{pos}</div>
@@ -1808,10 +1888,24 @@ export default function App() {
 
   return (
     <>
-      {screen==="home"&&<Home games={games} onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); if(i.scheduledId){deleteGame(i.scheduledId).catch(()=>{}); }}} onStats={()=>setScreen("stats")} onView={g=>{ setViewing(g);setPrevScreen("home"); }} isAdmin={isAdmin} resumeState={resumeState} onResume={handleResume} onDiscardResume={handleDiscardResume} onSchedule={handleSchedule} onEditScheduled={handleEditScheduled} onDeleteScheduled={handleDeleteScheduled}/>}
+      {screen==="home" && (
+        <Home
+          games={games}
+          onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); if(i.scheduledId){deleteGame(i.scheduledId).catch(()=>{}); }}}
+          onStats={()=>setScreen("stats_view")}
+          onView={g=>{ setViewing(g);setPrevScreen("home"); }}
+          isAdmin={isAdmin}
+          resumeState={resumeState}
+          onResume={handleResume}
+          onDiscardResume={handleDiscardResume}
+          onSchedule={handleSchedule}
+          onEditScheduled={handleEditScheduled}
+          onDeleteScheduled={handleDeleteScheduled}
+        />
+      )}
       {screen==="lineup"&&gameInfo&&<Lineup gameInfo={gameInfo} onKickoff={i=>{ setGameInfo(i);setScreen("game"); }} onBack={()=>setScreen("home")}/>}
       {screen==="game"&&gameInfo&&<Game gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>{ setResumeState(loadGameState());setScreen("home"); }}/>}
-      {screen==="stats"&&<Stats key={statsTab} games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={statsTab}/>}
+      {(screen==="stats"||screen==="games_view"||screen==="stats_view")&&<Stats key={screen+statsTab} games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={screen==="games_view"?"scouting":screen==="stats_view"?"overview":statsTab}/>}
       {screen==="players"&&<Players games={games} onBack={()=>setScreen("home")} isAdmin={isAdmin}/>}
 
       {screen!=="game"&&screen!=="lineup"&&!viewing&&(
@@ -1825,19 +1919,19 @@ export default function App() {
             <button
               key={label}
               onClick={() => {
-                if (key === "games") { setStatsTab("scouting"); setScreen("home"); setTimeout(()=>setScreen("stats"), 0); }
-                else if (key === "analytics") { setStatsTab("overview"); setScreen("home"); setTimeout(()=>setScreen("stats"), 0); }
+                if (key === "games") { setStatsTab("scouting"); setScreen("games_view"); }
+                else if (key === "analytics") { setStatsTab("overview"); setScreen("stats_view"); }
                 else setScreen(key);
               }}
               style={{ flex: 1, padding: "10px 0 8px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, borderTop: (
                 (key === "home" && screen === "home") ||
-                (key === "games" && screen === "stats" && statsTab === "scouting") ||
+                (key === "games" && screen === "games_view") ||
                 (key === "analytics" && screen === "stats" && statsTab !== "scouting") ||
                 (key === "players" && screen === "players")
               ) ? `2px solid ${C.blue}` : "2px solid transparent" }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill={(key==="home"&&screen==="home")||(key==="games"&&screen==="stats"&&statsTab==="scouting")||(key==="analytics"&&screen==="stats"&&statsTab!=="scouting")||(key==="players"&&screen==="players")?"#60a5fa":C.muted}><path d={icon}/></svg>
-              <span style={{ fontSize:10, color:(key==="home"&&screen==="home")||(key==="games"&&screen==="stats"&&statsTab==="scouting")||(key==="analytics"&&screen==="stats"&&statsTab!=="scouting")||(key==="players"&&screen==="players")?"#60a5fa":C.muted, fontWeight:(key==="home"&&screen==="home")||(key==="games"&&screen==="stats"&&statsTab==="scouting")||(key==="analytics"&&screen==="stats"&&statsTab!=="scouting")||(key==="players"&&screen==="players")?700:400 }}>{label}</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={(key==="home"&&screen==="home")||(key==="games"&&screen==="games_view")||(key==="analytics"&&screen==="stats_view")||(key==="players"&&screen==="players")?"#60a5fa":C.muted}><path d={icon}/></svg>
+              <span style={{ fontSize:10, color:(key==="home"&&screen==="home")||(key==="games"&&screen==="games_view")||(key==="analytics"&&screen==="stats_view")||(key==="players"&&screen==="players")?"#60a5fa":C.muted, fontWeight:(key==="home"&&screen==="home")||(key==="games"&&screen==="games_view")||(key==="analytics"&&screen==="stats_view")||(key==="players"&&screen==="players")?700:400 }}>{label}</span>
             </button>
           ))}
         {/* Admin Login / Logout as nav tab */}
