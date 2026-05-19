@@ -1801,24 +1801,20 @@ export default function App() {
           }
           localStorage.setItem("ps_patched_formations", "1");
         }
-        // KEYSTONE FIX: Delete old record and reseed with correct 11-player lineups
+        // KEYSTONE FIX: Always verify and rebuild if needed
         {
           const existing = fbGames.find(g=>g.id==="5-16-2025-keystone-fc");
           const correctStarting = ["1","17","16","15","7","14","22","19","2","13","3"];
           const correct2H       = ["3","17","19","2","22","5","16","13","15","1","7"];
-          const s1H = (existing?.starting||[]).map(String).sort().join(",");
-          const e1H = [...correctStarting].sort().join(",");
-          const s2H = (existing?.secondHalfStarting||[]).map(String).sort().join(",");
-          const e2H = [...correct2H].sort().join(",");
-          if(!existing || s1H !== e1H || s2H !== e2H) {
-            if(existing) {
-              // Delete the corrupted record first
-              await deleteGame(existing.id);
-            }
-            // Reseed with correct data
-            const freshKeystone = makeKeystoneGame(ROSTER);
-            await saveGame(freshKeystone);
-            return; // listener fires again with correct data
+          const cur1H = (existing?.starting||[]).map(String);
+          const cur2H = (existing?.secondHalfStarting||[]).map(String);
+          // Rebuild if: missing, wrong count, or missing key players
+          const bad1H = cur1H.length !== 11 || !cur1H.includes("16") || !cur1H.includes("13");
+          const bad2H = cur2H.length !== 11 || !cur2H.includes("16") || !cur2H.includes("13");
+          if(!existing || bad1H || bad2H) {
+            if(existing) { await deleteGame(existing.id); }
+            await saveGame(makeKeystoneGame(ROSTER));
+            return;
           }
         }
         }
