@@ -325,8 +325,8 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
           };
           const fmtI = (v) => v === null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2);
           const rIds = new Set(ROSTER.map(p=>String(p.id)));
-          const eligibleRoster = allPlayers.filter(p=>rIds.has(String(p.id))).map(p => ({ ...p, ...(gStats[String(p.id)] || {}), impact: gameImpact(p) })).filter(p => p.played > 0 && p.net80 !== null);
-          const eligibleGuests = allPlayers.filter(p=>!rIds.has(String(p.id))).map(p => ({ ...p, ...(gStats[String(p.id)] || {}), impact: gameImpact(p) })).filter(p => p.played > 0 && p.net80 !== null);
+          const eligibleRoster = allPlayers.filter(p=>rIds.has(String(p.id))).map(p => ({ ...p, ...(gStats[String(p.id)] || {}), impact: gameImpact(p) })).filter(p => (gStats[String(p.id)]||{}).mins > 0);
+          const eligibleGuests = allPlayers.filter(p=>!rIds.has(String(p.id))).map(p => ({ ...p, ...(gStats[String(p.id)] || {}), impact: gameImpact(p) })).filter(p => (gStats[String(p.id)]||{}).mins > 0);
           const eligible = [...eligibleRoster, ...eligibleGuests];
           const sortedRosterE = eligibleRoster.sort((a, b) => { const d = (b.net80||0)-(a.net80||0); return d!==0?d:(b.mins||0)-(a.mins||0); });
           const sortedGuestE = eligibleGuests.sort((a, b) => { const d = (b.net80||0)-(a.net80||0); return d!==0?d:(b.mins||0)-(a.mins||0); });
@@ -1408,8 +1408,8 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   const renderOptimum = () => {
     const rosterIds = new Set(ROSTER.map(p=>String(p.id)));
     // Separate rostered players from guests
-    const rosterEl = allP.filter(p=>rosterIds.has(String(p.id))).map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcImpact(p)})).filter(p=>p.played>0&&p.net80!==null);
-    const guestEl  = allP.filter(p=>!rosterIds.has(String(p.id))).map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcImpact(p)})).filter(p=>p.played>0&&p.net80!==null);
+    const rosterEl = allP.filter(p=>rosterIds.has(String(p.id))).map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcImpact(p)})).filter(p=>(allSt[String(p.id)]||{}).mins>0);
+    const guestEl  = allP.filter(p=>!rosterIds.has(String(p.id))).map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcImpact(p)})).filter(p=>(allSt[String(p.id)]||{}).mins>0);
     const el = [...rosterEl, ...guestEl];
     // Sort by Net/80 desc, tiebreak by minutes played desc
     const sortedEl=[...el].sort((a,b)=>{ const aV=optimumSort==="impact"?(a.impact??-999):(a.net80||0); const bV=optimumSort==="impact"?(b.impact??-999):(b.net80||0); const d=bV-aV; return d!==0?d:(b.mins||0)-(a.mins||0); });
@@ -1542,7 +1542,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
             };
             const fmtSI = (v) => v===null?"-":(v>=0?"+":"")+v.toFixed(2);
             const scRosterIds = new Set(ROSTER.map(p=>String(p.id)));
-            const optFull = allP.map(p=>({...p,...(ss[String(p.id)]||{}),impact:scImpact(p)})).filter(p=>p.played>0&&p.net80!==null&&scRosterIds.has(String(p.id)));
+            const optFull = allP.map(p=>({...p,...(ss[String(p.id)]||{}),impact:scImpact(p)})).filter(p=>(ss[String(p.id)]||{}).mins>0&&scRosterIds.has(String(p.id)));
             const sortedFull = [...optFull].sort((a,b)=>{ const av=(scoutOptSort||"net80")==="impact"?(a.impact??-999):(a.net80||0); const bv=(scoutOptSort||"net80")==="impact"?(b.impact??-999):(b.net80||0); const d=bv-av; return d!==0?d:(b.mins||0)-(a.mins||0); });
             const sGK=sortedFull.find(p=>p.pos==="GK");
             const sOut=sortedFull.filter(p=>p.pos!=="GK").slice(0,10);
@@ -1798,25 +1798,31 @@ export default function App() {
           }
           localStorage.setItem("ps_patched_formations", "1");
         }
-        // Patch Keystone lineup if wrong (version flag ensures once only)
-        if(!localStorage.getItem("ps_keystone_v3")) {
+        // Always verify Keystone has correct 11-player lineups
+        {
           const correctStarting = ["1","17","16","15","7","14","22","19","2","13","3"];
           const correct2H       = ["3","17","19","2","22","5","16","13","15","1","7"];
           const existing = fbGames.find(g=>g.id==="5-16-2025-keystone-fc");
           if(existing) {
-            // Force update with correct 11-player lineups
-            await saveGame({
-              ...existing,
-              starting: correctStarting,
-              secondHalfStarting: correct2H,
-              formation1H: "4-4-2",
-              formation2H: "4-4-2",
-            });
+            // Check if lineup is wrong (wrong count OR wrong players)
+            const cur1H = (existing.starting || []).map(String).sort().join(",");
+            const exp1H = [...correctStarting].sort().join(",");
+            const cur2H = (existing.secondHalfStarting || []).map(String).sort().join(",");
+            const exp2H = [...correct2H].sort().join(",");
+            if(cur1H !== exp1H || cur2H !== exp2H) {
+              await saveGame({
+                ...existing,
+                starting: correctStarting,
+                secondHalfStarting: correct2H,
+                formation1H: "4-4-2",
+                formation2H: "4-4-2",
+              });
+              return; // listener fires again with corrected data
+            }
           } else {
             await saveGame(makeKeystoneGame(ROSTER));
+            return;
           }
-          localStorage.setItem("ps_keystone_v3", "1");
-          return; // listener fires again with updated data
         }
         }
         seeded.current=true;
