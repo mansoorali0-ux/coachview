@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { listenToGames, saveGame, deleteGame } from "./firebase";
 import { calcStats, makeLVURush, makeCoppermine } from "./stats";
 import {
-  ADMIN_PIN, FEATURED_ID, HALF, GAME, ROSTER, DEFAULT_POS,
+  ADMIN_PIN, HALF, GAME, ROSTER, DEFAULT_POS,
   UPCOMING, LEAGUE_TEAMS, TOURNAMENT_TEAMS, POSITIONS, POS_COLOR,
   uid, findPlayer
 } from "./constants";
@@ -260,10 +260,10 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
             if (!p) return null;
             const pos = (game.positions || {})[id] || p.pos;
             return (
-              <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: C.card, border: String(id) === String(FEATURED_ID) ? "2px solid #60a5fa" : `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px" }}>
+              <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px" }}>
                 <span style={{ width: 22, height: 22, borderRadius: "50%", background: POS_COLOR[pos] || C.muted, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 9, color: "#fff", flexShrink: 0 }}>{p.num}</span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: String(id) === String(FEATURED_ID) ? "#93c5fd" : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
                   <div style={{ fontSize: 9, color: POS_COLOR[pos] }}>{pos}</div>
                 </div>
               </div>
@@ -279,10 +279,10 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                 if (!p) return null;
                 const pos = DEFAULT_POS[id] || p.pos;
                 return (
-                  <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: C.card, border: String(id) === String(FEATURED_ID) ? "2px solid #60a5fa" : `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px" }}>
+                  <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px" }}>
                     <span style={{ width: 22, height: 22, borderRadius: "50%", background: POS_COLOR[pos] || C.muted, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 9, color: "#fff", flexShrink: 0 }}>{p.num}</span>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: String(id) === String(FEATURED_ID) ? "#93c5fd" : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
                       <div style={{ fontSize: 9, color: POS_COLOR[pos] }}>{pos}</div>
                     </div>
                   </div>
@@ -315,9 +315,9 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
           const s = stats[String(p.id)];
           if (!s) return null;
           return (
-            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, ...card, border: String(p.id) === String(FEATURED_ID) ? "2px solid #60a5fa" : `1px solid ${C.border}`, marginBottom: 5 }}>
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, ...card, border: `1px solid ${C.border}`, marginBottom: 5 }}>
               <span style={{ width: 28, height: 28, borderRadius: "50%", background: C.border, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#93c5fd", flexShrink: 0 }}>#{p.num}</span>
-              <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: String(p.id) === String(FEATURED_ID) ? "#93c5fd" : C.text }}>{p.name}{String(p.id) === String(FEATURED_ID) ? " *" : ""}</span>
+              <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: C.text }}>{p.name}</span>
               <span style={{ fontSize: 16, fontWeight: 800, color: "#60a5fa" }}>{s.mins}'</span>
               {s.goals > 0 && <div style={{ background: C.border, borderRadius: 6, padding: "3px 8px", textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 800, color: "#60a5fa" }}>{s.goals}</div><div style={{ fontSize: 8, color: C.muted }}>G</div></div>}
               {s.assists > 0 && <div style={{ background: C.border, borderRadius: 6, padding: "3px 8px", textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{s.assists}</div><div style={{ fontSize: 8, color: C.muted }}>A</div></div>}
@@ -685,7 +685,7 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
           return(
             <div key={p.id} onClick={()=>toggle(p.id)} style={{ display:"flex", alignItems:"center", gap:10, background:isSel?"#0d2137":C.card, border:isSel?`2px solid ${C.blue}`:`1px solid ${C.border}`, borderRadius:12, padding:"12px", marginBottom:6, cursor:"pointer" }}>
               <div style={{ width:26, height:26, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:isSel?C.blue:C.border, border:isSel?`2px solid #60a5fa`:`1px solid #334155` }}>{isSel?<span style={{ fontSize:13, fontWeight:900, color:"#fff" }}>OK</span>:<span style={{ fontSize:10, fontWeight:700, color:C.muted }}>{p.num}</span>}</div>
-              <span style={{ flex:1, fontWeight:700, fontSize:14, color:isSel?C.text:String(p.id)===String(FEATURED_ID)?"#93c5fd":"#94a3b8" }}>{p.name}{String(p.id)===String(FEATURED_ID)?" *":""}</span>
+              <span style={{ flex:1, fontWeight:700, fontSize:14, color:isSel?C.text:"#94a3b8" }}>{p.name}</span>
               {isSel&&<button onClick={e=>{ e.stopPropagation();setPosModal(p.id); }} style={{ background:POS_COLOR[pos], border:"none", borderRadius:6, padding:"5px 10px", color:"#fff", fontWeight:800, fontSize:12, cursor:"pointer" }}>{pos}</button>}
               <button onClick={e=>cycleAvail(p.id,e)} style={{ background:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"#064e3b":"#450a0a", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:11, fontWeight:800, color:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?C.green:C.red }}>{(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"OK":"Out"}</button>
             </div>
@@ -1338,8 +1338,14 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
 
   const renderOptimum = () => {
     const el=allP.map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcImpact(p)})).filter(p=>p.played>0&&p.net80!==null);
-    const top11=[...el].sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(0,11);
-    const rest=[...el].sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(11);
+    // Sort by Net/80 desc, tiebreak by minutes played desc
+    const sortedEl=[...el].sort((a,b)=>{ const d=(b.net80||0)-(a.net80||0); return d!==0?d:(b.mins||0)-(a.mins||0); });
+    // Enforce exactly 1 GK in top 11
+    const bestGK=sortedEl.find(p=>p.pos==="GK");
+    const topOutfield=sortedEl.filter(p=>p.pos!=="GK").slice(0,10);
+    const top11=bestGK?[bestGK,...topOutfield]:sortedEl.slice(0,11);
+    const top11ids=new Set(top11.map(p=>String(p.id)));
+    const rest=sortedEl.filter(p=>!top11ids.has(String(p.id)));
     const byPos={GK:[],DEF:[],MID:[],FWD:[]};
     top11.forEach(p=>{ if(byPos[p.pos])byPos[p.pos].push(p); });
     return <div>
@@ -1401,7 +1407,10 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
     const sc=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.goals>0).sort((a,b)=>b.goals-a.goals);
     const sa=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.assists>0).sort((a,b)=>b.assists-a.assists);
     const sm=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>b.mins-a.mins);
-    const opt=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.played>0&&p.net80!==null).sort((a,b)=>(b.net80||0)-(a.net80||0)).slice(0,11);
+      const optSorted=allP.map(p=>({...p,...(ss[String(p.id)]||{})})).filter(p=>p.played>0&&p.net80!==null).sort((a,b)=>{ const d=(b.net80||0)-(a.net80||0); return d!==0?d:(b.mins||0)-(a.mins||0); });
+      const optGK=optSorted.find(p=>p.pos==="GK");
+      const optOutfield=optSorted.filter(p=>p.pos!=="GK").slice(0,10);
+      const opt=optGK?[optGK,...optOutfield]:optSorted.slice(0,11);
     const gamesWithF=og.filter(g=>g.formation1H);
     const fStats={};
     gamesWithF.forEach(g=>{ const f=g.formation1H; if(!fStats[f])fStats[f]={played:0,won:0,gf:0,ga:0}; fStats[f].played++; if(g.scoreFor>g.scoreAgainst)fStats[f].won++; fStats[f].gf+=g.scoreFor; fStats[f].ga+=g.scoreAgainst; });
@@ -1587,24 +1596,26 @@ function makeKeystoneGame(roster) {
     if (!match) match = roster.find(p => p.name.split(" ")[0].toLowerCase() === f);
     return match ? String(match.id) : null;
   };
-  const emilyId    = pid("emily");
-  const lilyKId    = pid("lily","k"); // Lily Kaye id:17
-  const lilyNId    = pid("lilly","n"); // Lilly Nipper id:13
-  const avaId      = pid("avah"); // Avah Scott id:16
-  const aureliaId  = pid("aurelia");
-  const juliaId    = pid("julia");
-  const brookeId   = pid("brooke");
-  const laineyId   = pid("lainey"); // Lainey Pearson-Moore id:22
-  const abbyId     = pid("abigail"); // Abigail Yun id:19
-  const caitDId    = pid("caitlin","d") || pid("caitlyn","d");
-  const maariyahId = pid("maariyah");
-  const ashleyId   = pid("ashley");
-  const sadieId    = pid("sadie");
-  const emmaId     = pid("emma");
+  // Use direct IDs from roster - guaranteed correct
+  const emilyId    = "1";   // Emily Gandel GK
+  const lilyKId    = "17";  // Lily Kaye DEF
+  const lilyNId    = "13";  // Lilly Nipper DEF
+  const avaId      = "16";  // Avah Scott DEF
+  const aureliaId  = "15";  // Aurelia Berkowicz DEF
+  const juliaId    = "7";   // Julia Flory MID
+  const brookeId   = "14";  // Brooke Schuyler MID
+  const laineyId   = "22";  // Lainey Pearson-Moore MID
+  const abbyId     = "19";  // Abigail Yun FWD
+  const caitDId    = "2";   // Caitlyn Dunkelberger FWD
+  const maariyahId = "5";   // Maariyah Ali MID
+  const ashleyId   = "3";   // Ashley Ellis FWD
+  const sadieId    = "6";   // Sadie Feldman MID
+  const emmaId     = "11";  // Emma Young GK
 
   // 1st half starting XI: Emily, Lily K, Ava, Aurelia, Julia, Brooke, Lainey, Abby, Caitlin D, Lily N, Ashley
-  // 1st half XI: Emily, Lily K, Ava, Aurelia, Julia, Brooke, Lainey, Abby, Caitlin D, Lily N, Ashley
-  const starting = [emilyId, lilyKId, avaId, aureliaId, juliaId, brookeId, laineyId, abbyId, caitDId, lilyNId, ashleyId].filter(Boolean);
+  // 1st half XI (11 unique players confirmed):
+  // Emily(1), LilyK(17), Avah(16), Aurelia(15), Julia(7), Brooke(14), Lainey(22), Abigail(19), CaitlynD(2), LillyN(13), Ashley(3)
+  const starting = ["1","17","16","15","7","14","22","19","2","13","3"];
 
   const events = [];
   // 1st half subs
@@ -1624,9 +1635,9 @@ function makeKeystoneGame(roster) {
   events.push({ type:"goal_against", minute:71, score:"0-1", half:2, id:uid() });
   events.push({ type:"goal_for", minute:72, scorer:caitDId, assist:laineyId, score:"1-1", half:2, id:uid() });
 
-  // 2nd half XI: Ashley, Lily K, Abby, Caitlin D, Lainey, Maariyah, Ava, Lily N, Aurelia, Emily, Julia
-  // (Lily N must be here as she is subbed off @52min of 2nd half)
-  const secondHalfStarting = [ashleyId, lilyKId, abbyId, caitDId, laineyId, maariyahId, avaId, lilyNId, aureliaId, emilyId, juliaId].filter(Boolean);
+  // 2nd half XI (11 unique players confirmed):
+  // Ashley(3), LilyK(17), Abigail(19), CaitlynD(2), Lainey(22), Maariyah(5), Avah(16), LillyN(13), Aurelia(15), Emily(1), Julia(7)
+  const secondHalfStarting = ["3","17","19","2","22","5","16","13","15","1","7"];
 
   return {
     id: "5-16-2025-keystone-fc",
@@ -1814,8 +1825,8 @@ export default function App() {
             <button
               key={label}
               onClick={() => {
-                if (key === "games") { setStatsTab("scouting"); setScreen("stats"); }
-                else if (key === "analytics") { setStatsTab("overview"); setScreen("stats"); }
+                if (key === "games") { setStatsTab("scouting"); setScreen("home"); setTimeout(()=>setScreen("stats"), 0); }
+                else if (key === "analytics") { setStatsTab("overview"); setScreen("home"); setTimeout(()=>setScreen("stats"), 0); }
                 else setScreen(key);
               }}
               style={{ flex: 1, padding: "10px 0 8px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, borderTop: (
