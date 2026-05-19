@@ -1832,27 +1832,6 @@ export default function App() {
       });
     }
   };
-    // g has opp, date, time, type, venue, id
-    const existing = games.find(x=>x.id===g.id);
-    const updated = {
-      ...(existing || {}),
-      id: g.id,
-      opponent: g.opp,
-      date: g.date,
-      time: g.time || "",
-      type: g.type,
-      venue: g.venue,
-      status: "scheduled",
-      scoreFor: 0,
-      scoreAgainst: 0,
-      events: existing?.events || [],
-      starting: existing?.starting || [],
-      allPlayers: existing?.allPlayers || ROSTER,
-    };
-    await saveGame(updated);
-    // Update local state immediately so UI reflects change without waiting for Firebase
-    setGames(prev => prev.map(x => x.id === g.id ? updated : x));
-  };
   const handleDeleteScheduled=async(id)=>{
     await deleteGame(id);
     setGames(prev=>prev.filter(x=>x.id!==id));
