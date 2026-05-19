@@ -359,6 +359,22 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                   </div>
                 </div>
               ))}
+              {optRest.length > 0 && (
+                <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${C.border}` }}>
+                  <div style={{ fontSize:10, color:C.muted, fontWeight:800, letterSpacing:1, marginBottom:6 }}>OTHERS — Close to XI</div>
+                  {optRest.map((p, i) => (
+                    <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0", borderBottom:i<optRest.length-1?`1px solid ${C.border}`:"none", opacity:0.7 }}>
+                      <span style={{ fontSize:11, color:C.muted, width:18 }}>{optXI.length+i+1}.</span>
+                      <span style={{ flex:1, fontSize:12, color:"#94a3b8" }}>{p.name}</span>
+                      <span style={{ fontSize:9, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
+                      <div style={{ display:"flex", gap:4 }}>
+                        <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:7, color:C.muted }}>NET/80</div></div>
+                        <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:p.impact>0?C.amber:"#94a3b8" }}>{fmtI(p.impact)}</div><div style={{ fontSize:7, color:C.muted }}>IMPACT</div></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {sortedGuestE.length > 0 && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
                   <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, marginBottom: 6 }}>GUEST PLAYERS</div>
@@ -1221,13 +1237,16 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   };
   const fmtImpact = (v) => v === null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2);
 
-  const pList = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}), impact: calcImpact(p) }))
-    .filter(p => p.played > 0)
-    .sort((a, b) => {
-      const av = sortBy === "net80" ? (a.net80||0) : sortBy === "impact" ? (a.impact??-999) : (a[sortBy]||0);
-      const bv = sortBy === "net80" ? (b.net80||0) : sortBy === "impact" ? (b.impact??-999) : (b[sortBy]||0);
-      return sortDir * (bv - av);
-    });
+  const rIds = new Set(ROSTER.map(p => String(p.id)));
+  const sortFn = (a, b) => {
+    const av = sortBy === "net80" ? (a.net80||0) : sortBy === "impact" ? (a.impact??-999) : (a[sortBy]||0);
+    const bv = sortBy === "net80" ? (b.net80||0) : sortBy === "impact" ? (b.impact??-999) : (b[sortBy]||0);
+    return sortDir * (bv - av);
+  };
+  const allWithStats = allP.map(p => ({ ...p, ...(allSt[String(p.id)] || {}), impact: calcImpact(p) })).filter(p => p.played > 0);
+  const rosterList = allWithStats.filter(p => rIds.has(String(p.id))).sort(sortFn);
+  const guestList  = allWithStats.filter(p => !rIds.has(String(p.id))).sort(sortFn);
+  const pList = [...rosterList, ...guestList];
   const toggleSort = k => { if (sortBy === k) setSortDir(d => d*-1); else { setSortBy(k); setSortDir(-1); } };
   const sb = (k, l) => (
     <button key={k} onClick={() => toggleSort(k)} style={{ flex:1, padding:"7px 2px", borderRadius:8, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:sortBy===k?C.blue:C.border, color:sortBy===k?"#fff":C.muted }}>
@@ -1372,12 +1391,15 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
         {sb("goals","Goals")}{sb("assists","Asst")}{sb("gf","GF")}{sb("ga","GA")}{sb("net80","Net/80")}{sb("impact","Impact")}
       </div>
       <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Net/80: team +/- per 80 mins. Impact adds goals×0.5 + assists×0.25 per 80 mins. Min 10 mins.</p>
-      {pList.map(p=>{
+      {pList.map((p, idx)=>{
         const s=allSt[String(p.id)]||{};
         const impact=calcImpact(p);
         const ic=impact===null?"#94a3b8":impact>0?C.green:impact<0?C.red:"#94a3b8";
         const ibg=impact===null?C.border:impact>0?"#064e3b":impact<0?"#450a0a":C.border;
-        return <div key={p.id} style={{ ...card, border:`1px solid ${C.border}` }}>
+        const isFirstGuest = !rIds.has(String(p.id)) && (idx===0 || rIds.has(String(pList[idx-1]?.id)));
+        return <div key={p.id}>
+        {isFirstGuest && guestList.length>0 && <div style={{ fontSize:11, fontWeight:800, color:C.muted, letterSpacing:1, marginTop:12, marginBottom:6 }}>GUEST PLAYERS</div>}
+        <div style={{ ...card, border:`1px solid ${C.border}`, opacity: rIds.has(String(p.id))?1:0.75 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
             <div><div style={{ fontWeight:800, fontSize:15, color:C.text }}>{p.name}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.played} games · {s.mins} mins · avg {s.avgMins}'</div></div>
             <div style={{ display:"flex", gap:6 }}>
@@ -1399,6 +1421,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
               </div>
             ))}
           </div>
+        </div>
         </div>;
       })}
     </div>
@@ -1450,7 +1473,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
       </div>)}
       {rest.length > 0 && (
         <div>
-          <Lbl>Others</Lbl>
+          <div style={{ fontSize:11, fontWeight:800, color:C.muted, letterSpacing:1, marginTop:14, marginBottom:8 }}>OTHERS — Close to XI</div>
           {rest.map((p,i) => (
             <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#0a1222", border:"1px solid #1e293b", borderRadius:10, padding:"9px 14px", marginBottom:4, opacity:0.75 }}>
               <span style={{ fontSize:12, color:C.muted, width:20 }}>{i+12}.</span>
@@ -1561,6 +1584,35 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
                 </div>
               </div>
             ));
+          })()}
+          {(() => {
+            // Show players who didn't make XI
+            const scRosterIds2 = new Set(ROSTER.map(p=>String(p.id)));
+            const scImpact2 = (p) => { const s=ss[String(p.id)]||{}; if(!s.mins||s.mins<5)return null; return (s.net80||0)+(s.goals||0)/s.mins*80*0.5+(s.assists||0)/s.mins*80*0.25; };
+            const fmtSI2 = (v) => v===null?"-":(v>=0?"+":"")+v.toFixed(2);
+            const allScout = allP.map(p=>({...p,...(ss[String(p.id)]||{}),impact:scImpact2(p)})).filter(p=>(ss[String(p.id)]||{}).mins>0&&scRosterIds2.has(String(p.id)));
+            const sortedAll = [...allScout].sort((a,b)=>{ const av=(scoutOptSort||"net80")==="impact"?(a.impact??-999):(a.net80||0); const bv=(scoutOptSort||"net80")==="impact"?(b.impact??-999):(b.net80||0); const d=bv-av; return d!==0?d:(b.mins||0)-(a.mins||0); });
+            const sGK2=sortedAll.find(p=>p.pos==="GK");
+            const sOut2=sortedAll.filter(p=>p.pos!=="GK").slice(0,10);
+            const sXI2ids=new Set((sGK2?[sGK2,...sOut2]:sortedAll.slice(0,11)).map(p=>String(p.id)));
+            const scOthers=sortedAll.filter(p=>!sXI2ids.has(String(p.id)));
+            if(scOthers.length===0) return null;
+            return (
+              <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${C.border}` }}>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:800, letterSpacing:1, marginBottom:6 }}>OTHERS — Close to XI</div>
+                {scOthers.map((p,i)=>(
+                  <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0", borderBottom:i<scOthers.length-1?`1px solid ${C.border}`:"none", opacity:0.7 }}>
+                    <span style={{ fontSize:11, color:C.muted, width:18 }}>{sXI2ids.size+i+1}.</span>
+                    <span style={{ flex:1, fontSize:12, color:"#94a3b8" }}>{p.name}</span>
+                    <span style={{ fontSize:9, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
+                    <div style={{ display:"flex", gap:4 }}>
+                      <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:7, color:C.muted }}>NET/80</div></div>
+                      <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:p.impact>0?C.amber:"#94a3b8" }}>{fmtSI2(p.impact)}</div><div style={{ fontSize:7, color:C.muted }}>IMPACT</div></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
           })()}
         </div>
       )}
