@@ -1811,6 +1811,93 @@ function makeKeystoneGame(roster) {
 }
 
 
+// ─── ALL NEW SEASON GAMES ────────────────────────────────────────────────────
+function makeAllNewGames() {
+  const u = () => Math.random().toString(36).slice(2,9);
+  const sub = (min, on, off, half) => ({ type:"sub", minute:min, playerOn:String(on), playerOff:String(off), half, id:u() });
+  const gf  = (min, sc, ast, score, half) => ({ type:"goal_for", minute:min, scorer:String(sc), assist:ast?String(ast):null, score, half, id:u() });
+  const ga  = (min, score, half) => ({ type:"goal_against", minute:min, score, half, id:u() });
+  const ALLP = [
+    {id:1,num:"1",name:"Emily Gandel",pos:"GK"},{id:2,num:"2",name:"Caitlyn Dunkelberger",pos:"FWD"},
+    {id:3,num:"3",name:"Ashley Ellis",pos:"FWD"},{id:4,num:"4",name:"Hailey Ferguson",pos:"DEF"},
+    {id:5,num:"5",name:"Maariyah Ali",pos:"MID"},{id:6,num:"6",name:"Sadie Feldman",pos:"MID"},
+    {id:7,num:"7",name:"Julia Flory",pos:"MID"},{id:8,num:"8",name:"Katelyn Hannan",pos:"MID"},
+    {id:11,num:"11",name:"Emma Young",pos:"GK"},{id:12,num:"12",name:"Sloane Pietryka",pos:"FWD"},
+    {id:13,num:"13",name:"Lilly Nipper",pos:"DEF"},{id:14,num:"14",name:"Brooke Schuyler",pos:"MID"},
+    {id:15,num:"15",name:"Aurelia Berkowicz",pos:"DEF"},{id:16,num:"16",name:"Avah Scott",pos:"DEF"},
+    {id:17,num:"17",name:"Lily Kaye",pos:"DEF"},{id:18,num:"18",name:"Emerson Yonker",pos:"MID"},
+    {id:19,num:"19",name:"Abigail Yun",pos:"FWD"},{id:22,num:"22",name:"Lainey Pearson-Moore",pos:"MID"}
+  ];
+  return [
+    // Game 1: Keystone GA, Nov 23 2025, Away, 0-0 D
+    { id:"2025-11-23-keystone-ga", opponent:"Keystone FC 11G Aspire", date:"11/23/2025", venue:"Away", type:"regular", scoreFor:0, scoreAgainst:0, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["1","2","8","17","4","7","19","18","3","13","16"],
+      secondHalfStarting:["1","16","8","17","4","2","7","19","18","14","22"],
+      events:[sub(19,5,4,1),sub(25,14,2,1),sub(25,22,19,1),sub(48,13,8,2),sub(48,5,22,2),sub(65,22,14,2)]
+    },
+    // Game 2: PPA, Dec 13 2025, Home, 2-0 W
+    { id:"2025-12-13-ppa", opponent:"The Player Progression Academy 11G Aspire", date:"12/13/2025", venue:"Home", type:"regular", scoreFor:2, scoreAgainst:0, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["1","16","17","22","14","2","12","13","3","7","18"],
+      secondHalfStarting:["1","16","17","22","14","2","12","13","3","7","18"],
+      events:[sub(21,5,14,1),sub(21,8,16,1),sub(21,19,3,1),sub(26,15,18,1),sub(26,6,13,1),sub(57,5,14,2),sub(57,6,2,2),sub(57,15,12,2),sub(57,8,16,2),sub(57,19,18,2),sub(71,16,3,2),sub(71,2,13,2),sub(71,14,6,2),sub(71,18,22,2),gf(41,18,3,"1-0",2),gf(53,3,12,"2-0",2)]
+    },
+    // Game 3: Coppermine, Feb 21 2026, Home, 4-1 W
+    { id:"2026-02-21-coppermine", opponent:"Coppermine Soccer Club 11G Aspire", date:"2/21/2026", venue:"Home", type:"regular", scoreFor:4, scoreAgainst:1, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["19","22","6","14","7","1","17","12","3","18","13"],
+      secondHalfStarting:["19","22","6","14","7","11","17","12","3","2","13"],
+      events:[sub(24,8,22,1),sub(59,13,6,2),sub(59,18,12,2),sub(68,12,3,2),gf(16,3,null,"1-0",1),gf(23,12,18,"2-0",1),gf(52,2,null,"3-0",2),ga(55,"3-1",2),gf(72,18,2,"4-1",2)]
+    },
+    // Game 4: PPA, Feb 28 2026, Home, 2-2 D
+    { id:"2026-02-28-ppa", opponent:"The Player Progression Academy 11G Aspire", date:"2/28/2026", venue:"Home", type:"regular", scoreFor:2, scoreAgainst:2, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["12","18","19","14","13","16","1","4","7","22","3"],
+      secondHalfStarting:["4","22","6","2","19","16","1","12","3","7","13"],
+      events:[sub(10,2,19,1),sub(10,8,4,1),sub(24,6,13,1),sub(24,15,22,1),sub(30,4,8,1),sub(55,14,6,2),sub(71,15,22,2),sub(71,8,4,2),ga(7,"0-1",1),gf(75,8,null,"1-1",2),ga(82,"1-2",2),gf(83,12,3,"2-2",2)]
+    },
+    // Game 5: Baltimore Celtic, Mar 28 2026, Away, 5-0 W
+    { id:"2026-03-28-baltimore-celtic", opponent:"Baltimore Celtic Soccer Club 11G Aspire", date:"3/28/2026", venue:"Away", type:"regular", scoreFor:5, scoreAgainst:0, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["2","12","5","13","3","1","16","17","22","8","18"],
+      secondHalfStarting:["19","6","5","16","22","17","11","14","2","15","13"],
+      events:[sub(20,14,5,1),sub(25,5,2,1),sub(25,15,18,1),sub(25,19,13,1),sub(25,6,8,1),sub(57,8,22,2),sub(57,3,6,2),sub(61,22,8,2),sub(61,12,19,2),sub(74,2,3,2),gf(2,13,null,"1-0",1),gf(13,2,12,"2-0",1),gf(23,18,null,"3-0",1),gf(65,18,12,"4-0",2),gf(75,2,12,"5-0",2)]
+    },
+    // Game 6: Huntingdon Valley, Mar 29 2026, Away, 0-2 L (Emily outfield, Emma GK)
+    { id:"2026-03-29-huntingdon-valley", opponent:"Huntingdon Valley AA 11G Aspire", date:"3/29/2026", venue:"Away", type:"regular", scoreFor:0, scoreAgainst:2, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["2","14","22","16","3","1","11","15","17","12","13"],
+      secondHalfStarting:["2","14","22","16","3","1","11","15","17","12","13"],
+      events:[ga(56,"0-1",2),ga(72,"0-2",2)]
+    },
+    // Game 7: Huntingdon Valley, Apr 11 2026, Home, 3-1 W
+    { id:"2026-04-11-huntingdon-valley", opponent:"Huntingdon Valley AA 11G Aspire", date:"4/11/2026", venue:"Home", type:"regular", scoreFor:3, scoreAgainst:1, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["12","18","2","22","13","5","3","17","1","8","16"],
+      secondHalfStarting:["5","19","16","8","2","11","3","18","13","17","12"],
+      events:[sub(17,19,2,1),sub(17,7,8,1),sub(24,15,5,1),sub(24,14,13,1),sub(24,6,18,1),sub(50,22,12,2),sub(63,14,5,2),sub(63,6,18,2),ga(16,"0-1",1),gf(18,19,18,"1-1",1),gf(39,19,12,"2-1",1),gf(49,18,12,"3-1",2)]
+    },
+    // Game 8: LVU Rush, Apr 12 2026, Home, 1-1 D
+    { id:"2026-04-12-lvu-rush", opponent:"LVU Rush 11G Aspire", date:"4/12/2026", venue:"Home", type:"regular", scoreFor:1, scoreAgainst:1, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["1","12","13","18","2","19","17","16","3","22","7"],
+      secondHalfStarting:["11","2","18","14","17","7","12","16","22","8","13"],
+      events:[sub(15,5,2,1),sub(15,14,13,1),sub(28,15,7,1),sub(28,13,22,1),sub(28,6,18,1),sub(59,19,8,2),sub(66,5,14,2),sub(66,15,13,2),sub(66,6,2,2),gf(12,19,12,"1-0",1),ga(35,"1-1",1)]
+    },
+    // Game 9: Potomac, Apr 26 2026, Home, 0-3 L
+    { id:"2026-04-26-potomac", opponent:"Potomac Soccer Association 11G Aspire", date:"4/26/2026", venue:"Home", type:"regular", scoreFor:0, scoreAgainst:3, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["12","2","13","3","22","16","1","8","14","17","7"],
+      secondHalfStarting:["19","3","12","5","2","14","16","7","8","17","11"],
+      events:[sub(24,5,14,1),sub(24,19,2,1),sub(61,15,7,2),sub(67,22,8,2),sub(67,7,14,2),sub(73,14,22,2),ga(34,"0-1",1),ga(37,"0-2",1),ga(51,"0-3",2)]
+    },
+    // Game 10: Potomac, May 2 2026, Home, 2-1 W
+    { id:"2026-05-02-potomac", opponent:"Potomac Soccer Association 11G Aspire", date:"5/2/2026", venue:"Home", type:"regular", scoreFor:2, scoreAgainst:1, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["12","19","2","14","3","22","8","17","16","7","1"],
+      secondHalfStarting:["11","3","8","17","16","2","14","12","19","22","7"],
+      events:[sub(12,15,19,1),sub(23,5,22,1),sub(23,13,14,1),sub(46,15,8,2),sub(46,13,22,2),sub(51,5,14,2),gf(13,12,8,"1-0",1),gf(59,2,12,"2-0",2),ga(66,"2-1",2)]
+    },
+    // Game 11: Baltimore Celtic, May 3 2026, Home, 2-0 W
+    { id:"2026-05-03-baltimore-celtic", opponent:"Baltimore Celtic Soccer Club 11G Aspire", date:"5/3/2026", venue:"Home", type:"regular", scoreFor:2, scoreAgainst:0, status:"completed", formation1H:"4-4-2", formation2H:"4-4-2", allPlayers:ALLP,
+      starting:["19","2","12","3","5","14","15","17","1","7","8"],
+      secondHalfStarting:["12","3","19","2","13","8","14","7","1","15","17"],
+      events:[sub(13,22,5,1),sub(21,13,14,1),sub(59,22,13,2),sub(64,5,14,2),sub(64,13,19,2),gf(19,2,12,"1-0",2),gf(71,12,13,"2-0",2)]
+    },
+  ];
+}
+
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen,setScreen]       = useState("home");
@@ -1833,6 +1920,8 @@ export default function App() {
         await saveGame(makeLVURush());
         await saveGame(makeCoppermine());
         await saveGame(makeKeystoneGame(ROSTER));
+        const newGames = makeAllNewGames();
+        for(const g of newGames) { await saveGame(g); }
       } else {
         // Patch formations once (localStorage flag prevents repeat)
         if(!localStorage.getItem("ps_patched_formations")) {
@@ -1863,6 +1952,14 @@ export default function App() {
           return;
         }
         seeded.current=true;
+        // Seed any missing new season games
+        const newGames = makeAllNewGames();
+        const existingIds = new Set(fbGames.map(g=>g.id));
+        const missingGames = newGames.filter(g=>!existingIds.has(g.id));
+        if(missingGames.length > 0) {
+          for(const g of missingGames) { await saveGame(g); }
+          return; // listener fires with new data
+        }
         setGames(fbGames);
         setLoading(false);
       }
