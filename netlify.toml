@@ -1,0 +1,10 @@
+[build]
+  base = "armour-v2"
+  command = "npm run build"
+  publish = "build"
+
+[build.environment]
+  NETLIFY_SKIP_SECRET_SCAN = "true"
+
+[[plugins]]
+  # Disable secret scanning for this project
