@@ -318,10 +318,38 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
           const gameImpact = (p) => {
             const s = gStats[String(p.id)] || {};
             if (!s.mins || s.mins < 5) return null;
-            const net80 = s.net80 || 0;
-            const g80 = (s.goals || 0) / s.mins * 80;
-            const a80 = (s.assists || 0) / s.mins * 80;
-            return net80 + g80 * 0.5 + a80 * 0.25;
+            const pos = p.pos;
+            const maxBonus = pos==="GK"||pos==="DEF" ? 0.5 : pos==="MID" ? 0.25 : 0;
+            let csBonus = 0;
+            if(maxBonus > 0) {
+              const concedes = events.filter(e=>e.type==="goal_against").map(e=>e.minute).sort((a,b)=>a-b);
+              const pid = String(p.id);
+              const subs = events.filter(e=>e.type==="sub");
+              const HALF=40; let intervals=[], onField=false, entry=0;
+              if((game.starting||[]).map(String).includes(pid)){onField=true;entry=0;}
+              subs.filter(s=>s.half===1).sort((a,b)=>a.minute-b.minute).forEach(s=>{
+                if(String(s.playerOff)===pid&&onField){intervals.push([entry,s.minute]);onField=false;}
+                if(String(s.playerOn)===pid&&!onField){onField=true;entry=s.minute;}
+              });
+              if(onField)intervals.push([entry,HALF]);
+              onField=false;entry=HALF;
+              if((game.secondHalfStarting||[]).map(String).includes(pid)){onField=true;}
+              subs.filter(s=>s.half===2).sort((a,b)=>a.minute-b.minute).forEach(s=>{
+                if(String(s.playerOff)===pid&&onField){intervals.push([entry,s.minute]);onField=false;}
+                if(String(s.playerOn)===pid&&!onField){onField=true;entry=s.minute;}
+              });
+              if(onField)intervals.push([entry,HALF*2]);
+              let totalM=0,cleanM=0;
+              intervals.forEach(([st,en])=>{
+                totalM+=en-st;
+                const cc=concedes.filter(m=>m>st&&m<=en);
+                if(cc.length===0){cleanM+=en-st;}
+                else{cleanM+=cc[0]-st;}
+              });
+              if(totalM>0)csBonus=maxBonus*(cleanM/totalM);
+            }
+            const net80=s.net80||0, g80=(s.goals||0)/s.mins*80, a80=(s.assists||0)/s.mins*80;
+            return net80+g80*0.5+a80*0.25+csBonus;
           };
           const fmtI = (v) => v === null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2);
           const rIds = new Set(ROSTER.map(p=>String(p.id)));
@@ -355,6 +383,10 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa" }}>{p.mins}'</div>
                       <div style={{ fontSize: 8, color: C.muted }}>MINS</div>
+                    </div>
+                    <div style={{ background:C.border, borderRadius:8, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
+                      <div style={{ fontSize:13, fontWeight:900, color:"#94a3b8" }}>{s.played>0?Math.round(s.mins/s.played):"0"}'</div>
+                      <div style={{ fontSize: 8, color: C.muted }}>AVG</div>
                     </div>
                   </div>
                 </div>
@@ -1227,13 +1259,72 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   const totalGA = filteredGames.reduce((a, g) => a + g.scoreAgainst, 0);
   const compLabel = compFilter === "all" ? "All Games" : compFilter === "regular" ? "League" : "Cup";
 
+  // ── Clean Sheet Bonus calculation ────────────────────────────────────────
+  // For each player, sum up minutes they were on field without a goal conceded
+  // Bonus: GK/DEF = 0.5 per full clean game, MID = 0.25, FWD = 0
+  // Partial credit: proportional to clean time / total time
+  const calcCSBonus = (p) => {
+    const pos = p.pos;
+    if (pos === "FWD") return 0;
+    const maxBonus = pos === "GK" || pos === "DEF" ? 0.5 : 0.25;
+    let totalBonus = 0;
+    filteredGames.forEach(game => {
+      const allEvs = game.events || [];
+      const concedes = allEvs.filter(e => e.type === "goal_against").map(e => e.minute).sort((a,b)=>a-b);
+      // Build this player's time segments on field
+      const pid = String(p.id);
+      const s1H = (game.starting || []).map(String);
+      const s2H = (game.secondHalfStarting || []).map(String);
+      const subs = allEvs.filter(e => e.type === "sub");
+      const HALF = 40;
+      // Track player time intervals
+      let intervals = [];
+      let onField = false;
+      let entryMin = 0;
+      // 1st half
+      if (s1H.includes(pid)) { onField = true; entryMin = 0; }
+      subs.filter(s=>s.half===1).sort((a,b)=>a.minute-b.minute).forEach(s=>{
+        if(String(s.playerOff)===pid && onField){ intervals.push([entryMin,s.minute]); onField=false; }
+        if(String(s.playerOn)===pid && !onField){ onField=true; entryMin=s.minute; }
+      });
+      if(onField) intervals.push([entryMin, HALF]);
+      onField = false;
+      // 2nd half
+      if (s2H.includes(pid)) { onField = true; entryMin = HALF; }
+      subs.filter(s=>s.half===2).sort((a,b)=>a.minute-b.minute).forEach(s=>{
+        if(String(s.playerOff)===pid && onField){ intervals.push([entryMin,s.minute]); onField=false; }
+        if(String(s.playerOn)===pid && !onField){ onField=true; entryMin=s.minute; }
+      });
+      if(onField) intervals.push([entryMin, HALF*2]);
+      if(intervals.length === 0) return;
+      // For each interval, calculate clean minutes (no concede during that time)
+      let totalMins = 0, cleanMins = 0;
+      intervals.forEach(([start, end]) => {
+        const dur = end - start;
+        totalMins += dur;
+        const concedesInInterval = concedes.filter(m => m > start && m <= end).length;
+        if(concedesInInterval === 0) { cleanMins += dur; }
+        else {
+          // Partial: time before first concede in this interval
+          const firstConcede = concedes.find(m => m > start && m <= end);
+          cleanMins += (firstConcede - start);
+        }
+      });
+      if(totalMins > 0) {
+        totalBonus += maxBonus * (cleanMins / totalMins);
+      }
+    });
+    return totalBonus;
+  };
+
   const calcImpact = (p) => {
     const s = allSt[String(p.id)] || {};
-    if (!s.mins || s.mins < 10) return null;
+    if (!s.mins || s.mins < 80) return null;
     const net80 = s.net80 || 0;
     const goalsPer80 = (s.goals || 0) / s.mins * 80;
     const assistsPer80 = (s.assists || 0) / s.mins * 80;
-    return net80 + (goalsPer80 * 0.5) + (assistsPer80 * 0.25);
+    const csBonus = calcCSBonus(p);
+    return net80 + (goalsPer80 * 0.5) + (assistsPer80 * 0.25) + csBonus;
   };
   const fmtImpact = (v) => v === null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2);
 
@@ -1390,7 +1481,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
       <div style={{ display:"flex", gap:4, marginBottom:8, flexWrap:"wrap" }}>
         {sb("goals","Goals")}{sb("assists","Asst")}{sb("gf","GF")}{sb("ga","GA")}{sb("net80","Net/80")}{sb("impact","Impact")}
       </div>
-      <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Net/80: team +/- per 80 mins. Impact adds goals×0.5 + assists×0.25 per 80 mins. Min 10 mins.</p>
+      <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Net/80: team +/- per 80 mins. Impact = Net/80 + goals×0.5 + assists×0.25 + clean sheet bonus (GK/DEF +0.5, MID +0.25). Min 80 total mins.</p>
       {pList.map((p, idx)=>{
         const s=allSt[String(p.id)]||{};
         const impact=calcImpact(p);
@@ -1564,7 +1655,24 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
             const scImpact = (p) => {
               const s = ss[String(p.id)] || {};
               if(!s.mins || s.mins < 5) return null;
-              return (s.net80||0) + (s.goals||0)/s.mins*80*0.5 + (s.assists||0)/s.mins*80*0.25;
+              const pos=p.pos, maxB=pos==="GK"||pos==="DEF"?0.5:pos==="MID"?0.25:0;
+              let csB=0;
+              if(maxB>0){
+                og.forEach(game=>{
+                  const concedes=(game.events||[]).filter(e=>e.type==="goal_against").map(e=>e.minute).sort((a,b)=>a-b);
+                  const pid=String(p.id), subs=(game.events||[]).filter(e=>e.type==="sub");
+                  const HALF=40; let ivs=[],on=false,en=0;
+                  if((game.starting||[]).map(String).includes(pid)){on=true;en=0;}
+                  subs.filter(s=>s.half===1).sort((a,b)=>a.minute-b.minute).forEach(s=>{if(String(s.playerOff)===pid&&on){ivs.push([en,s.minute]);on=false;}if(String(s.playerOn)===pid&&!on){on=true;en=s.minute;}});
+                  if(on)ivs.push([en,HALF]);on=false;en=HALF;
+                  if((game.secondHalfStarting||[]).map(String).includes(pid)){on=true;}
+                  subs.filter(s=>s.half===2).sort((a,b)=>a.minute-b.minute).forEach(s=>{if(String(s.playerOff)===pid&&on){ivs.push([en,s.minute]);on=false;}if(String(s.playerOn)===pid&&!on){on=true;en=s.minute;}});
+                  if(on)ivs.push([en,HALF*2]);
+                  let tM=0,cM=0;ivs.forEach(([st,e])=>{tM+=e-st;const cc=concedes.filter(m=>m>st&&m<=e);if(cc.length===0){cM+=e-st;}else{cM+=cc[0]-st;}});
+                  if(tM>0)csB+=maxB*(cM/tM);
+                });
+              }
+              return (s.net80||0)+(s.goals||0)/s.mins*80*0.5+(s.assists||0)/s.mins*80*0.25+csB;
             };
             const fmtSI = (v) => v===null?"-":(v>=0?"+":"")+v.toFixed(2);
             const scRosterIds = new Set(ROSTER.map(p=>String(p.id)));
@@ -1616,6 +1724,30 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           })()}
         </div>
       )}
+      <Lbl>Goal Timeline</Lbl>
+      {og.map((g,gi) => {
+        const gEvs = (g.events||[]).filter(e=>e.type==="goal_for"||e.type==="goal_against").sort((a,b)=>a.minute-b.minute);
+        if(gEvs.length===0) return null;
+        const allPlayers = g.allPlayers || ROSTER;
+        const pName = (id) => { const p=allPlayers.find(p=>String(p.id)===String(id)); return p?p.name.split(" ")[0]:"?"; };
+        return (
+          <div key={gi} style={{ ...card, marginBottom:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{g.date} — {g.venue}</span>
+              <WinBadge gf={g.scoreFor} ga={g.scoreAgainst}/>
+            </div>
+            {gEvs.map((e,ei) => (
+              <div key={ei} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0", borderBottom:ei<gEvs.length-1?`1px solid ${C.border}`:"none" }}>
+                <span style={{ fontSize:12, fontWeight:800, color:e.type==="goal_for"?"#60a5fa":"#f87171", minWidth:30 }}>{e.minute}'</span>
+                {e.type==="goal_for"
+                  ? <span style={{ fontSize:12, color:C.text }}>{pName(e.scorer)}<span style={{ color:C.green }}> ⚽</span>{e.assist?<span style={{ fontSize:11, color:C.muted }}> · Ast: {pName(e.assist)}</span>:null}</span>
+                  : <span style={{ fontSize:12, color:"#f87171" }}>Goal conceded</span>
+                }
+              </div>
+            ))}
+          </div>
+        );
+      })}
       <Lbl>Results</Lbl>
       {og.map((g,i) => (
         <button key={i} onClick={() => onView(g)} style={{ ...card, width:"100%", textAlign:"left", cursor:"pointer", marginBottom:8 }}>
@@ -1794,7 +1926,7 @@ function makeKeystoneGame(roster) {
   return {
     id: "5-16-2025-keystone-fc",
     opponent: "Keystone FC",
-    date: "5/16/2025",
+    date: "5/16/2026",
     venue: "Away",
     type: "regular",
     scoreFor: 1,
