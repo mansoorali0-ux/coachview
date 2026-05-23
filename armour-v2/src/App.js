@@ -945,10 +945,10 @@ function Lineup({ gameInfo, onKickoff, onBack, pastGames=[] }) {
           const isSel=selected.includes(p.id); const pos=posFor(p.id);
           return(
             <div key={p.id} onClick={()=>toggle(p.id)} style={{ display:"flex", alignItems:"center", gap:10, background:isSel?"#0d2137":C.card, border:isSel?`2px solid ${C.blue}`:`1px solid ${C.border}`, borderRadius:12, padding:"12px", marginBottom:6, cursor:"pointer" }}>
-              <div style={{ width:26, height:26, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:isSel?C.blue:C.border, border:isSel?`2px solid #60a5fa`:`1px solid #334155` }}>{isSel?<span style={{ fontSize:13, fontWeight:900, color:"#fff" }}>OK</span>:<span style={{ fontSize:10, fontWeight:700, color:C.muted }}>{p.num}</span>}</div>
+              <div style={{ width:26, height:26, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:isSel?C.blue:C.border, border:isSel?`2px solid #60a5fa`:`1px solid #334155` }}>{isSel?<span style={{ fontSize:16, fontWeight:900, color:"#fff", lineHeight:1 }}>✓</span>:<span style={{ fontSize:10, fontWeight:700, color:C.muted }}>{p.num}</span>}</div>
               <span style={{ flex:1, fontWeight:700, fontSize:14, color:isSel?C.text:"#94a3b8" }}>{p.name}</span>
               {isSel&&<button onClick={e=>{ e.stopPropagation();setPosModal(p.id); }} style={{ background:POS_COLOR[pos], border:"none", borderRadius:6, padding:"5px 10px", color:"#fff", fontWeight:800, fontSize:12, cursor:"pointer" }}>{pos}</button>}
-              <button onClick={e=>cycleAvail(p.id,e)} style={{ background:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"#064e3b":"#450a0a", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:11, fontWeight:800, color:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?C.green:C.red }}>{(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"OK":"Out"}</button>
+              <button title="Tap to mark unavailable" aria-label="Tap to mark unavailable" onClick={e=>cycleAvail(p.id,e)} style={{ background:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"transparent":"#450a0a", border:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"1px solid transparent":"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:11, fontWeight:800, color:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"transparent":C.red, minWidth:38 }}>{(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"":"Out"}</button>
             </div>
           );
         })}
@@ -1888,7 +1888,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           ))}
         </div>
       )}
-      <div style={card}><Lbl>Minutes Played</Lbl>{sm.map((p,i)=><div key={p.id} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:i<sm.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><span style={{ fontSize:13, color:C.amber, fontWeight:700 }}>{p.mins}'</span></div>)}</div>
+      <div style={card}><Lbl>Minutes Played</Lbl>{sm.map((p,i)=>{ const avgM = og.length ? Math.round((p.mins||0)/og.length) : (p.mins||0); return <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:i<sm.length-1?`1px solid ${C.border}`:"none" }}><span style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.name}</span><span style={{ fontSize:13, color:C.amber, fontWeight:700 }}>{p.mins}' <span style={{ color:C.muted, fontWeight:600, marginLeft:6 }}>· {avgM}' avg</span></span></div>})}</div>
       {opt.length > 0 && (
         <div style={card}>
           <Lbl>Optimum Team vs {scout.split(" ")[0]}</Lbl>
