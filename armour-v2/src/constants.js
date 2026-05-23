@@ -2,6 +2,8 @@ export const ADMIN_PIN = "1981";
 export const FEATURED_ID = null;
 export const HALF = 40;
 export const GAME = 80;
+export const CUP_HALF = 30;
+export const CUP_GAME = 60;
 
 export const ROSTER = [
   { id:1,  num:"1",  name:"Emily Gandel",        pos:"GK"  },
