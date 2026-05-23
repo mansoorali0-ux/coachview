@@ -22,14 +22,23 @@ const FORMATIONS = [
 
 // ─── THEME ───────────────────────────────────────────────────────────────────
 const C = {
-  bg:"#060e1a", card:"#0f172a", border:"#1e3a5f", blue:"#2563eb",
-  text:"#e2e8f0", muted:"#64748b", green:"#10b981", red:"#ef4444",
-  amber:"#f59e0b", purple:"#7c3aed",
+  bg:"#050b16",
+  card:"#111c2e",
+  card2:"#0d1727",
+  border:"#223653",
+  blue:"#246BFD",
+  blue2:"#1B4FD8",
+  text:"#eef5ff",
+  muted:"#8aa0bd",
+  green:"#16a34a",
+  red:"#dc2626",
+  amber:"#f59e0b",
+  purple:"#7c3aed",
 };
-const T   = { fontFamily:"-apple-system, BlinkMacSystemFont, sans-serif" };
-const card = { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px", marginBottom:10 };
-const btn  = (bg, color="#fff", extra={}) => ({ background:bg, border:"none", borderRadius:10, color, fontWeight:700, cursor:"pointer", padding:"13px 16px", fontSize:14, ...extra });
-const inp  = { width:"100%", padding:14, borderRadius:10, background:C.border, border:`1px solid #334155`, color:C.text, fontSize:16, boxSizing:"border-box" };
+const T   = { fontFamily:"Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" };
+const card = { background:"linear-gradient(180deg,#111c2e,#0d1727)", border:`1px solid ${C.border}`, borderRadius:16, padding:"13px 15px", marginBottom:10, boxShadow:"0 10px 24px rgba(0,0,0,0.18)" };
+const btn  = (bg, color="#fff", extra={}) => ({ background:bg, border:"1px solid rgba(255,255,255,0.06)", borderRadius:14, color, fontWeight:800, cursor:"pointer", padding:"14px 16px", fontSize:14, boxShadow:"0 8px 18px rgba(0,0,0,0.18)", ...extra });
+const inp  = { width:"100%", padding:14, borderRadius:14, background:"#0b1627", border:`1px solid ${C.border}`, color:C.text, fontSize:16, boxSizing:"border-box", outline:"none" };
 
 // ─── PERSISTENT GAME STATE (localStorage survives navigation & refresh) ───────
 const LS_GAME_KEY = "ps_live_game_v2";
@@ -157,7 +166,7 @@ function Modal({ title, onClose, children }) {
       <div style={{ background:C.bg, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:480, maxHeight:"88vh", overflowY:"auto", border:`1px solid ${C.border}` }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, background:C.bg }}>
           <span style={{ fontWeight:800, fontSize:16, color:C.text }}>{title}</span>
-          <button onClick={onClose} style={{ background:C.border, border:"none", color:C.muted, borderRadius:8, width:32, height:32, cursor:"pointer", fontSize:14 }}>✕</button>
+          <button onClick={onClose} style={{ background:C.border, border:"none", color:C.muted, borderRadius:12, width:32, height:32, cursor:"pointer", fontSize:14 }}>✕</button>
         </div>
         <div style={{ padding:"16px 20px" }}>{children}</div>
       </div>
@@ -205,7 +214,7 @@ function LiveOptimumXI({ events, onField, allPlayers, positions, gf, ga, half, s
   const currentlyOnField=new Set(onField.map(String));
   return (
     <div>
-      <div style={{ background:"linear-gradient(135deg,#1a2744,#0f1f3d)", border:`1px solid ${C.amber}`, borderRadius:12, padding:"10px 14px", marginBottom:12 }}>
+      <div style={{ background:"linear-gradient(135deg,#1a2744,#0f1f3d)", border:`1px solid ${C.amber}`, borderRadius:16, padding:"10px 14px", marginBottom:12 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <span style={{ fontSize:16 }}>⭐</span>
           <div><div style={{ fontSize:13, fontWeight:800, color:C.amber }}>Live Optimum XI</div><div style={{ fontSize:10, color:C.muted }}>Best 11 right now · updates live</div></div>
@@ -218,7 +227,7 @@ function LiveOptimumXI({ events, onField, allPlayers, positions, gf, ga, half, s
           {byPos[pos].map(p=>{
             const isOn=currentlyOnField.has(String(p.id));
             return (
-              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, background:isOn?"#0d2137":"#0a1628", border:`1px solid ${isOn?C.blue:"#1e293b"}`, borderRadius:10, padding:"9px 12px", marginBottom:5, opacity:isOn?1:0.65 }}>
+              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, background:isOn?"#0d2137":"#0a1628", border:`1px solid ${isOn?C.blue:"#1e293b"}`, borderRadius:14, padding:"9px 12px", marginBottom:5, opacity:isOn?1:0.65 }}>
                 <span style={{ width:28, height:28, borderRadius:"50%", background:POS_COLOR[pos], display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:10, color:"#fff", flexShrink:0 }}>{p.num}</span>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name.split(" ")[0]}{!isOn&&<span style={{ fontSize:9, color:C.amber, marginLeft:5 }}>BENCH</span>}</div>
@@ -238,7 +247,7 @@ function LiveOptimumXI({ events, onField, allPlayers, positions, gf, ga, half, s
         <div>
           <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 1, marginBottom: 5, marginTop: 8 }}>OUTSIDE XI</div>
           {rest.map((p, i) => (
-            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, background: "#080f1c", border: "1px solid #0f1e35", borderRadius: 8, padding: "7px 12px", marginBottom: 4, opacity: 0.6 }}>
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, background: "#080f1c", border: "1px solid #0f1e35", borderRadius: 12, padding: "7px 12px", marginBottom: 4, opacity: 0.6 }}>
               <span style={{ fontSize: 11, color: C.muted, width: 18 }}>{i + 12}.</span>
               <span style={{ flex: 1, fontSize: 12, color: "#94a3b8" }}>{p.name.split(" ")[0]}</span>
               <span style={{ fontSize: 10, color: POS_COLOR[p.pos] || C.muted, fontWeight: 700, marginRight: 6 }}>{p.pos}</span>
@@ -264,7 +273,7 @@ function FormationPicker({ value, onChange, label }) {
             onClick={() => onChange(f.id)}
             style={{
               padding: "8px 12px",
-              borderRadius: 10,
+              borderRadius: 14,
               border: value === f.id ? "2px solid #60a5fa" : "1px solid #334155",
               background: value === f.id ? C.blue : C.border,
               color: value === f.id ? "#fff" : "#94a3b8",
@@ -344,24 +353,24 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
   const doDel=async()=>{ const updated=events.filter(e=>e.id!==editing.id); const g={...game,events:updated,scoreFor:game.scoreFor-(editing.type==="goal_for"?1:0),scoreAgainst:game.scoreAgainst-(editing.type==="goal_against"?1:0)}; setEvents(updated);setSaving(true);await saveGame(g);onUpdate(g);setSaving(false);setEditing(null); };
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:40 }}>
-      <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
+      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
         <button onClick={onClose} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:700, cursor:"pointer", padding:0, marginBottom:8 }}>{"< Back"}</button>
         <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>{game.date} · {game.venue} · {game.type==="tournament"?"Cup":"League"}</div>
         <div style={{ fontSize:15, fontWeight:800, color:"#60a5fa", marginBottom:8 }}>vs {game.opponent.split(" ").slice(0,4).join(" ")}</div>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <span style={{ fontSize:48, fontWeight:900, color:"#fff", lineHeight:1 }}>{game.scoreFor}<span style={{ color:"#334155", margin:"0 10px" }}>-</span>{game.scoreAgainst}</span>
-          <span style={{ background:rc, color:"#fff", borderRadius:8, padding:"6px 16px", fontWeight:800, fontSize:16 }}>{result}</span>
+          <span style={{ background:rc, color:"#fff", borderRadius:12, padding:"6px 16px", fontWeight:800, fontSize:16 }}>{result}</span>
         </div>
         {saving&&<div style={{ fontSize:11, color:C.green, marginTop:6 }}>Saving…</div>}
         {(game.formation1H || game.formation2H) && (
           <div style={{ display:"flex", gap:8, marginTop:8 }}>
-            {game.formation1H && <div style={{ background:C.border, borderRadius:8, padding:"4px 10px" }}><div style={{ fontSize:10, color:C.muted }}>1ST HALF</div><div style={{ fontSize:14, fontWeight:800, color:"#60a5fa" }}>{game.formation1H}</div></div>}
-            {game.formation2H && <div style={{ background:C.border, borderRadius:8, padding:"4px 10px" }}><div style={{ fontSize:10, color:C.muted }}>2ND HALF</div><div style={{ fontSize:14, fontWeight:800, color:"#60a5fa" }}>{game.formation2H}</div></div>}
+            {game.formation1H && <div style={{ background:C.border, borderRadius:12, padding:"4px 10px" }}><div style={{ fontSize:10, color:C.muted }}>1ST HALF</div><div style={{ fontSize:14, fontWeight:800, color:"#60a5fa" }}>{game.formation1H}</div></div>}
+            {game.formation2H && <div style={{ background:C.border, borderRadius:12, padding:"4px 10px" }}><div style={{ fontSize:10, color:C.muted }}>2ND HALF</div><div style={{ fontSize:14, fontWeight:800, color:"#60a5fa" }}>{game.formation2H}</div></div>}
           </div>
         )}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:6 }}>
           <div style={{ fontSize:11, color:C.muted }}>{isAdmin?"Tap any event to edit":"View only"}</div>
-          {isAdmin&&<button onClick={()=>onDelete(game)} style={{ background:"#7f1d1d", border:"none", borderRadius:8, padding:"5px 12px", color:"#fca5a5", fontWeight:700, fontSize:11, cursor:"pointer" }}>Delete Game</button>}
+          {isAdmin&&<button onClick={()=>onDelete(game)} style={{ background:"#7f1d1d", border:"none", borderRadius:12, padding:"5px 12px", color:"#fca5a5", fontWeight:700, fontSize:11, cursor:"pointer" }}>Delete Game</button>}
         </div>
       </div>
       <div style={{ padding:14, maxWidth:480, margin:"0 auto" }}>
@@ -372,7 +381,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
             if (!p) return null;
             const pos = (game.positions || {})[id] || p.pos;
             return (
-              <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px" }}>
+              <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: "linear-gradient(180deg,#111c2e,#0d1727)", border: `1px solid ${C.border}`, borderRadius: 12, padding: "7px 10px" }}>
                 <span style={{ width: 22, height: 22, borderRadius: "50%", background: POS_COLOR[pos] || C.muted, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 9, color: "#fff", flexShrink: 0 }}>{p.num}</span>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
@@ -391,7 +400,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                 if (!p) return null;
                 const pos = DEFAULT_POS[id] || p.pos;
                 return (
-                  <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px" }}>
+                  <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, background: "linear-gradient(180deg,#111c2e,#0d1727)", border: `1px solid ${C.border}`, borderRadius: 12, padding: "7px 10px" }}>
                     <span style={{ width: 22, height: 22, borderRadius: "50%", background: POS_COLOR[pos] || C.muted, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 9, color: "#fff", flexShrink: 0 }}>{p.num}</span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name.split(" ")[0]}</div>
@@ -496,7 +505,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                       <div style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa" }}>{p.mins}'</div>
                       <div style={{ fontSize: 8, color: C.muted }}>MINS</div>
                     </div>
-                    <div style={{ background:C.border, borderRadius:8, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
+                    <div style={{ background:C.border, borderRadius:12, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
                       <div style={{ fontSize:13, fontWeight:900, color:"#94a3b8" }}>{p.played>0?Math.round(p.mins/p.played):"0"}'</div>
                       <div style={{ fontSize: 8, color: C.muted }}>AVG</div>
                     </div>
@@ -568,7 +577,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                 <button
                   key={p.id}
                   onClick={() => setEScorer(String(p.id))}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eScorer === String(p.id) ? C.blue : C.border, border: eScorer === String(p.id) ? "2px solid #60a5fa" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: eScorer === String(p.id) ? C.blue : C.border, border: eScorer === String(p.id) ? "2px solid #60a5fa" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
                 >
                   #{p.num} {p.name}
                 </button>
@@ -576,7 +585,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
               <Lbl mt={8}>Assist</Lbl>
               <button
                 onClick={() => setEAssist(null)}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eAssist === null ? "#475569" : C.border, border: "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: eAssist === null ? "#475569" : C.border, border: "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
               >
                 No Assist
               </button>
@@ -584,7 +593,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                 <button
                   key={p.id}
                   onClick={() => setEAssist(eAssist === String(p.id) ? null : String(p.id))}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eAssist === String(p.id) ? "#065f46" : C.border, border: eAssist === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: eAssist === String(p.id) ? "#065f46" : C.border, border: eAssist === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
                 >
                   #{p.num} {p.name}
                 </button>
@@ -598,7 +607,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                 <button
                   key={p.id}
                   onClick={() => setESubOff(String(p.id))}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eSubOff === String(p.id) ? C.red : C.border, border: eSubOff === String(p.id) ? "2px solid #f87171" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: eSubOff === String(p.id) ? C.red : C.border, border: eSubOff === String(p.id) ? "2px solid #f87171" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
                 >
                   #{p.num} {p.name}
                 </button>
@@ -608,7 +617,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                 <button
                   key={p.id}
                   onClick={() => setESubOn(String(p.id))}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eSubOn === String(p.id) ? "#059669" : C.border, border: eSubOn === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: eSubOn === String(p.id) ? "#059669" : C.border, border: eSubOn === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
                 >
                   #{p.num} {p.name}
                 </button>
@@ -616,7 +625,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
               <Lbl mt={8}>Position</Lbl>
               <div style={{ display: "flex", gap: 8 }}>
                 {POSITIONS.map(pos => (
-                  <button key={pos} onClick={() => setESubPos(pos)} style={{ flex: 1, padding: "14px 4px", borderRadius: 10, border: "none", fontWeight: 800, fontSize: 14, cursor: "pointer", background: eSubPos === pos ? POS_COLOR[pos] : C.border, color: eSubPos === pos ? "#fff" : C.muted }}>{pos}</button>
+                  <button key={pos} onClick={() => setESubPos(pos)} style={{ flex: 1, padding: "14px 4px", borderRadius: 14, border: "none", fontWeight: 800, fontSize: 14, cursor: "pointer", background: eSubPos === pos ? POS_COLOR[pos] : C.border, color: eSubPos === pos ? "#fff" : C.muted }}>{pos}</button>
                 ))}
               </div>
             </div>
@@ -663,7 +672,7 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
   const totalGF=completedGames.reduce((a,g)=>a+g.scoreFor,0), totalGA=completedGames.reduce((a,g)=>a+g.scoreAgainst,0);
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
-      <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:"28px 16px 18px", borderBottom:`3px solid ${C.blue}`, textAlign:"center" }}>
+      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:"28px 16px 18px", borderBottom:`3px solid ${C.blue}`, textAlign:"center" }}>
         <div style={{ fontSize:13, fontWeight:800, color:"#60a5fa", letterSpacing:3, marginBottom:6, opacity:0.8 }}>PITCHSIDE</div>
         <div style={{ fontSize:22, fontWeight:900, color:"#fff", letterSpacing:1 }}>Baltimore Armour</div>
         <div style={{ fontSize:12, color:"#93c5fd", letterSpacing:2, marginTop:2 }}>11G ASPIRE - 2025/26</div>
@@ -680,7 +689,7 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
               <div style={{ width:1, background:C.border, margin:"4px 0" }}/>
               <div style={{ textAlign:"center" }}><div style={{ fontSize:22, fontWeight:900, color:"#f87171" }}>{totalGA}</div><div style={{ fontSize:9, color:C.muted, letterSpacing:1 }}>GOALS AGAINST</div></div>
             </div>
-            {streak>=2&&<div style={{ marginTop:6, background:"linear-gradient(90deg,#065f46,#047857)", borderRadius:10, padding:"5px 14px", display:"inline-block" }}><span style={{ fontSize:12, fontWeight:800, color:"#6ee7b7" }}>Unbeaten: {streak} games</span></div>}
+            {streak>=2&&<div style={{ marginTop:6, background:"linear-gradient(90deg,#065f46,#047857)", borderRadius:14, padding:"5px 14px", display:"inline-block" }}><span style={{ fontSize:12, fontWeight:800, color:"#6ee7b7" }}>Unbeaten: {streak} games</span></div>}
           </div>);
         })()}
       </div>
@@ -703,7 +712,7 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <div>
             <Lbl>Recent Results</Lbl>
             {games.filter(g=>g.status==="completed"||(!g.status&&g.scoreFor!==undefined)).slice().reverse().map((g, i) => (
-              <button key={i} onClick={() => onView(g)} style={{ background: "#0d2137", border: "1px solid #065f46", borderRadius: 12, padding: 14, marginBottom: 8, width: "100%", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <button key={i} onClick={() => onView(g)} style={{ background: "linear-gradient(180deg,#111f35,#0b1627)", border: "1px solid #065f46", borderRadius: 16, padding: 14, marginBottom: 8, width: "100%", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>vs {g.opponent.split(" ").slice(0, 3).join(" ")}</div>
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{g.date} · {g.venue} · {g.type === "tournament" ? "Cup" : "League"}</div>
@@ -721,7 +730,7 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <div>
             <Lbl>Upcoming</Lbl>
             {remaining.map((g, i) => (
-              <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={i} style={{ background: "linear-gradient(180deg,#111c2e,#0d1727)", border: `1px solid ${C.border}`, borderRadius: 16, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>vs {g.opp.split(" ").slice(0,3).join(" ")}</div>
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{g.date}{g.time?" · "+g.time:""} · {g.venue}</div>
@@ -768,8 +777,8 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <Lbl>Venue</Lbl>
           <div style={{ display:"flex", gap:8, marginBottom:14 }}>{["Home","Away"].map(v=><button key={v} onClick={()=>setVenue(v)} style={{ ...btn(venue===v?C.blue:C.border,venue===v?"#fff":C.muted), flex:1 }}>{v}</button>)}</div>
           <Lbl>Opponent</Lbl>
-          {teams.map(t=><button key={t} onClick={()=>setOpp(t)} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, textAlign:"left", cursor:"pointer", fontWeight:600, fontSize:13, background:opp===t?"#1d4ed8":C.border, border:opp===t?`2px solid #60a5fa`:`1px solid ${C.border}`, color:opp===t?"#fff":"#94a3b8" }}>{t}</button>)}
-          <button onClick={()=>setOpp("__custom__")} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:8, textAlign:"left", cursor:"pointer", fontWeight:600, fontSize:13, background:opp==="__custom__"?"#1d4ed8":C.border, border:`1px dashed #334155`, color:"#94a3b8" }}>+ Other / Tournament Final</button>
+          {teams.map(t=><button key={t} onClick={()=>setOpp(t)} style={{ width:"100%", padding:"11px 14px", borderRadius:14, marginBottom:5, textAlign:"left", cursor:"pointer", fontWeight:600, fontSize:13, background:opp===t?"#1d4ed8":C.border, border:opp===t?`2px solid #60a5fa`:`1px solid ${C.border}`, color:opp===t?"#fff":"#94a3b8" }}>{t}</button>)}
+          <button onClick={()=>setOpp("__custom__")} style={{ width:"100%", padding:"11px 14px", borderRadius:14, marginBottom:8, textAlign:"left", cursor:"pointer", fontWeight:600, fontSize:13, background:opp==="__custom__"?"#1d4ed8":C.border, border:`1px dashed #334155`, color:"#94a3b8" }}>+ Other / Tournament Final</button>
           {opp==="__custom__"&&<input value={customOpp} onChange={e=>setCustomOpp(e.target.value)} placeholder="Opponent name..." style={{ ...inp, marginBottom:10 }}/>}
           <button onClick={go} style={{ ...btn(C.blue), width:"100%", padding:16, fontSize:15 }}>Continue to Lineup</button>
         </Modal>
@@ -913,13 +922,13 @@ function Lineup({ gameInfo, onKickoff, onBack, pastGames=[] }) {
   };
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:100 }}>
-      <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
+      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:700, cursor:"pointer", padding:0, marginBottom:8 }}>{"< Back"}</button>
         <div style={{ fontSize:16, fontWeight:800, color:"#60a5fa" }}>vs {gameInfo.opponent?.split(" ").slice(0,4).join(" ")}</div>
         {/* Half selector */}
         <div style={{ display:"flex", gap:8, marginTop:10 }}>
           {[["full","Full Game"],["second_only","2nd Half Only"]].map(([k,l])=>(
-            <button key={k} onClick={()=>setHalfMode(k)} style={{ flex:1, padding:"8px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:halfMode===k?C.amber:C.border, color:halfMode===k?"#000":C.muted }}>{l}</button>
+            <button key={k} onClick={()=>setHalfMode(k)} style={{ flex:1, padding:"8px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:halfMode===k?C.amber:C.border, color:halfMode===k?"#000":C.muted }}>{l}</button>
           ))}
         </div>
         {halfMode==="second_only"&&<div style={{ fontSize:10, color:C.amber, marginTop:6 }}>⚡ Clock starts at halftime. 1st half stats skipped — 2nd half tracked only.</div>}
@@ -928,7 +937,7 @@ function Lineup({ gameInfo, onKickoff, onBack, pastGames=[] }) {
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
             {FORMATIONS.map(f=>(
               <button key={f.id} onClick={()=>setFormation1H(f.id)}
-                style={{ padding:"7px 11px", borderRadius:10, border:formation1H===f.id?"2px solid #60a5fa":"1px solid #334155", background:formation1H===f.id?C.blue:C.border, color:formation1H===f.id?"#fff":"#94a3b8", fontWeight:formation1H===f.id?800:600, fontSize:12, cursor:"pointer" }}>
+                style={{ padding:"7px 11px", borderRadius:14, border:formation1H===f.id?"2px solid #60a5fa":"1px solid #334155", background:formation1H===f.id?C.blue:C.border, color:formation1H===f.id?"#fff":"#94a3b8", fontWeight:formation1H===f.id?800:600, fontSize:12, cursor:"pointer" }}>
                 {f.label}
                 <div style={{ fontSize:8, color:formation1H===f.id?"#bfdbfe":C.muted }}>{f.desc}</div>
               </button>
@@ -944,16 +953,16 @@ function Lineup({ gameInfo, onKickoff, onBack, pastGames=[] }) {
         {available.map(p=>{
           const isSel=selected.includes(p.id); const pos=posFor(p.id);
           return(
-            <div key={p.id} onClick={()=>toggle(p.id)} style={{ display:"flex", alignItems:"center", gap:10, background:isSel?"#0d2137":C.card, border:isSel?`2px solid ${C.blue}`:`1px solid ${C.border}`, borderRadius:12, padding:"12px", marginBottom:6, cursor:"pointer" }}>
+            <div key={p.id} onClick={()=>toggle(p.id)} style={{ display:"flex", alignItems:"center", gap:10, background:isSel?"#0d2137":C.card, border:isSel?`2px solid ${C.blue}`:`1px solid ${C.border}`, borderRadius:16, padding:"12px", marginBottom:6, cursor:"pointer" }}>
               <div style={{ width:26, height:26, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:isSel?C.blue:C.border, border:isSel?`2px solid #60a5fa`:`1px solid #334155` }}>{isSel?<span style={{ fontSize:16, fontWeight:900, color:"#fff", lineHeight:1 }}>✓</span>:<span style={{ fontSize:10, fontWeight:700, color:C.muted }}>{p.num}</span>}</div>
               <span style={{ flex:1, fontWeight:700, fontSize:14, color:isSel?C.text:"#94a3b8" }}>{p.name}</span>
               {isSel&&<button onClick={e=>{ e.stopPropagation();setPosModal(p.id); }} style={{ background:POS_COLOR[pos], border:"none", borderRadius:6, padding:"5px 10px", color:"#fff", fontWeight:800, fontSize:12, cursor:"pointer" }}>{pos}</button>}
-              <button title="Tap to mark unavailable" aria-label="Tap to mark unavailable" onClick={e=>cycleAvail(p.id,e)} style={{ background:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"transparent":"#450a0a", border:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"1px solid transparent":"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:11, fontWeight:800, color:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"transparent":C.red, minWidth:38 }}>{(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"":"Out"}</button>
+              <button title="Tap to mark unavailable" aria-label="Tap to mark unavailable" onClick={e=>cycleAvail(p.id,e)} style={{ background:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"transparent":"#450a0a", border:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"1px solid transparent":"none", borderRadius:12, padding:"5px 10px", cursor:"pointer", fontSize:11, fontWeight:800, color:(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"transparent":C.red, minWidth:38 }}>{(avail[p.id]!==false&&avail[p.id]!=="injured"&&avail[p.id]!=="absent")?"":"Out"}</button>
             </div>
           );
         })}
         {!showGuest ? (
-          <button onClick={() => setShowGuest(true)} style={{ width: "100%", padding: 12, borderRadius: 12, background: C.card, border: "1px dashed #334155", color: C.purple, fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
+          <button onClick={() => setShowGuest(true)} style={{ width: "100%", padding: 12, borderRadius: 16, background: "linear-gradient(180deg,#111c2e,#0d1727)", border: "1px dashed #334155", color: C.purple, fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
             + Add / Reuse Guest Player
           </button>
         ) : (
@@ -963,9 +972,9 @@ function Lineup({ gameInfo, onKickoff, onBack, pastGames=[] }) {
           </div>
         )}
       </div>
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a1628", borderTop:`2px solid ${C.border}`, padding:"12px 16px" }}>
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#081321", borderTop:`2px solid ${C.border}`, padding:"12px 16px" }}>
         {selected.length>0&&selected.length<11&&<div style={{ textAlign:"center", fontSize:12, color:C.amber, marginBottom:6 }}>Select {11-selected.length} more</div>}
-        <button onClick={kickoff} disabled={selected.length!==11} style={{ ...btn(selected.length===11?C.blue:C.border,selected.length===11?"#fff":C.muted), width:"100%", padding:18, fontSize:16, borderRadius:12, cursor:selected.length===11?"pointer":"not-allowed" }}>
+        <button onClick={kickoff} disabled={selected.length!==11} style={{ ...btn(selected.length===11?C.blue:C.border,selected.length===11?"#fff":C.muted), width:"100%", padding:18, fontSize:16, borderRadius:16, cursor:selected.length===11?"pointer":"not-allowed" }}>
           {selected.length===11?(halfMode==="second_only"?"Start 2nd Half Tracking!":"Kick Off!"):"Tap "+( 11-selected.length>0?11-selected.length+" more players":"11 players")}
         </button>
       </div>
@@ -1206,19 +1215,19 @@ function Game({ gameInfo, onEnd, onBack }) {
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
-      <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:"12px 16px", borderBottom:`3px solid ${C.blue}` }}>
+      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:"12px 16px", borderBottom:`3px solid ${C.blue}` }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
           {/* Exit now just goes home - game state is saved and restorable */}
           <button onClick={()=>setShowBack(true)} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:13, fontWeight:700, cursor:"pointer", padding:0 }}>{"< Home"}</button>
           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-            <button onClick={()=>setRunning(r=>!r)} style={{ background:running?C.red:C.green, border:"none", borderRadius:8, padding:"6px 14px", color:"#fff", fontWeight:800, fontSize:12, cursor:"pointer", minWidth:56 }}>{running?"PAUSE":"START"}</button>
-            <button onClick={()=>{ setRunning(false);pauseRef.current=initSecs;setSecs(initSecs); }} style={{ background:"#475569", border:"none", borderRadius:8, padding:"6px 10px", color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer" }}>RESET</button>
+            <button onClick={()=>setRunning(r=>!r)} style={{ background:running?"linear-gradient(135deg,#991b1b,#dc2626)":"linear-gradient(135deg,#15803d,#16a34a)", border:"none", borderRadius:12, padding:"6px 14px", color:"#fff", fontWeight:800, fontSize:12, cursor:"pointer", minWidth:56 }}>{running?"PAUSE":"START"}</button>
+            <button onClick={()=>{ setRunning(false);pauseRef.current=initSecs;setSecs(initSecs); }} style={{ background:"#475569", border:"none", borderRadius:12, padding:"6px 10px", color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer" }}>RESET</button>
             <span style={{ fontSize:17, fontWeight:800, color:running?"#60a5fa":"#475569", minWidth:46, textAlign:"center" }}>{timeStr}</span>
           </div>
         </div>
         <div style={{ textAlign:"center" }}>
           <div style={{ fontSize:10, color:C.muted, marginBottom:2 }}>{htMode?"HALF TIME":half===1?"1st Half":"2nd Half"} · vs {gameInfo.opponent?.split(" ").slice(0,3).join(" ")} {running&&<span style={{ background:"#dc2626", color:"#fff", borderRadius:4, padding:"1px 6px", fontSize:9, fontWeight:800, marginLeft:4 }}>LIVE</span>}</div>
-          <div style={{ fontSize:52, fontWeight:900, color:"#fff", lineHeight:1 }}><span style={{ color:"#60a5fa" }}>{gf}</span><span style={{ color:"#334155", margin:"0 10px" }}>-</span><span style={{ color:"#f87171" }}>{ga}</span></div>
+          <div style={{ fontSize:56, fontWeight:950, color:"#fff", lineHeight:1, letterSpacing:-2 }}><span style={{ color:"#60a5fa" }}>{gf}</span><span style={{ color:"#334155", margin:"0 10px" }}>-</span><span style={{ color:"#f87171" }}>{ga}</span></div>
           {!running&&secs===initSecs&&<div style={{ fontSize:10, color:C.amber, marginTop:4 }}>Tap START to begin</div>}
           {!running&&secs>initSecs&&!htMode&&<div style={{ fontSize:10, color:C.amber, marginTop:4 }}>PAUSED — tap START to continue</div>}
           {/* Auto-save indicator */}
@@ -1226,7 +1235,7 @@ function Game({ gameInfo, onEnd, onBack }) {
         </div>
       </div>
 
-      <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#0a1628" }}>
+      <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#081321" }}>
         {[["field","On Field"],["xi","Live XI"],["events","Events"],["bench","Bench"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} style={{ flex:1, padding:"12px 4px", background:"none", border:"none", borderBottom:tab===t?`3px solid ${t==="xi"?C.amber:C.blue}`:"3px solid transparent", color:tab===t?(t==="xi"?C.amber:"#60a5fa"):C.muted, fontWeight:700, fontSize:11, cursor:"pointer" }}>{l}</button>
         ))}
@@ -1235,7 +1244,7 @@ function Game({ gameInfo, onEnd, onBack }) {
       <div style={{ padding:12, maxWidth:480, margin:"0 auto" }}>
         {tab==="field"&&<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
           {onFieldP.map(p=>(
-            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:6, background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:"8px 10px" }}>
+            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:6, background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:"8px 10px" }}>
               <span style={{ width:26, height:26, borderRadius:"50%", background:POS_COLOR[positions[p.id]]||C.muted, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:10, color:"#fff", flexShrink:0 }}>{p.num}</span>
               <div style={{ minWidth:0 }}><div style={{ fontSize:11, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name.split(" ")[0]}</div><div style={{ fontSize:9, color:POS_COLOR[positions[p.id]] }}>{positions[p.id]}</div></div>
             </div>
@@ -1246,7 +1255,7 @@ function Game({ gameInfo, onEnd, onBack }) {
           <div style={{ fontSize:11, color:C.muted, marginBottom:8 }}>Tap to edit</div>
           {events.length===0&&<div style={{ color:C.muted, fontSize:13, textAlign:"center", marginTop:30 }}>No events yet</div>}
           {events.slice().reverse().map(ev=>(
-            <div key={ev.id} onClick={()=>openEditEv(ev)} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:"10px 12px", marginBottom:5, display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}>
+            <div key={ev.id} onClick={()=>openEditEv(ev)} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"10px 12px", marginBottom:5, display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}>
               <span style={{ fontSize:10, fontWeight:800, color:ev.type==="goal_for"?"#60a5fa":ev.type==="goal_against"?"#f87171":C.amber, minWidth:28 }}>{ev.type==="goal_for"?"FOR":ev.type==="goal_against"?"VS":"SUB"}</span>
               <span style={{ fontSize:11, color:"#94a3b8", fontWeight:700, minWidth:24 }}>{ev.minute}'</span>
               <span style={{ fontSize:12, color:C.text, flex:1 }}>{ev.type==="goal_for"?pName(ev.scorer)+(ev.assist?" / "+pName(ev.assist):" (no ast)"):ev.type==="goal_against"?"Goal conceded":pName(ev.playerOff)+" off / "+pName(ev.playerOn)+" on"}</span>
@@ -1266,18 +1275,18 @@ function Game({ gameInfo, onEnd, onBack }) {
         </div>}
       </div>
 
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a1628", borderTop:`2px solid ${C.border}`, padding:"10px 10px" }}>
-        <div style={{ display:"flex", gap:5, maxWidth:480, margin:"0 auto" }}>
-          <button onClick={()=>openGoal("goal_for")} style={{ flex:1, background:"#1d4ed8", border:"none", borderRadius:10, padding:"14px 2px", color:"#fff", cursor:"pointer", fontSize:10, fontWeight:800 }}>GOAL FOR</button>
-          <button onClick={()=>openGoal("goal_against")} style={{ flex:1, background:C.red, border:"none", borderRadius:10, padding:"14px 2px", color:"#fff", cursor:"pointer", fontSize:10, fontWeight:800 }}>GOAL VS</button>
-          <button onClick={()=>openGoal("sub")} style={{ flex:1, background:"#059669", border:"none", borderRadius:10, padding:"14px 2px", color:"#fff", cursor:"pointer", fontSize:10, fontWeight:800 }}>SUB</button>
-          {half===1?<button onClick={endHalf} style={{ flex:1, background:C.purple, border:"none", borderRadius:10, padding:"14px 2px", color:"#fff", cursor:"pointer", fontSize:10, fontWeight:800 }}>END HALF</button>:<button onClick={()=>setShowEnd(true)} style={{ flex:1, background:C.purple, border:"none", borderRadius:10, padding:"14px 2px", color:"#fff", cursor:"pointer", fontSize:10, fontWeight:800 }}>FULL TIME</button>}
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"rgba(5,11,22,0.96)", borderTop:`1px solid ${C.border}`, padding:"10px 10px 12px", backdropFilter:"blur(12px)", boxShadow:"0 -12px 30px rgba(0,0,0,0.35)" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, maxWidth:480, margin:"0 auto" }}>
+          <button onClick={()=>openGoal("goal_for")} style={{ background:"linear-gradient(135deg,#15803d,#16a34a)", border:"none", borderRadius:16, padding:"16px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>⚽ GOAL</button>
+          <button onClick={()=>openGoal("goal_against")} style={{ background:"linear-gradient(135deg,#991b1b,#dc2626)", border:"none", borderRadius:16, padding:"16px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>⚽ CONCEDE</button>
+          <button onClick={()=>openGoal("sub")} style={{ background:"linear-gradient(135deg,#1d4ed8,#246BFD)", border:"none", borderRadius:16, padding:"15px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>↔ SUBSTITUTION</button>
+          {half===1?<button onClick={endHalf} style={{ background:"linear-gradient(135deg,#4338ca,#7c3aed)", border:"none", borderRadius:16, padding:"15px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>⏱ END HALF</button>:<button onClick={()=>setShowEnd(true)} style={{ background:"linear-gradient(135deg,#4338ca,#7c3aed)", border:"none", borderRadius:16, padding:"15px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>■ FULL TIME</button>}
         </div>
       </div>
 
       {/* Exit confirmation - now explains game is saved */}
       {showBack&&<Modal title="Leave Game?" onClose={()=>setShowBack(false)}>
-        <div style={{ background:"#0d2137", border:`1px solid ${C.green}`, borderRadius:10, padding:12, marginBottom:14 }}>
+        <div style={{ background:"#0d2137", border:`1px solid ${C.green}`, borderRadius:14, padding:12, marginBottom:14 }}>
           <div style={{ fontSize:13, fontWeight:800, color:C.green, marginBottom:4 }}>✅ Your data is safe!</div>
           <div style={{ fontSize:12, color:"#94a3b8" }}>All goals, subs and the score are saved. When you come back to the home screen you'll see a green <strong>"Resume Game"</strong> banner to pick up where you left off.</div>
         </div>
@@ -1308,7 +1317,7 @@ function Game({ gameInfo, onEnd, onBack }) {
 
       {modal==="goal_for"&&<Modal title="Goal For!" onClose={()=>setModal(null)}>
         <Lbl>Minute</Lbl><input value={goalMin} onChange={e=>setGoalMin(e.target.value)} type="number" style={{ ...inp, fontSize:22, fontWeight:700, marginBottom:12 }}/>
-        <button onClick={()=>setOwnGoal(o=>!o)} style={{ padding:"8px 14px", borderRadius:8, background:ownGoal?C.amber:C.border, border:"none", color:ownGoal?"#000":"#94a3b8", fontWeight:700, fontSize:12, cursor:"pointer", marginBottom:12 }}>Own Goal by opponent</button>
+        <button onClick={()=>setOwnGoal(o=>!o)} style={{ padding:"8px 14px", borderRadius:12, background:ownGoal?C.amber:C.border, border:"none", color:ownGoal?"#000":"#94a3b8", fontWeight:700, fontSize:12, cursor:"pointer", marginBottom:12 }}>Own Goal by opponent</button>
         {!ownGoal && (
         <div>
           <Lbl>Scorer</Lbl>
@@ -1316,7 +1325,7 @@ function Game({ gameInfo, onEnd, onBack }) {
             <button
               key={p.id}
               onClick={() => setScorer(String(p.id))}
-              style={{ width: "100%", padding: "11px 14px", borderRadius: 10, marginBottom: 5, background: scorer === String(p.id) ? C.blue : C.border, border: scorer === String(p.id) ? "2px solid #60a5fa" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+              style={{ width: "100%", padding: "11px 14px", borderRadius: 14, marginBottom: 5, background: scorer === String(p.id) ? C.blue : C.border, border: scorer === String(p.id) ? "2px solid #60a5fa" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
             >
               #{p.num} {p.name}
             </button>
@@ -1324,7 +1333,7 @@ function Game({ gameInfo, onEnd, onBack }) {
           <Lbl mt={8}>Assist (optional)</Lbl>
           <button
             onClick={() => setAssist(null)}
-            style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: assist === null ? "#475569" : C.border, border: "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+            style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: assist === null ? "#475569" : C.border, border: "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
           >
             No Assist / Unknown
           </button>
@@ -1332,7 +1341,7 @@ function Game({ gameInfo, onEnd, onBack }) {
             <button
               key={p.id}
               onClick={() => setAssist(assist === String(p.id) ? null : String(p.id))}
-              style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: assist === String(p.id) ? "#065f46" : C.border, border: assist === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+              style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: assist === String(p.id) ? "#065f46" : C.border, border: assist === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
             >
               #{p.num} {p.name}
             </button>
@@ -1349,14 +1358,14 @@ function Game({ gameInfo, onEnd, onBack }) {
 
       {modal==="sub"&&<Modal title="Substitution" onClose={()=>setModal(null)}>
         <Lbl>Minute</Lbl><input value={subMin} onChange={e=>setSubMin(e.target.value)} type="number" style={{ ...inp, fontSize:22, fontWeight:700, marginBottom:12 }}/>
-        <Lbl>Player Off</Lbl>{onFieldP.map(p=><button key={p.id} onClick={()=>setSubOff(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:10, marginBottom:5, background:subOff===String(p.id)?C.red:C.border, border:subOff===String(p.id)?`2px solid #f87171`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name} <span style={{ color:POS_COLOR[positions[p.id]], fontSize:11 }}>- {positions[p.id]}</span></button>)}
+        <Lbl>Player Off</Lbl>{onFieldP.map(p=><button key={p.id} onClick={()=>setSubOff(String(p.id))} style={{ width:"100%", padding:"11px 14px", borderRadius:14, marginBottom:5, background:subOff===String(p.id)?C.red:C.border, border:subOff===String(p.id)?`2px solid #f87171`:`1px solid #334155`, color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}>#{p.num} {p.name} <span style={{ color:POS_COLOR[positions[p.id]], fontSize:11 }}>- {positions[p.id]}</span></button>)}
         <Lbl mt={8}>Player On</Lbl>
         {benchP.length === 0 && <div style={{ color: C.muted, fontSize: 13, marginBottom: 8 }}>No players on bench</div>}
         {benchP.map(p => (
           <button
             key={p.id}
             onClick={() => setSubOn(String(p.id))}
-            style={{ width: "100%", padding: "11px 14px", borderRadius: 10, marginBottom: 5, background: subOn === String(p.id) ? "#059669" : C.border, border: subOn === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+            style={{ width: "100%", padding: "11px 14px", borderRadius: 14, marginBottom: 5, background: subOn === String(p.id) ? "#059669" : C.border, border: subOn === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
           >
             #{p.num} {p.name}
           </button>
@@ -1366,7 +1375,7 @@ function Game({ gameInfo, onEnd, onBack }) {
             <Lbl mt={8}>Position</Lbl>
             <div style={{ display: "flex", gap: 8 }}>
               {POSITIONS.map(pos => (
-                <button key={pos} onClick={() => setSubPos(pos)} style={{ flex: 1, padding: "14px 4px", borderRadius: 10, border: "none", fontWeight: 800, fontSize: 14, cursor: "pointer", background: subPos === pos ? POS_COLOR[pos] : C.border, color: subPos === pos ? "#fff" : C.muted }}>{pos}</button>
+                <button key={pos} onClick={() => setSubPos(pos)} style={{ flex: 1, padding: "14px 4px", borderRadius: 14, border: "none", fontWeight: 800, fontSize: 14, cursor: "pointer", background: subPos === pos ? POS_COLOR[pos] : C.border, color: subPos === pos ? "#fff" : C.muted }}>{pos}</button>
               ))}
             </div>
           </div>
@@ -1383,7 +1392,7 @@ function Game({ gameInfo, onEnd, onBack }) {
               <button
                 key={p.id}
                 onClick={() => setScorer(String(p.id))}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: scorer === String(p.id) ? C.blue : C.border, border: scorer === String(p.id) ? "2px solid #60a5fa" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: scorer === String(p.id) ? C.blue : C.border, border: scorer === String(p.id) ? "2px solid #60a5fa" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
               >
                 #{p.num} {p.name}
               </button>
@@ -1391,7 +1400,7 @@ function Game({ gameInfo, onEnd, onBack }) {
             <Lbl mt={8}>Assist</Lbl>
             <button
               onClick={() => setAssist(null)}
-              style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: "#475569", border: "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+              style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: "#475569", border: "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
             >
               No Assist
             </button>
@@ -1399,7 +1408,7 @@ function Game({ gameInfo, onEnd, onBack }) {
               <button
                 key={p.id}
                 onClick={() => setAssist(assist === String(p.id) ? null : String(p.id))}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: assist === String(p.id) ? "#065f46" : C.border, border: assist === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 14, marginBottom: 5, background: assist === String(p.id) ? "#065f46" : C.border, border: assist === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
               >
                 #{p.num} {p.name}
               </button>
@@ -1415,7 +1424,7 @@ function Game({ gameInfo, onEnd, onBack }) {
               <button
                 key={p.id}
                 onClick={() => setSubOff(String(p.id))}
-                style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:subOff===String(p.id)?C.red:C.border, border:subOff===String(p.id)?`2px solid #f87171`:"1px solid #334155", color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}
+                style={{ width:"100%", padding:"10px 14px", borderRadius:14, marginBottom:5, background:subOff===String(p.id)?C.red:C.border, border:subOff===String(p.id)?`2px solid #f87171`:"1px solid #334155", color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}
               >
                 #{p.num} {p.name}
               </button>
@@ -1425,7 +1434,7 @@ function Game({ gameInfo, onEnd, onBack }) {
               <button
                 key={p.id}
                 onClick={() => setSubOn(String(p.id))}
-                style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:subOn===String(p.id)?"#059669":C.border, border:subOn===String(p.id)?`2px solid ${C.green}`:"1px solid #334155", color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}
+                style={{ width:"100%", padding:"10px 14px", borderRadius:14, marginBottom:5, background:subOn===String(p.id)?"#059669":C.border, border:subOn===String(p.id)?`2px solid ${C.green}`:"1px solid #334155", color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}
               >
                 #{p.num} {p.name}
               </button>
@@ -1433,7 +1442,7 @@ function Game({ gameInfo, onEnd, onBack }) {
             <Lbl mt={8}>Position</Lbl>
             <div style={{ display:"flex", gap:8 }}>
               {POSITIONS.map(pos => (
-                <button key={pos} onClick={() => setSubPos(pos)} style={{ flex:1, padding:"14px 4px", borderRadius:10, border:"none", fontWeight:800, fontSize:14, cursor:"pointer", background:subPos===pos?POS_COLOR[pos]:C.border, color:subPos===pos?"#fff":C.muted }}>{pos}</button>
+                <button key={pos} onClick={() => setSubPos(pos)} style={{ flex:1, padding:"14px 4px", borderRadius:14, border:"none", fontWeight:800, fontSize:14, cursor:"pointer", background:subPos===pos?POS_COLOR[pos]:C.border, color:subPos===pos?"#fff":C.muted }}>{pos}</button>
               ))}
             </div>
           </div>
@@ -1446,13 +1455,13 @@ function Game({ gameInfo, onEnd, onBack }) {
 
       {modal==="halftime"&&<Modal title="Half Time" onClose={()=>setModal(null)}>
         <div style={{ textAlign:"center", marginBottom:16 }}>
-          <div style={{ fontSize:52, fontWeight:900, color:"#fff", lineHeight:1 }}><span style={{ color:"#60a5fa" }}>{gf}</span><span style={{ color:"#334155", margin:"0 12px" }}>-</span><span style={{ color:"#f87171" }}>{ga}</span></div>
+          <div style={{ fontSize:56, fontWeight:950, color:"#fff", lineHeight:1, letterSpacing:-2 }}><span style={{ color:"#60a5fa" }}>{gf}</span><span style={{ color:"#334155", margin:"0 12px" }}>-</span><span style={{ color:"#f87171" }}>{ga}</span></div>
           <div style={{ fontSize:12, color:C.green, fontWeight:700, marginTop:6 }}>End of First Half</div>
         </div>
         <Lbl>2nd Half Lineup</Lbl>
         <p style={{ color:"#94a3b8", fontSize:12, marginTop:0, marginBottom:10 }}>Make subs to change who starts.</p>
         {onFieldP.map(p=>(
-          <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, background:"#0d2137", border:`1px solid ${C.blue}`, borderRadius:10, padding:"10px 12px", marginBottom:5 }}>
+          <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, background:"#0d2137", border:`1px solid ${C.blue}`, borderRadius:14, padding:"10px 12px", marginBottom:5 }}>
             <span style={{ width:26, height:26, borderRadius:"50%", background:POS_COLOR[positions[p.id]]||C.muted, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:10, color:"#fff", flexShrink:0 }}>{p.num}</span>
             <span style={{ flex:1, fontSize:13, fontWeight:700, color:C.text }}>{p.name}</span>
             <span style={{ fontSize:11, color:POS_COLOR[positions[p.id]], fontWeight:700 }}>{positions[p.id]}</span>
@@ -1464,7 +1473,7 @@ function Game({ gameInfo, onEnd, onBack }) {
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
             {FORMATIONS.map(f=>(
               <button key={f.id} onClick={()=>setFormation2H(f.id)}
-                style={{ padding:"7px 11px", borderRadius:10, border:formation2H===f.id?"2px solid #60a5fa":"1px solid #334155", background:formation2H===f.id?C.blue:C.border, color:formation2H===f.id?"#fff":"#94a3b8", fontWeight:formation2H===f.id?800:600, fontSize:12, cursor:"pointer" }}>
+                style={{ padding:"7px 11px", borderRadius:14, border:formation2H===f.id?"2px solid #60a5fa":"1px solid #334155", background:formation2H===f.id?C.blue:C.border, color:formation2H===f.id?"#fff":"#94a3b8", fontWeight:formation2H===f.id?800:600, fontSize:12, cursor:"pointer" }}>
                 {f.label}
                 <div style={{ fontSize:8, color:formation2H===f.id?"#bfdbfe":C.muted }}>{f.desc}</div>
               </button>
@@ -1586,7 +1595,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   const pList = [...rosterList, ...guestList];
   const toggleSort = k => { if (sortBy === k) setSortDir(d => d*-1); else { setSortBy(k); setSortDir(-1); } };
   const sb = (k, l) => (
-    <button key={k} onClick={() => toggleSort(k)} style={{ flex:1, padding:"7px 2px", borderRadius:8, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:sortBy===k?C.blue:C.border, color:sortBy===k?"#fff":C.muted }}>
+    <button key={k} onClick={() => toggleSort(k)} style={{ flex:1, padding:"7px 2px", borderRadius:12, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:sortBy===k?C.blue:C.border, color:sortBy===k?"#fff":C.muted }}>
       {l}{sortBy===k?(sortDir===-1?" ▼":" ▲"):""}
     </button>
   );
@@ -1644,7 +1653,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
             { label:"1ST HALF", gf:gf1H,    ga:ga1H,    border:"1px solid #1e3a5f" },
             { label:"2ND HALF", gf:gf2H,    ga:ga2H,    border:"1px solid #1e3a5f" },
           ].map(col => (
-            <div key={col.label} style={{ background:"#0a1628", borderRadius:10, padding:"10px 6px", border:col.border }}>
+            <div key={col.label} style={{ background:"#081321", borderRadius:14, padding:"10px 6px", border:col.border }}>
               <div style={{ fontSize:9, color:C.muted, fontWeight:700, letterSpacing:1, marginBottom:8 }}>{col.label}</div>
               <div style={{ marginBottom:6 }}>
                 <div style={{ fontSize:col.label==="TOTAL"?24:20, fontWeight:900, color:"#60a5fa" }}>{col.gf}</div>
@@ -1740,11 +1749,11 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
             <div><div style={{ fontWeight:800, fontSize:15, color:C.text }}>{p.name}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.played} games · {s.mins} mins · avg {s.avgMins}'</div></div>
             <div style={{ display:"flex", gap:6 }}>
-              <div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:8, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
+              <div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:12, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
                 <div style={{ fontSize:13, fontWeight:900, color:parseFloat(s.net80)>0?C.green:parseFloat(s.net80)<0?C.red:"#94a3b8" }}>{s.net80s||"-"}</div>
                 <div style={{ fontSize:8, color:C.muted }}>NET/80</div>
               </div>
-              <div style={{ background:ibg, borderRadius:8, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
+              <div style={{ background:ibg, borderRadius:12, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
                 <div style={{ fontSize:13, fontWeight:900, color:ic }}>{fmtImpact(impact)}</div>
                 <div style={{ fontSize:8, color:C.muted }}>IMPACT</div>
               </div>
@@ -1752,7 +1761,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           </div>
           <div style={{ display:"flex", gap:5 }}>
             {[["G",s.goals,"#60a5fa"],["A",s.assists,C.green],["GF",s.gf,"#3b82f6"],["GA",s.ga,"#f87171"]].map(([l,v,co])=>(
-              <div key={l} style={{ flex:1, background:C.border, borderRadius:8, padding:"7px 4px", textAlign:"center" }}>
+              <div key={l} style={{ flex:1, background:C.border, borderRadius:12, padding:"7px 4px", textAlign:"center" }}>
                 <div style={{ fontSize:18, fontWeight:800, color:co }}>{v||0}</div>
                 <div style={{ fontSize:8, color:C.muted }}>{l}</div>
               </div>
@@ -1792,8 +1801,8 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
       <div style={{ ...card, border:`2px solid ${C.amber}`, marginBottom:14 }}>
         <div style={{ fontSize:13, fontWeight:800, color:C.amber, marginBottom:8 }}>Season Optimum XI — {compLabel}</div>
         <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-          <button onClick={()=>setOptimumSort("net80")} style={{ flex:1, padding:"8px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:optimumSort==="net80"?C.blue:C.border, color:optimumSort==="net80"?"#fff":C.muted }}>Net/80 ▼</button>
-          <button onClick={()=>setOptimumSort("impact")} style={{ flex:1, padding:"8px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:optimumSort==="impact"?C.amber:C.border, color:optimumSort==="impact"?"#000":C.muted }}>Impact ▼</button>
+          <button onClick={()=>setOptimumSort("net80")} style={{ flex:1, padding:"8px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:optimumSort==="net80"?C.blue:C.border, color:optimumSort==="net80"?"#fff":C.muted }}>Net/80 ▼</button>
+          <button onClick={()=>setOptimumSort("impact")} style={{ flex:1, padding:"8px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:optimumSort==="impact"?C.amber:C.border, color:optimumSort==="impact"?"#000":C.muted }}>Impact ▼</button>
         </div>
         <div style={{ fontSize:10, color:C.muted }}>1 GK guaranteed · tiebreak by minutes</div>
       </div>
@@ -1812,7 +1821,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
         <div>
           <div style={{ fontSize:11, fontWeight:800, color:C.muted, letterSpacing:1, marginTop:14, marginBottom:8 }}>OTHERS — Close to XI</div>
           {rest.map((p,i) => (
-            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#0a1222", border:"1px solid #1e293b", borderRadius:10, padding:"9px 14px", marginBottom:4, opacity:0.75 }}>
+            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#0a1222", border:"1px solid #1e293b", borderRadius:14, padding:"9px 14px", marginBottom:4, opacity:0.75 }}>
               <span style={{ fontSize:12, color:C.muted, width:20 }}>{i+12}.</span>
               <span style={{ flex:1, fontSize:13, color:"#94a3b8" }}>{p.name}</span>
               <span style={{ fontSize:12, fontWeight:700, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</span>
@@ -1866,7 +1875,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
       {gamesWithF.length>0&&<div style={{ ...card, border:"1px solid #f59e0b", marginBottom:12 }}>
         <Lbl>Formation vs {scout.split(" ")[0]}</Lbl>
         {Object.entries(fStats).map(([f,s])=><div key={f} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderBottom:"1px solid #1e3a5f" }}><span style={{ fontSize:15, fontWeight:800, color:"#60a5fa" }}>{f}</span><div style={{ display:"flex", gap:12 }}><span style={{ fontSize:12, color:"#6ee7b7" }}>{s.won}W/{s.played}P</span><span style={{ fontSize:12, color:"#94a3b8" }}>{s.gf}-{s.ga}</span></div></div>)}
-        {bestF&&<div style={{ marginTop:8, padding:"6px 10px", background:"linear-gradient(135deg,#064e3b,#065f46)", borderRadius:8 }}><div style={{ fontSize:10, color:"#6ee7b7" }}>BEST FORMATION vs {scout.split(" ")[0]}</div><div style={{ fontSize:18, fontWeight:900, color:"#fff" }}>{bestF[0]}</div></div>}
+        {bestF&&<div style={{ marginTop:8, padding:"6px 10px", background:"linear-gradient(135deg,#064e3b,#065f46)", borderRadius:12 }}><div style={{ fontSize:10, color:"#6ee7b7" }}>BEST FORMATION vs {scout.split(" ")[0]}</div><div style={{ fontSize:18, fontWeight:900, color:"#fff" }}>{bestF[0]}</div></div>}
       </div>}
       {sc.length > 0 && (
         <div style={card}>
@@ -1894,8 +1903,8 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           <Lbl>Optimum Team vs {scout.split(" ")[0]}</Lbl>
           <p style={{ fontSize:11, color:C.muted, marginTop:0, marginBottom:8 }}>{og.length} game{og.length!==1?"s":""} · 1 GK · tiebreak by minutes</p>
           <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-            <button onClick={()=>setScoutOptSort("net80")} style={{ flex:1, padding:"7px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:(scoutOptSort||"net80")==="net80"?C.blue:C.border, color:(scoutOptSort||"net80")==="net80"?"#fff":C.muted }}>Net/80 ▼</button>
-            <button onClick={()=>setScoutOptSort("impact")} style={{ flex:1, padding:"7px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:scoutOptSort==="impact"?C.amber:C.border, color:scoutOptSort==="impact"?"#000":C.muted }}>Impact ▼</button>
+            <button onClick={()=>setScoutOptSort("net80")} style={{ flex:1, padding:"7px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:(scoutOptSort||"net80")==="net80"?C.blue:C.border, color:(scoutOptSort||"net80")==="net80"?"#fff":C.muted }}>Net/80 ▼</button>
+            <button onClick={()=>setScoutOptSort("impact")} style={{ flex:1, padding:"7px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:scoutOptSort==="impact"?C.amber:C.border, color:scoutOptSort==="impact"?"#000":C.muted }}>Impact ▼</button>
           </div>
           {(() => {
             const scImpact = (p) => {
@@ -2011,11 +2020,11 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:32 }}>
-      <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:16, borderBottom:`3px solid ${C.blue}`, display:"flex", alignItems:"center", gap:12 }}>
+      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:16, borderBottom:`3px solid ${C.blue}`, display:"flex", alignItems:"center", gap:12 }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:20, cursor:"pointer", padding:0, fontWeight:800 }}>{"<"}</button>
         <div><div style={{ fontSize:18, fontWeight:800, color:"#60a5fa" }}>Season Stats</div><div style={{ fontSize:11, color:C.muted }}>{filteredGames.length} games · {compLabel}</div></div>
       </div>
-      <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#0a1628" }}>
+      <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#081321" }}>
         {[["overview","Overview"],["players","Players"],["optimum","Optimum"],["scouting","Scouting"]].map(([t,l])=>(
           <button key={t} onClick={()=>{ setView(t);setScout(null); }} style={{ flex:1, padding:"13px 2px", background:"none", border:"none", borderBottom:view===t?`3px solid ${C.blue}`:"3px solid transparent", color:view===t?"#60a5fa":C.muted, fontWeight:700, fontSize:11, cursor:"pointer" }}>{l}</button>
         ))}
@@ -2050,7 +2059,7 @@ function Players({ games, onBack, isAdmin }) {
   const playerList=allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>(b.net80||0)-(a.net80||0));
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
-      <div style={{ background:"linear-gradient(135deg,#1e3a5f,#0f2544)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
+      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
         <div style={{ fontSize:13, fontWeight:800, color:"#60a5fa", letterSpacing:3, marginBottom:4 }}>PITCHSIDE</div>
         <div style={{ fontSize:20, fontWeight:900, color:"#fff" }}>Players</div>
         <div style={{ fontSize:11, color:C.muted, marginTop:4 }}>{playerList.length} players with data</div>
@@ -2065,7 +2074,7 @@ function Players({ games, onBack, isAdmin }) {
                 <div><div style={{ fontWeight:800, fontSize:14, color:C.text }}>{p.name}</div><div style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:600 }}>{p.pos} · {s.played} games · {s.mins} mins</div>{hasNote&&<div style={{ fontSize:10, color:"#a78bfa", marginTop:2 }}>"{notes[p.id].slice(0,40)}{notes[p.id].length>40?"...":""}"</div>}</div>
               </div>
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-                <div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:8, padding:"4px 8px", textAlign:"center", minWidth:48 }}><div style={{ fontSize:14, fontWeight:900, color:parseFloat(s.net80)>0?C.green:parseFloat(s.net80)<0?C.red:"#94a3b8" }}>{s.net80s||"-"}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
+                <div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:12, padding:"4px 8px", textAlign:"center", minWidth:48 }}><div style={{ fontSize:14, fontWeight:900, color:parseFloat(s.net80)>0?C.green:parseFloat(s.net80)<0?C.red:"#94a3b8" }}>{s.net80s||"-"}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
                 <div style={{ display:"flex", gap:5 }}>{s.goals>0&&<span style={{ fontSize:12, color:"#60a5fa", fontWeight:700 }}>{s.goals}G</span>}{s.assists>0&&<span style={{ fontSize:12, color:C.green, fontWeight:700 }}>{s.assists}A</span>}</div>
               </div>
             </div>
@@ -2097,7 +2106,7 @@ function Players({ games, onBack, isAdmin }) {
                 value={note}
                 onChange={e => setNote(e.target.value)}
                 placeholder={"Add a private note about " + selected.name.split(" ")[0] + "..."}
-                style={{ width: "100%", padding: 12, borderRadius: 10, background: C.border, border: "1px solid #334155", color: C.text, fontSize: 13, resize: "none", minHeight: 80, boxSizing: "border-box", fontFamily: "-apple-system,sans-serif" }}
+                style={{ width: "100%", padding: 12, borderRadius: 14, background: C.border, border: "1px solid #334155", color: C.text, fontSize: 13, resize: "none", minHeight: 80, boxSizing: "border-box", fontFamily: "-apple-system,sans-serif" }}
               />
               <button onClick={saveNote} style={{ ...btn(C.blue), width: "100%", padding: 14, marginTop: 8 }}>Save Note</button>
             </div>
@@ -2105,7 +2114,7 @@ function Players({ games, onBack, isAdmin }) {
           {!isAdmin && notes[selected.id] && (
             <div>
               <Lbl>Coach Note</Lbl>
-              <div style={{ background: C.border, borderRadius: 10, padding: 12, fontSize: 13, color: "#a78bfa", fontStyle: "italic" }}>"{notes[selected.id]}"</div>
+              <div style={{ background: C.border, borderRadius: 14, padding: 12, fontSize: 13, color: "#a78bfa", fontStyle: "italic" }}>"{notes[selected.id]}"</div>
             </div>
           )}
         </Modal>
@@ -2437,7 +2446,7 @@ export default function App() {
       {screen==="players"&&<Players games={games} onBack={()=>setScreen("home")} isAdmin={isAdmin}/>}
 
       {screen!=="game"&&screen!=="lineup"&&!viewing&&(
-        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a1628", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#081321", borderTop:`1px solid ${C.border}`, display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
           {[
             {key:"home",    label:"Home",    icon:"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"},
             {key:"games",   label:"Games",   icon:"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"},
