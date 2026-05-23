@@ -48,6 +48,100 @@ function loadGameState() {
 }
 function clearGameState() { try { localStorage.removeItem(LS_GAME_KEY); } catch(e) {} }
 
+
+// ─── NORMALIZATION HELPERS ───────────────────────────────────────────────────
+function normText(v) {
+  return String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+function normName(v) {
+  return normText(v).replace(/\s+/g, " ");
+}
+function normOpponent(v) {
+  return normText(v)
+    .replace(/\b11g\b/g, "")
+    .replace(/\baspire\b/g, "")
+    .replace(/\bgirls\b/g, "")
+    .replace(/\belite\b/g, "")
+    .replace(/\bsoccer\b/g, "")
+    .replace(/\bclub\b/g, "")
+    .replace(/\bfc\b/g, "")
+    .replace(/\bblue\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function sameOpponent(a, b) {
+  const na = normOpponent(a), nb = normOpponent(b);
+  if (!na || !nb) return false;
+  if (na === nb || na.includes(nb) || nb.includes(na)) return true;
+  const aTokens = new Set(na.split(" ").filter(t => t.length > 2));
+  const bTokens = new Set(nb.split(" ").filter(t => t.length > 2));
+  let hits = 0;
+  aTokens.forEach(t => { if (bTokens.has(t)) hits++; });
+  return hits >= Math.min(2, aTokens.size, bTokens.size);
+}
+function stableGuestId(name) {
+  const key = normName(name).replace(/\s+/g, "_");
+  return key ? `G_${key}` : `G_${uid()}`;
+}
+function uniqueGuestsFromGames(games) {
+  const byName = new Map();
+  games.flatMap(g => g.guests || []).forEach(g => {
+    const key = normName(g.name);
+    if (!key) return;
+    if (!byName.has(key)) byName.set(key, { ...g, id: stableGuestId(g.name), isGuest: true, num: g.num || "G", pos: g.pos || "MID" });
+  });
+  return Array.from(byName.values()).sort((a,b)=>a.name.localeCompare(b.name));
+}
+function canonicalizeGuestPlayers(game) {
+  if (!game || !(game.guests || game.allPlayers)) return { game, changed:false };
+  const rosterIds = new Set(ROSTER.map(p => String(p.id)));
+  const idMap = {};
+  const canonicalByName = new Map();
+  const guests = [];
+  (game.guests || []).forEach(g => {
+    const key = normName(g.name);
+    if (!key) return;
+    const canonicalId = stableGuestId(g.name);
+    idMap[String(g.id)] = canonicalId;
+    if (!canonicalByName.has(key)) {
+      const cg = { ...g, id: canonicalId, num: g.num || "G", pos: g.pos || "MID", isGuest: true };
+      canonicalByName.set(key, cg);
+      guests.push(cg);
+    }
+  });
+  const mapId = id => idMap[String(id)] || id;
+  const events = (game.events || []).map(ev => ({
+    ...ev,
+    playerOn: ev.playerOn !== undefined ? mapId(ev.playerOn) : ev.playerOn,
+    playerOff: ev.playerOff !== undefined ? mapId(ev.playerOff) : ev.playerOff,
+    scorer: ev.scorer !== undefined && ev.scorer !== null ? mapId(ev.scorer) : ev.scorer,
+    assist: ev.assist !== undefined && ev.assist !== null ? mapId(ev.assist) : ev.assist,
+  }));
+  const allPlayersById = new Map();
+  ROSTER.forEach(p => allPlayersById.set(String(p.id), p));
+  (game.allPlayers || []).forEach(p => {
+    const id = rosterIds.has(String(p.id)) ? String(p.id) : stableGuestId(p.name);
+    if (!allPlayersById.has(id)) allPlayersById.set(id, { ...p, id, num: p.num || "G", pos: p.pos || "MID", isGuest: !rosterIds.has(String(p.id)) });
+  });
+  guests.forEach(g => allPlayersById.set(String(g.id), g));
+  const positions = {};
+  Object.entries(game.positions || {}).forEach(([k,v]) => { positions[mapId(k)] = v; });
+  const updated = {
+    ...game,
+    guests,
+    allPlayers: Array.from(allPlayersById.values()),
+    starting: (game.starting || []).map(mapId),
+    secondHalfStarting: game.secondHalfStarting ? game.secondHalfStarting.map(mapId) : game.secondHalfStarting,
+    events,
+    positions,
+  };
+  const changed = JSON.stringify(updated.guests) !== JSON.stringify(game.guests || []) ||
+    JSON.stringify(updated.events) !== JSON.stringify(game.events || []) ||
+    JSON.stringify(updated.starting) !== JSON.stringify(game.starting || []) ||
+    JSON.stringify(updated.secondHalfStarting || null) !== JSON.stringify(game.secondHalfStarting || null);
+  return { game: updated, changed };
+}
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function Lbl({ children, mt }) {
   return <div style={{ fontSize:11, color:C.muted, fontWeight:700, letterSpacing:1, marginBottom:6, marginTop:mt||0, textTransform:"uppercase" }}>{children}</div>;
@@ -403,7 +497,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                       <div style={{ fontSize: 8, color: C.muted }}>MINS</div>
                     </div>
                     <div style={{ background:C.border, borderRadius:8, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
-                      <div style={{ fontSize:13, fontWeight:900, color:"#94a3b8" }}>{s.played>0?Math.round(s.mins/s.played):"0"}'</div>
+                      <div style={{ fontSize:13, fontWeight:900, color:"#94a3b8" }}>{p.played>0?Math.round(p.mins/p.played):"0"}'</div>
                       <div style={{ fontSize: 8, color: C.muted }}>AVG</div>
                     </div>
                   </div>
@@ -550,13 +644,9 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
   const [type,setType]=useState("regular"); const [opp,setOpp]=useState(""); const [customOpp,setCustomOpp]=useState(""); const [venue,setVenue]=useState("Home");
   const played=new Set(games.map(g=>g.opponent.toLowerCase().trim()));
   // Match upcoming games - filter out completed/in-progress games
-  const completedOpps = games.filter(g=>g.status!=="scheduled").map(g=>g.opponent.toLowerCase().trim());
+  const completedGamesForSchedule = games.filter(g=>g.status!=="scheduled" && g.status!=="in_progress");
   const hardcodedRemaining = UPCOMING.filter(upg=>{
-    const uppOpp = upg.opp.toLowerCase().trim();
-    return !completedOpps.some(gOpp=>
-      gOpp===uppOpp || uppOpp.startsWith(gOpp) || gOpp.startsWith(uppOpp) ||
-      uppOpp.includes(gOpp.split(' ')[0]) || gOpp.includes(uppOpp.split(' ')[0])
-    );
+    return !completedGamesForSchedule.some(g=>sameOpponent(g.opponent, upg.opp));
   });
   // Also include Firebase-scheduled games
   const firebaseScheduled = games.filter(g=>g.status==="scheduled").map(g=>({
@@ -795,10 +885,10 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
 }
 
 // ─── LINEUP ───────────────────────────────────────────────────────────────────
-function Lineup({ gameInfo, onKickoff, onBack }) {
+function Lineup({ gameInfo, onKickoff, onBack, pastGames=[] }) {
   const [selected,setSelected]=useState([]); const [overrides,setOverrides]=useState({});
   const [avail,setAvail]=useState(Object.fromEntries(ROSTER.map(p=>[p.id,true])));
-  const [posModal,setPosModal]=useState(null); const [guestName,setGuestName]=useState(""); const [guests,setGuests]=useState([]); const [showGuest,setShowGuest]=useState(false);
+  const [posModal,setPosModal]=useState(null); const [guestName,setGuestName]=useState(""); const [guests,setGuests]=useState(()=>uniqueGuestsFromGames(pastGames)); const [showGuest,setShowGuest]=useState(false);
   // NEW: start 2nd half only mode
   const [halfMode,setHalfMode]=useState("full"); // "full" or "second_only"
   const allP=[...ROSTER,...guests];
@@ -807,7 +897,15 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
   const posFor=id=>overrides[id]||DEFAULT_POS[id]||"MID";
   const toggle=id=>{ if(selected.includes(id))setSelected(s=>s.filter(x=>x!==id)); else if(selected.length<11)setSelected(s=>[...s,id]); };
   const cycleAvail=(id,e)=>{ e.stopPropagation(); const isAvail=avail[id]!==false&&avail[id]!=="injured"&&avail[id]!=="absent"; setAvail(a=>({...a,[id]:!isAvail})); setSelected(s=>s.filter(x=>x!==id)); };
-  const addGuest=()=>{ if(!guestName.trim())return; const g={id:"G_"+uid(),num:"G",name:guestName.trim(),pos:"MID",isGuest:true}; setGuests(gs=>[...gs,g]);setAvail(a=>({...a,[g.id]:true}));setGuestName("");setShowGuest(false); };
+  const addGuest=()=>{
+    const name = guestName.trim();
+    if(!name)return;
+    const existing = guests.find(g=>normName(g.name)===normName(name));
+    const g = existing || {id:stableGuestId(name),num:"G",name,pos:"MID",isGuest:true};
+    if(!existing) setGuests(gs=>[...gs,g]);
+    setAvail(a=>({...a,[g.id]:true}));
+    setGuestName("");setShowGuest(false);
+  };
   const kickoff=()=>{
     if(selected.length!==11)return;
     const positions=Object.fromEntries(selected.map(id=>[id,posFor(id)]));
@@ -856,11 +954,11 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
         })}
         {!showGuest ? (
           <button onClick={() => setShowGuest(true)} style={{ width: "100%", padding: 12, borderRadius: 12, background: C.card, border: "1px dashed #334155", color: C.purple, fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
-            + Add Guest Player
+            + Add / Reuse Guest Player
           </button>
         ) : (
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Guest name..." style={{ ...inp, flex: 1 }} />
+            <input value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Guest name... existing guests are listed above" style={{ ...inp, flex: 1 }} />
             <button onClick={addGuest} style={{ ...btn(C.purple), padding: "12px 16px" }}>Add</button>
           </div>
         )}
@@ -1393,7 +1491,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   // Never include scheduled games in stats
   const playedGames = games.filter(g => g.status !== "scheduled");
   const filteredGames = compFilter === "all" ? playedGames : playedGames.filter(g => g.type === compFilter);
-  const allGuests = games.flatMap(g => g.guests || []).filter((g, i, a) => a.findIndex(x => String(x.id) === String(g.id)) === i);
+  const allGuests = uniqueGuestsFromGames(games);
   const allP   = [...ROSTER, ...allGuests];
   const allSt  = calcStats(filteredGames);
   const allGF  = filteredGames.flatMap(g => (g.events || []).filter(e => e.type === "goal_for"));
@@ -1946,7 +2044,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
 function Players({ games, onBack, isAdmin }) {
   const [selected,setSelected]=useState(null); const [note,setNote]=useState("");
   const [notes,setNotes]=useState(()=>{ try{return JSON.parse(localStorage.getItem("ps_notes")||"{}");}catch(e){return{};} });
-  const allGuests=games.flatMap(g=>g.guests||[]).filter((g,i,a)=>a.findIndex(x=>String(x.id)===String(g.id))===i);
+  const allGuests=uniqueGuestsFromGames(games);
   const allP=[...ROSTER,...allGuests]; const allSt=calcStats(games);
   const saveNote=()=>{ const updated={...notes,[selected.id]:note};setNotes(updated);localStorage.setItem("ps_notes",JSON.stringify(updated));setSelected(null); };
   const playerList=allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>(b.net80||0)-(a.net80||0));
@@ -2072,7 +2170,7 @@ function makeKeystoneGame(roster) {
   const secondHalfStarting = ["3","17","19","2","22","5","16","13","15","1","7"];
 
   return {
-    id: "5-16-2025-keystone-fc",
+    id: "5-16-2026-keystone-fc",
     opponent: "Keystone FC",
     date: "5/16/2026",
     venue: "Away",
@@ -2203,6 +2301,14 @@ export default function App() {
         const newGames = makeAllNewGames();
         for(const g of newGames) { await saveGame(g); }
       } else {
+        const canonicalFixes = fbGames
+          .map(g=>canonicalizeGuestPlayers(g))
+          .filter(x=>x.changed)
+          .slice(0,5);
+        if(canonicalFixes.length > 0) {
+          for(const x of canonicalFixes) { await saveGame(x.game); }
+          return;
+        }
         // Patch formations once (localStorage flag prevents repeat)
         if(!localStorage.getItem("ps_patched_formations")) {
           const needsPatch = fbGames.filter(g =>
@@ -2220,7 +2326,7 @@ export default function App() {
           localStorage.setItem("ps_patched_formations", "1");
         }
         // Fix Keystone if lineup data is wrong or missing
-        const keystoneGame = fbGames.find(g=>g.id==="5-16-2025-keystone-fc");
+        const keystoneGame = fbGames.find(g=>g.id==="5-16-2026-keystone-fc" || g.id==="5-16-2025-keystone-fc" || (sameOpponent(g.opponent,"Keystone FC") && g.date==="5/16/2026"));
         const k1H = (keystoneGame?.starting||[]).map(String);
         const k2H = (keystoneGame?.secondHalfStarting||[]).map(String);
         const keystoneBad = !keystoneGame || k1H.length!==11 || k2H.length!==11 ||
@@ -2240,7 +2346,7 @@ export default function App() {
           for(const g of missingGames) { await saveGame(g); }
           return; // listener fires with new data
         }
-        setGames(fbGames);
+        setGames(fbGames.map(g=>canonicalizeGuestPlayers(g).game));
         setLoading(false);
       }
     });
@@ -2335,7 +2441,7 @@ export default function App() {
           onDeleteScheduled={handleDeleteScheduled}
         />
       )}
-      {screen==="lineup"&&gameInfo&&<Lineup gameInfo={gameInfo} onKickoff={i=>{ setGameInfo(i);setScreen("game"); }} onBack={()=>setScreen("home")}/>}
+      {screen==="lineup"&&gameInfo&&<Lineup gameInfo={gameInfo} pastGames={games} onKickoff={i=>{ setGameInfo(i);setScreen("game"); }} onBack={()=>setScreen("home")}/>}
       {screen==="game"&&gameInfo&&<Game gameInfo={gameInfo} onEnd={handleEnd} onBack={()=>{ setResumeState(loadGameState());setScreen("home"); }}/>}
       {(screen==="stats"||screen==="games_view"||screen==="stats_view")&&<Stats key={screen+statsTab} games={games} onBack={()=>setScreen("home")} onView={g=>{ setViewing(g);setPrevScreen("stats"); }} isAdmin={isAdmin} defaultTab={screen==="games_view"?"scouting":statsTab}/>}
       {screen==="players"&&<Players games={games} onBack={()=>setScreen("home")} isAdmin={isAdmin}/>}
