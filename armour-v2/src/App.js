@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { listenToGames, saveGame, deleteGame } from "./firebase";
 import { calcStats, makeLVURush, makeCoppermine } from "./stats";
 import {
-  ADMIN_PIN, HALF, GAME, ROSTER, DEFAULT_POS,
+  ADMIN_PIN, HALF, GAME, CUP_HALF, CUP_GAME, ROSTER, DEFAULT_POS,
   UPCOMING, LEAGUE_TEAMS, TOURNAMENT_TEAMS, POSITIONS, POS_COLOR,
   uid, findPlayer
 } from "./constants";
@@ -217,6 +217,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
   const [events,setEvents]=useState(game.events||[]);
   const [editing,setEditing]=useState(null);
   const [eMin,setEMin]=useState(""); const [eScorer,setEScorer]=useState(null); const [eAssist,setEAssist]=useState(null);
+  const [eSubOff,setESubOff]=useState(null); const [eSubOn,setESubOn]=useState(null); const [eSubPos,setESubPos]=useState(null);
   const [saving,setSaving]=useState(false);
   const allP=game.allPlayers||ROSTER;
   const stats=calcStats([{...game,events}]);
@@ -227,8 +228,25 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
   const goalEvs=events.filter(e=>e.type==="goal_for"||e.type==="goal_against").sort((a,b)=>a.minute-b.minute);
   const subEvs=events.filter(e=>e.type==="sub").sort((a,b)=>a.minute-b.minute);
   const playerList=allP.filter(p=>(stats[String(p.id)]?.played||0)>0).sort((a,b)=>(stats[String(b.id)]?.mins||0)-(stats[String(a.id)]?.mins||0));
-  const openEdit=ev=>{ if(!isAdmin)return; setEditing(ev);setEMin(String(ev.minute));setEScorer(ev.scorer?String(ev.scorer):null);setEAssist(ev.assist?String(ev.assist):null); };
-  const doSave=async()=>{ const updated=events.map(e=>e.id===editing.id?{...e,minute:parseInt(eMin)||0,scorer:eScorer,assist:eAssist}:e); setEvents(updated);setSaving(true); const g={...game,events:updated}; await saveGame(g);onUpdate(g);setSaving(false);setEditing(null); };
+  const openEdit=ev=>{
+    if(!isAdmin)return;
+    setEditing(ev);
+    setEMin(String(ev.minute));
+    setEScorer(ev.scorer?String(ev.scorer):null);
+    setEAssist(ev.assist?String(ev.assist):null);
+    setESubOff(ev.playerOff?String(ev.playerOff):null);
+    setESubOn(ev.playerOn?String(ev.playerOn):null);
+    setESubPos(ev.pos || (ev.playerOn ? (findPlayer(ev.playerOn, allP)?.pos || "MID") : null));
+  };
+  const doSave=async()=>{
+    const updated=events.map(e=>{
+      if(e.id!==editing.id) return e;
+      if(editing.type==="sub") return {...e, minute:parseInt(eMin)||0, playerOff:eSubOff, playerOn:eSubOn, pos:eSubPos};
+      if(editing.type==="goal_for") return {...e, minute:parseInt(eMin)||0, scorer:eScorer, assist:eAssist};
+      return {...e, minute:parseInt(eMin)||0};
+    });
+    setEvents(updated);setSaving(true); const g={...game,events:updated}; await saveGame(g);onUpdate(g);setSaving(false);setEditing(null);
+  };
   const doDel=async()=>{ const updated=events.filter(e=>e.id!==editing.id); const g={...game,events:updated,scoreFor:game.scoreFor-(editing.type==="goal_for"?1:0),scoreAgainst:game.scoreAgainst-(editing.type==="goal_against"?1:0)}; setEvents(updated);setSaving(true);await saveGame(g);onUpdate(g);setSaving(false);setEditing(null); };
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:40 }}>
@@ -477,6 +495,36 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                   #{p.num} {p.name}
                 </button>
               ))}
+            </div>
+          )}
+          {editing.type === "sub" && (
+            <div>
+              <Lbl>Player Off</Lbl>
+              {allP.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setESubOff(String(p.id))}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eSubOff === String(p.id) ? C.red : C.border, border: eSubOff === String(p.id) ? "2px solid #f87171" : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                >
+                  #{p.num} {p.name}
+                </button>
+              ))}
+              <Lbl mt={8}>Player On</Lbl>
+              {allP.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setESubOn(String(p.id))}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 5, background: eSubOn === String(p.id) ? "#059669" : C.border, border: eSubOn === String(p.id) ? `2px solid ${C.green}` : "1px solid #334155", color: C.text, fontWeight: 600, fontSize: 13, cursor: "pointer", textAlign: "left" }}
+                >
+                  #{p.num} {p.name}
+                </button>
+              ))}
+              <Lbl mt={8}>Position</Lbl>
+              <div style={{ display: "flex", gap: 8 }}>
+                {POSITIONS.map(pos => (
+                  <button key={pos} onClick={() => setESubPos(pos)} style={{ flex: 1, padding: "14px 4px", borderRadius: 10, border: "none", fontWeight: 800, fontSize: 14, cursor: "pointer", background: eSubPos === pos ? POS_COLOR[pos] : C.border, color: eSubPos === pos ? "#fff" : C.muted }}>{pos}</button>
+                ))}
+              </div>
             </div>
           )}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -776,7 +824,7 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
             <button key={k} onClick={()=>setHalfMode(k)} style={{ flex:1, padding:"8px 4px", borderRadius:8, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:halfMode===k?C.amber:C.border, color:halfMode===k?"#000":C.muted }}>{l}</button>
           ))}
         </div>
-        {halfMode==="second_only"&&<div style={{ fontSize:10, color:C.amber, marginTop:6 }}>⚡ Clock starts at 40'. 1st half stats skipped — 2nd half tracked only.</div>}
+        {halfMode==="second_only"&&<div style={{ fontSize:10, color:C.amber, marginTop:6 }}>⚡ Clock starts at halftime. 1st half stats skipped — 2nd half tracked only.</div>}
         <div style={{ marginTop:12, paddingTop:10, borderTop:"1px solid #1e3a5f" }}>
           <Lbl>1st Half Formation</Lbl>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
@@ -844,11 +892,13 @@ function Lineup({ gameInfo, onKickoff, onBack }) {
 
 // ─── GAME SCREEN ──────────────────────────────────────────────────────────────
 function Game({ gameInfo, onEnd, onBack }) {
-  // If starting from 2nd half only, begin at half=2 and secs=HALF*60
+  const halfLength = gameInfo.type === "tournament" ? CUP_HALF : HALF;
+  const gameLength = gameInfo.type === "tournament" ? CUP_GAME : GAME;
+  // If starting from 2nd half only, begin at half=2 and secs=halfLength*60
   // If resuming, restore all previous state
   const isResume = !!gameInfo._resumeEvents;
   const initHalf   = isResume ? gameInfo._resumeHalf   : gameInfo.startFromSecondHalf ? 2 : 1;
-  const initSecs   = isResume ? gameInfo._resumeSecs   : gameInfo.startFromSecondHalf ? HALF*60 : 0;
+  const initSecs   = isResume ? gameInfo._resumeSecs   : gameInfo.startFromSecondHalf ? halfLength*60 : 0;
   const initEvents = isResume ? gameInfo._resumeEvents : [];
   const initGf     = isResume ? gameInfo._resumeGf     : 0;
   const initGa     = isResume ? gameInfo._resumeGa     : 0;
@@ -876,6 +926,7 @@ function Game({ gameInfo, onEnd, onBack }) {
   const [subOn,setSubOn]         = useState(null);
   const [subMin,setSubMin]       = useState("0");
   const [subPos,setSubPos]       = useState(null);
+  const [formation2H,setFormation2H] = useState(gameInfo.formation2H || gameInfo.formation1H || "4-3-3");
   const timerRef=useRef(null), startRef=useRef(null), pauseRef=useRef(initSecs);
 
   const gameId = useRef(
@@ -884,7 +935,18 @@ function Game({ gameInfo, onEnd, onBack }) {
   const gameDate = useRef(new Date().toLocaleDateString("en-US"));
 
   // ── buildSnap defined early so all useEffects can use it ─────────────────
-  const buildSnap=(evs,gfV,gaV)=>({ ...gameInfo, events:evs, scoreFor:gfV, scoreAgainst:gaV, date:gameDate.current, secondHalfStarting:half===2?[...onField]:undefined, id:gameId.current, status:"in_progress" });
+  const buildSnap=(evs,gfV,gaV,status="in_progress")=>({
+    ...gameInfo,
+    events:evs,
+    scoreFor:gfV,
+    scoreAgainst:gaV,
+    date:gameDate.current,
+    secondHalfStarting:half===2 || htMode ? [...onField] : gameInfo.secondHalfStarting,
+    formation1H: gameInfo.formation1H || "4-3-3",
+    formation2H,
+    id:gameId.current,
+    status
+  });
 
   // ── Refs to hold latest values for stale-closure-safe auto-save ──────────
   const eventsRef  = useRef([]); eventsRef.current  = events;
@@ -895,7 +957,7 @@ function Game({ gameInfo, onEnd, onBack }) {
 
   // ── Save full game state to localStorage on every change ──────────────────
   const persistState = (evs, gfV, gaV, halfV, fieldV, secsV) => {
-    saveGameState({ gameInfo, events:evs, gf:gfV, ga:gaV, half:halfV, onField:fieldV, secs:secsV, gameId:gameId.current, gameDate:gameDate.current });
+    saveGameState({ gameInfo:{...gameInfo, formation2H}, events:evs, gf:gfV, ga:gaV, half:halfV, onField:fieldV, secs:secsV, gameId:gameId.current, gameDate:gameDate.current });
   };
 
   // ── Restore from localStorage if available (page refresh recovery) ─────────
@@ -948,7 +1010,9 @@ function Game({ gameInfo, onEnd, onBack }) {
           secondHalfStarting: halfRef.current===2 ? [...onFieldRef.current] : undefined,
           id: gameId.current,
           date: gameDate.current,
-          status: "in_progress"
+          status: "in_progress",
+          formation1H: gameInfo.formation1H || "4-3-3",
+          formation2H
         };
         saveGame(snap).catch(()=>{});
       }, 5 * 60 * 1000);
@@ -990,12 +1054,57 @@ function Game({ gameInfo, onEnd, onBack }) {
     saveGame(buildSnap(newEvents,gf,ga)).catch(()=>{});
     setModal(null);
   };
-  const openEditEv=ev=>{ setEditEv(ev);setGoalMin(String(ev.minute));setScorer(ev.scorer?String(ev.scorer):null);setAssist(ev.assist?String(ev.assist):null);setModal("edit"); };
-  const saveEditEv=()=>{ setEvents(evs=>evs.map(e=>e.id===editEv.id?{...e,minute:parseInt(goalMin)||0,scorer,assist}:e));setEditEv(null);setModal(null); };
-  const delEditEv=()=>{ if(editEv.type==="goal_for")setGf(g=>Math.max(0,g-1)); else if(editEv.type==="goal_against")setGa(g=>Math.max(0,g-1)); setEvents(evs=>evs.filter(e=>e.id!==editEv.id));setEditEv(null);setModal(null); };
-  const endHalf=()=>{ setRunning(false);setHtMode(true);pauseRef.current=HALF*60;setSecs(HALF*60);setModal("halftime"); };
-  const start2H=()=>{ setHalf(2);setHtMode(false);setSecs(HALF*60);pauseRef.current=HALF*60;setRunning(false);setModal(null); };
-  const liveGame={ ...gameInfo,events,scoreFor:gf,scoreAgainst:ga,date:gameDate.current,secondHalfStarting:half===2?[...onField]:undefined,id:gameId.current };
+  const recalcFieldFromSubs = (evs) => {
+    let field = [...(gameInfo.starting || [])].map(String);
+    evs
+      .filter(e => e.type === "sub")
+      .slice()
+      .sort((a,b) => (parseInt(a.minute)||0) - (parseInt(b.minute)||0))
+      .forEach(e => {
+        const off = String(e.playerOff);
+        const on = String(e.playerOn);
+        field = field.map(id => String(id) === off ? on : String(id));
+      });
+    return field;
+  };
+  const openEditEv=ev=>{
+    setEditEv(ev);
+    setGoalMin(String(ev.minute));
+    setScorer(ev.scorer?String(ev.scorer):null);
+    setAssist(ev.assist?String(ev.assist):null);
+    setSubMin(String(ev.minute));
+    setSubOff(ev.playerOff?String(ev.playerOff):null);
+    setSubOn(ev.playerOn?String(ev.playerOn):null);
+    setSubPos(ev.pos || (ev.playerOn ? (positions[ev.playerOn] || findPlayer(ev.playerOn, allP)?.pos || "MID") : null));
+    setModal("edit");
+  };
+  const saveEditEv=()=>{
+    const updatedEvents = events.map(e=>{
+      if(e.id!==editEv.id) return e;
+      if(editEv.type==="sub") return {...e, minute:parseInt(subMin)||0, playerOff:subOff, playerOn:subOn, pos:subPos};
+      if(editEv.type==="goal_for") return {...e, minute:parseInt(goalMin)||0, scorer, assist};
+      return {...e, minute:parseInt(goalMin)||0};
+    });
+    setEvents(updatedEvents);
+    if(editEv.type==="sub") {
+      const newField = recalcFieldFromSubs(updatedEvents);
+      setOnField(newField);
+      if(subOn && subPos) setPositions(p=>({...p,[subOn]:subPos}));
+    }
+    saveGame(buildSnap(updatedEvents,gf,ga)).catch(()=>{});
+    setEditEv(null);setModal(null);
+  };
+  const delEditEv=()=>{
+    if(editEv.type==="goal_for")setGf(g=>Math.max(0,g-1)); else if(editEv.type==="goal_against")setGa(g=>Math.max(0,g-1));
+    const updatedEvents = events.filter(e=>e.id!==editEv.id);
+    setEvents(updatedEvents);
+    if(editEv.type==="sub") setOnField(recalcFieldFromSubs(updatedEvents));
+    saveGame(buildSnap(updatedEvents, editEv.type==="goal_for"?Math.max(0,gf-1):gf, editEv.type==="goal_against"?Math.max(0,ga-1):ga)).catch(()=>{});
+    setEditEv(null);setModal(null);
+  };
+  const endHalf=()=>{ setRunning(false);setHtMode(true);pauseRef.current=halfLength*60;setSecs(halfLength*60);setModal("halftime"); };
+  const start2H=()=>{ setHalf(2);setHtMode(false);setSecs(halfLength*60);pauseRef.current=halfLength*60;setRunning(false);setModal(null); };
+  const liveGame={ ...gameInfo,events,scoreFor:gf,scoreAgainst:ga,date:gameDate.current,secondHalfStarting:(half===2||htMode)?[...onField]:gameInfo.secondHalfStarting,formation1H:gameInfo.formation1H||"4-3-3",formation2H,id:gameId.current };
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
@@ -1088,7 +1197,14 @@ function Game({ gameInfo, onEnd, onBack }) {
         <p style={{ color:"#94a3b8", fontSize:13 }}>Saves permanently to Firebase. Editable afterwards.</p>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={()=>setShowEnd(false)} style={{ ...btn(C.border), flex:1 }}>Keep Playing</button>
-          <button onClick={()=>{ clearGameState(); onEnd({...liveGame,status:"completed"}); }} style={{ ...btn(C.blue), flex:2, fontSize:15, fontWeight:800 }}>Save Game</button>
+          <button onClick={()=>{
+            setRunning(false);
+            clearGameState();
+            localStorage.removeItem("ps_clock_running");
+            localStorage.removeItem("ps_clock_start");
+            localStorage.removeItem("ps_clock_secs");
+            onEnd({...liveGame,status:"completed"});
+          }} style={{ ...btn(C.blue), flex:2, fontSize:15, fontWeight:800 }}>Save Final Score</button>
         </div>
       </Modal>}
 
@@ -1190,6 +1306,38 @@ function Game({ gameInfo, onEnd, onBack }) {
                 #{p.num} {p.name}
               </button>
             ))}
+          </div>
+        )}
+        {editEv.type === "sub" && (
+          <div>
+            <Lbl>Minute</Lbl>
+            <input value={subMin} onChange={e=>setSubMin(e.target.value)} type="number" style={{ ...inp, fontSize:22, fontWeight:700, marginBottom:12 }}/>
+            <Lbl>Player Off</Lbl>
+            {allP.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setSubOff(String(p.id))}
+                style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:subOff===String(p.id)?C.red:C.border, border:subOff===String(p.id)?`2px solid #f87171`:"1px solid #334155", color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}
+              >
+                #{p.num} {p.name}
+              </button>
+            ))}
+            <Lbl mt={8}>Player On</Lbl>
+            {allP.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setSubOn(String(p.id))}
+                style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:5, background:subOn===String(p.id)?"#059669":C.border, border:subOn===String(p.id)?`2px solid ${C.green}`:"1px solid #334155", color:C.text, fontWeight:600, fontSize:13, cursor:"pointer", textAlign:"left" }}
+              >
+                #{p.num} {p.name}
+              </button>
+            ))}
+            <Lbl mt={8}>Position</Lbl>
+            <div style={{ display:"flex", gap:8 }}>
+              {POSITIONS.map(pos => (
+                <button key={pos} onClick={() => setSubPos(pos)} style={{ flex:1, padding:"14px 4px", borderRadius:10, border:"none", fontWeight:800, fontSize:14, cursor:"pointer", background:subPos===pos?POS_COLOR[pos]:C.border, color:subPos===pos?"#fff":C.muted }}>{pos}</button>
+              ))}
+            </div>
           </div>
         )}
                 <div style={{ display:"flex", gap:8, marginTop:12 }}>
@@ -1855,7 +2003,7 @@ function Players({ games, onBack, isAdmin }) {
               />
               <button onClick={saveNote} style={{ ...btn(C.blue), width: "100%", padding: 14, marginTop: 8 }}>Save Note</button>
             </div>
-          )}}
+          )}
           {!isAdmin && notes[selected.id] && (
             <div>
               <Lbl>Coach Note</Lbl>
