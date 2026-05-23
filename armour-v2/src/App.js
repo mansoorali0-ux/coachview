@@ -211,6 +211,69 @@ function FormationField({ players, positions, title, compact=false }) {
   );
 }
 
+
+function MomentumTimeline({ game, title="Momentum Timeline", compact=false }) {
+  const events = (game?.events || [])
+    .filter(e => ["goal_for","goal_against","sub"].includes(e.type))
+    .sort((a,b)=>(a.minute||0)-(b.minute||0));
+  const maxMin = game?.type === "tournament" ? CUP_GAME : GAME;
+  const allPlayers = game?.allPlayers || ROSTER;
+  const pName = (id) => {
+    const p = allPlayers.find(p => String(p.id) === String(id));
+    return p ? p.name.split(" ")[0] : "?";
+  };
+  const eventMeta = (e) => {
+    if (e.type === "goal_for") return { icon:"⚽", bg:C.green, label:e.ownGoal ? "Own Goal" : `Goal · ${pName(e.scorer)}` };
+    if (e.type === "goal_against") return { icon:"●", bg:C.red, label:"Conceded" };
+    return { icon:"↔", bg:C.blue, label:`Sub · ${pName(e.playerOn)} on` };
+  };
+  return (
+    <div style={{ ...card, padding:compact?12:14 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+        <div>
+          <div style={{ fontSize:12, color:C.muted, fontWeight:800, letterSpacing:1, textTransform:"uppercase" }}>{title}</div>
+          <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>Goals, subs, and conceded goals by minute</div>
+        </div>
+        {game && <div style={{ fontSize:13, fontWeight:900, color:"#fff" }}>{game.scoreFor}-{game.scoreAgainst}</div>}
+      </div>
+      <div style={{ position:"relative", height:74, margin:"8px 4px 10px" }}>
+        <div style={{ position:"absolute", left:0, right:0, top:34, height:3, borderRadius:99, background:"linear-gradient(90deg,#1e3a5f,#246BFD,#1e3a5f)" }} />
+        {[0, maxMin/2, maxMin].map((m,i)=>(
+          <div key={i} style={{ position:"absolute", left:`${(m/maxMin)*100}%`, top:22, transform:"translateX(-50%)", textAlign:"center" }}>
+            <div style={{ width:1, height:24, background:"rgba(255,255,255,.16)", margin:"0 auto" }} />
+            <div style={{ fontSize:9, color:C.muted, marginTop:4 }}>{i===1?"HT":`${Math.round(m)}'`}</div>
+          </div>
+        ))}
+        {events.map((e,i)=>{
+          const meta = eventMeta(e);
+          const left = Math.max(1, Math.min(99, ((e.minute || 0) / maxMin) * 100));
+          const top = e.type === "sub" ? 8 : e.type === "goal_against" ? 48 : 20;
+          return (
+            <div key={e.id || i} title={meta.label} style={{ position:"absolute", left:`${left}%`, top, transform:"translateX(-50%)", textAlign:"center" }}>
+              <div style={{ width:26, height:26, borderRadius:"50%", background:meta.bg, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:900, border:"2px solid rgba(255,255,255,.25)", boxShadow:"0 8px 18px rgba(0,0,0,.35)" }}>{meta.icon}</div>
+              <div style={{ fontSize:8, color:C.muted, marginTop:2, whiteSpace:"nowrap" }}>{e.minute}'</div>
+            </div>
+          );
+        })}
+      </div>
+      {events.length === 0 ? (
+        <div style={{ color:C.muted, fontSize:12, textAlign:"center", padding:"8px 0" }}>No goals or substitutions logged</div>
+      ) : (
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          {events.slice(0,10).map((e,i)=>{ const meta=eventMeta(e); return (
+            <div key={e.id || i} style={{ display:"flex", alignItems:"center", gap:5, background:"#0a1222", border:`1px solid ${C.border}`, borderRadius:999, padding:"5px 8px" }}>
+              <span style={{ width:16, height:16, borderRadius:"50%", background:meta.bg, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9 }}>{meta.icon}</span>
+              <span style={{ fontSize:10, color:C.text, fontWeight:700 }}>{e.minute}'</span>
+              <span style={{ fontSize:10, color:C.muted }}>{meta.label}</span>
+            </div>
+          );})}
+          {events.length > 10 && <span style={{ fontSize:10, color:C.muted, padding:"5px 0" }}>+{events.length-10} more</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── LIVE OPTIMUM XI ──────────────────────────────────────────────────────────
 function LiveOptimumXI({ events, onField, allPlayers, positions, gf, ga, half, secs }) {
   const goalEvents = events.filter(e=>e.type==="goal_for"&&!e.ownGoal);
@@ -1782,34 +1845,39 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
       <div style={{ display:"flex", gap:4, marginBottom:8, flexWrap:"wrap" }}>
         {sb("goals","Goals")}{sb("assists","Asst")}{sb("gf","GF")}{sb("ga","GA")}{sb("net80","Net/80")}{sb("impact","Impact")}
       </div>
-      <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Net/80: team +/- per 80 mins. Impact = Net/80 + goals×0.5 + assists×0.25 + clean sheet bonus (GK/DEF +0.5, MID +0.25). Min 80 total mins.</p>
+      <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Primary numbers are Net/80 and Impact. Supporting stats stay smaller so coaches can scan faster. Min 80 total mins.</p>
       {pList.map((p, idx)=>{
         const s=allSt[String(p.id)]||{};
         const impact=calcImpact(p);
         const ic=impact===null?"#94a3b8":impact>0?C.green:impact<0?C.red:"#94a3b8";
-        const ibg=impact===null?C.border:impact>0?"#064e3b":impact<0?"#450a0a":C.border;
+        const netVal=parseFloat(s.net80);
+        const netColor=netVal>0?C.green:netVal<0?C.red:"#94a3b8";
         const isFirstGuest = !rIds.has(String(p.id)) && (idx===0 || rIds.has(String(pList[idx-1]?.id)));
         return <div key={p.id}>
         {isFirstGuest && guestList.length>0 && <div style={{ fontSize:11, fontWeight:800, color:C.muted, letterSpacing:1, marginTop:12, marginBottom:6 }}>GUEST PLAYERS</div>}
-        <div style={{ ...card, border:`1px solid ${C.border}`, opacity: rIds.has(String(p.id))?1:0.75 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-            <div><div style={{ fontWeight:800, fontSize:15, color:C.text }}>{p.name}</div><div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{s.played} games · {s.mins} mins · avg {s.avgMins}'</div></div>
-            <div style={{ display:"flex", gap:6 }}>
-              <div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:12, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
-                <div style={{ fontSize:13, fontWeight:900, color:parseFloat(s.net80)>0?C.green:parseFloat(s.net80)<0?C.red:"#94a3b8" }}>{s.net80s||"-"}</div>
-                <div style={{ fontSize:8, color:C.muted }}>NET/80</div>
+        <div style={{ ...card, border:`1px solid ${C.border}`, opacity: rIds.has(String(p.id))?1:0.78, padding:14 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
+            <PlayerBubble player={p} pos={p.pos} size={44} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:900, fontSize:16, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.name}</div>
+              <div style={{ fontSize:11, color:POS_COLOR[p.pos]||C.muted, fontWeight:800, marginTop:2 }}>{p.pos}</div>
+            </div>
+            <div style={{ display:"flex", gap:8, flex:1.25 }}>
+              <div style={{ flex:1, background:"linear-gradient(180deg,#0d2137,#081321)", border:`1px solid ${C.border}`, borderRadius:14, padding:"9px 8px", textAlign:"center" }}>
+                <div style={{ fontSize:28, lineHeight:1, fontWeight:950, color:netColor }}>{s.net80s||"-"}</div>
+                <div style={{ fontSize:9, color:C.muted, marginTop:5, fontWeight:800, letterSpacing:.5 }}>NET / 80</div>
               </div>
-              <div style={{ background:ibg, borderRadius:12, padding:"6px 8px", textAlign:"center", minWidth:46 }}>
-                <div style={{ fontSize:13, fontWeight:900, color:ic }}>{fmtImpact(impact)}</div>
-                <div style={{ fontSize:8, color:C.muted }}>IMPACT</div>
+              <div style={{ flex:1, background:"linear-gradient(180deg,#0d2137,#081321)", border:`1px solid ${C.border}`, borderRadius:14, padding:"9px 8px", textAlign:"center" }}>
+                <div style={{ fontSize:28, lineHeight:1, fontWeight:950, color:ic }}>{fmtImpact(impact)}</div>
+                <div style={{ fontSize:9, color:C.muted, marginTop:5, fontWeight:800, letterSpacing:.5 }}>IMPACT</div>
               </div>
             </div>
           </div>
-          <div style={{ display:"flex", gap:5 }}>
-            {[["G",s.goals,"#60a5fa"],["A",s.assists,C.green],["GF",s.gf,"#3b82f6"],["GA",s.ga,"#f87171"]].map(([l,v,co])=>(
-              <div key={l} style={{ flex:1, background:C.border, borderRadius:12, padding:"7px 4px", textAlign:"center" }}>
-                <div style={{ fontSize:18, fontWeight:800, color:co }}>{v||0}</div>
-                <div style={{ fontSize:8, color:C.muted }}>{l}</div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:1, background:"#1e293b", border:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden" }}>
+            {[["GOALS",s.goals,"#60a5fa"],["ASSISTS",s.assists,C.green],["MINS",s.mins,"#e2e8f0"],["AVG",s.avgMins,"#e2e8f0"],["GAMES",s.played,"#e2e8f0"]].map(([l,v,co])=>(
+              <div key={l} style={{ background:"#0a1222", padding:"8px 3px", textAlign:"center" }}>
+                <div style={{ fontSize:16, fontWeight:900, color:co }}>{v||0}{l==="MINS"||l==="AVG"?"'":""}</div>
+                <div style={{ fontSize:8, color:C.muted, fontWeight:700 }}>{l}</div>
               </div>
             ))}
           </div>
@@ -2025,6 +2093,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           })()}
         </div>
       )}
+      {og.map((g,gi)=><MomentumTimeline key={g.id || gi} game={g} title={`Match Flow · ${g.date}`} compact />)}
       <Lbl>Goal Timeline</Lbl>
       {og.map((g,gi) => {
         const gEvs = (g.events||[]).filter(e=>e.type==="goal_for"||e.type==="goal_against").sort((a,b)=>a.minute-b.minute);
