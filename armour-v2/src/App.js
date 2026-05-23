@@ -174,6 +174,43 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+
+// ─── UI COMPONENTS ───────────────────────────────────────────────────────────
+function PlayerBubble({ player, pos, size=34 }) {
+  const label = player?.num || (player?.name ? player.name.slice(0,2).toUpperCase() : "?");
+  return (
+    <span style={{ width:size, height:size, borderRadius:"50%", background:POS_COLOR[pos]||C.border, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:size>36?13:11, color:"#fff", flexShrink:0, boxShadow:"0 6px 16px rgba(0,0,0,.25)", border:"1px solid rgba(255,255,255,.16)" }}>{label}</span>
+  );
+}
+
+function FormationField({ players, positions, title, compact=false }) {
+  const byPos = { FWD:[], MID:[], DEF:[], GK:[] };
+  (players || []).forEach(p => {
+    const pos = positions?.[p.id] || positions?.[String(p.id)] || p.pos || "MID";
+    (byPos[pos] || byPos.MID).push({ ...p, _pos:pos });
+  });
+  const rows = [byPos.FWD, byPos.MID, byPos.DEF, byPos.GK];
+  return (
+    <div style={{ background:"linear-gradient(180deg,#06351f,#052915)", border:"1px solid #14532d", borderRadius:18, padding:compact?10:14, minHeight:compact?260:360, position:"relative", overflow:"hidden", boxShadow:"inset 0 0 0 1px rgba(255,255,255,.04)" }}>
+      <div style={{ position:"absolute", inset:12, border:"1px solid rgba(255,255,255,.14)", borderRadius:12, pointerEvents:"none" }} />
+      <div style={{ position:"absolute", left:"25%", right:"25%", top:"43%", height:"14%", border:"1px solid rgba(255,255,255,.12)", borderRadius:999, pointerEvents:"none" }} />
+      {title && <div style={{ position:"relative", textAlign:"center", fontSize:11, color:"#bbf7d0", fontWeight:800, letterSpacing:1, marginBottom:compact?8:14 }}>{title}</div>}
+      <div style={{ position:"relative", display:"flex", flexDirection:"column", justifyContent:"space-between", height:compact?220:300 }}>
+        {rows.map((row, idx) => (
+          <div key={idx} style={{ display:"flex", justifyContent:"center", gap:row.length>4?8:14, minHeight:46, alignItems:"center", flexWrap:"wrap" }}>
+            {row.map(p => (
+              <div key={p.id} style={{ textAlign:"center", minWidth:compact?42:48 }}>
+                <PlayerBubble player={p} pos={p._pos} size={compact?30:36} />
+                <div style={{ fontSize:compact?8:9, color:"#d1fae5", marginTop:3, fontWeight:700, maxWidth:60, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name?.split(" ")[0]}</div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── LIVE OPTIMUM XI ──────────────────────────────────────────────────────────
 function LiveOptimumXI({ events, onField, allPlayers, positions, gf, ga, half, secs }) {
   const goalEvents = events.filter(e=>e.type==="goal_for"&&!e.ownGoal);
@@ -1228,6 +1265,11 @@ function Game({ gameInfo, onEnd, onBack }) {
         <div style={{ textAlign:"center" }}>
           <div style={{ fontSize:10, color:C.muted, marginBottom:2 }}>{htMode?"HALF TIME":half===1?"1st Half":"2nd Half"} · vs {gameInfo.opponent?.split(" ").slice(0,3).join(" ")} {running&&<span style={{ background:"#dc2626", color:"#fff", borderRadius:4, padding:"1px 6px", fontSize:9, fontWeight:800, marginLeft:4 }}>LIVE</span>}</div>
           <div style={{ fontSize:56, fontWeight:950, color:"#fff", lineHeight:1, letterSpacing:-2 }}><span style={{ color:"#60a5fa" }}>{gf}</span><span style={{ color:"#334155", margin:"0 10px" }}>-</span><span style={{ color:"#f87171" }}>{ga}</span></div>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"rgba(37,99,235,.16)", border:"1px solid rgba(96,165,250,.25)", borderRadius:999, padding:"4px 10px", marginTop:6, fontSize:10, color:"#bfdbfe", fontWeight:800 }}>
+            <span>{half===1 ? (gameInfo.formation1H || "4-3-3") : formation2H}</span>
+            <span style={{ color:C.muted }}>·</span>
+            <span>{onField.length} on field</span>
+          </div>
           {!running&&secs===initSecs&&<div style={{ fontSize:10, color:C.amber, marginTop:4 }}>Tap START to begin</div>}
           {!running&&secs>initSecs&&!htMode&&<div style={{ fontSize:10, color:C.amber, marginTop:4 }}>PAUSED — tap START to continue</div>}
           {/* Auto-save indicator */}
@@ -1242,13 +1284,16 @@ function Game({ gameInfo, onEnd, onBack }) {
       </div>
 
       <div style={{ padding:12, maxWidth:480, margin:"0 auto" }}>
-        {tab==="field"&&<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
-          {onFieldP.map(p=>(
-            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:6, background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:"8px 10px" }}>
-              <span style={{ width:26, height:26, borderRadius:"50%", background:POS_COLOR[positions[p.id]]||C.muted, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:10, color:"#fff", flexShrink:0 }}>{p.num}</span>
-              <div style={{ minWidth:0 }}><div style={{ fontSize:11, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name.split(" ")[0]}</div><div style={{ fontSize:9, color:POS_COLOR[positions[p.id]] }}>{positions[p.id]}</div></div>
-            </div>
-          ))}
+        {tab==="field"&&<div>
+          <FormationField players={onFieldP} positions={positions} title={(half===1 ? (gameInfo.formation1H || "4-3-3") : formation2H) + " LIVE FORMATION"} />
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginTop:10 }}>
+            {onFieldP.map(p=>(
+              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:6, background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:"8px 10px" }}>
+                <PlayerBubble player={p} pos={positions[p.id]} size={28} />
+                <div style={{ minWidth:0 }}><div style={{ fontSize:11, fontWeight:700, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name.split(" ")[0]}</div><div style={{ fontSize:9, color:POS_COLOR[positions[p.id]] }}>{positions[p.id]}</div></div>
+              </div>
+            ))}
+          </div>
         </div>}
         {tab==="xi"&&<LiveOptimumXI events={events} onField={onField} allPlayers={allP} positions={positions} gf={gf} ga={ga} half={half} secs={secs}/>}
         {tab==="events"&&<div>
@@ -1277,10 +1322,11 @@ function Game({ gameInfo, onEnd, onBack }) {
 
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"rgba(5,11,22,0.96)", borderTop:`1px solid ${C.border}`, padding:"10px 10px 12px", backdropFilter:"blur(12px)", boxShadow:"0 -12px 30px rgba(0,0,0,0.35)" }}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, maxWidth:480, margin:"0 auto" }}>
-          <button onClick={()=>openGoal("goal_for")} style={{ background:"linear-gradient(135deg,#15803d,#16a34a)", border:"none", borderRadius:16, padding:"16px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>⚽ GOAL</button>
-          <button onClick={()=>openGoal("goal_against")} style={{ background:"linear-gradient(135deg,#991b1b,#dc2626)", border:"none", borderRadius:16, padding:"16px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>⚽ CONCEDE</button>
-          <button onClick={()=>openGoal("sub")} style={{ background:"linear-gradient(135deg,#1d4ed8,#246BFD)", border:"none", borderRadius:16, padding:"15px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>↔ SUBSTITUTION</button>
-          {half===1?<button onClick={endHalf} style={{ background:"linear-gradient(135deg,#4338ca,#7c3aed)", border:"none", borderRadius:16, padding:"15px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>⏱ END HALF</button>:<button onClick={()=>setShowEnd(true)} style={{ background:"linear-gradient(135deg,#4338ca,#7c3aed)", border:"none", borderRadius:16, padding:"15px 8px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:900, letterSpacing:.3 }}>■ FULL TIME</button>}
+          <button onClick={()=>openGoal("goal_for")} style={{ background:"linear-gradient(135deg,#15803d,#16a34a)", border:"none", borderRadius:18, padding:"20px 8px", color:"#fff", cursor:"pointer", fontSize:15, fontWeight:950, letterSpacing:.3, boxShadow:"0 10px 24px rgba(22,163,74,.22)" }}>⚽ GOAL</button>
+          <button onClick={()=>openGoal("goal_against")} style={{ background:"linear-gradient(135deg,#991b1b,#dc2626)", border:"none", borderRadius:18, padding:"20px 8px", color:"#fff", cursor:"pointer", fontSize:15, fontWeight:950, letterSpacing:.3, boxShadow:"0 10px 24px rgba(220,38,38,.18)" }}>⚽ CONCEDE</button>
+          <button onClick={()=>openGoal("sub")} style={{ gridColumn:"1 / span 2", background:"linear-gradient(135deg,#1d4ed8,#246BFD)", border:"none", borderRadius:18, padding:"17px 8px", color:"#fff", cursor:"pointer", fontSize:14, fontWeight:950, letterSpacing:.3, boxShadow:"0 10px 24px rgba(37,99,235,.22)" }}>↔ SUBSTITUTION</button>
+          {half===1?<button onClick={endHalf} style={{ background:"#111827", border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 8px", color:"#c4b5fd", cursor:"pointer", fontSize:12, fontWeight:900, letterSpacing:.3 }}>⏱ END HALF</button>:<button onClick={()=>setShowEnd(true)} style={{ background:"#111827", border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 8px", color:"#c4b5fd", cursor:"pointer", fontSize:12, fontWeight:900, letterSpacing:.3 }}>■ FULL TIME</button>}
+          <button onClick={()=>setRunning(r=>!r)} style={{ background:running?"#7f1d1d":"#064e3b", border:"1px solid rgba(255,255,255,.08)", borderRadius:16, padding:"14px 8px", color:"#fff", cursor:"pointer", fontSize:12, fontWeight:900, letterSpacing:.3 }}>{running?"PAUSE CLOCK":"START CLOCK"}</button>
         </div>
       </div>
 
@@ -2051,32 +2097,40 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
 
 // ─── PLAYERS ──────────────────────────────────────────────────────────────────
 function Players({ games, onBack, isAdmin }) {
-  const [selected,setSelected]=useState(null); const [note,setNote]=useState("");
-  const [notes,setNotes]=useState(()=>{ try{return JSON.parse(localStorage.getItem("ps_notes")||"{}");}catch(e){return{};} });
+  const [selected,setSelected]=useState(null);
   const allGuests=uniqueGuestsFromGames(games);
   const allP=[...ROSTER,...allGuests]; const allSt=calcStats(games);
-  const saveNote=()=>{ const updated={...notes,[selected.id]:note};setNotes(updated);localStorage.setItem("ps_notes",JSON.stringify(updated));setSelected(null); };
   const playerList=allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>(b.net80||0)-(a.net80||0));
+  const metricColor = v => parseFloat(v)>0 ? C.green : parseFloat(v)<0 ? C.red : "#94a3b8";
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
       <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
+        <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:13, fontWeight:800, cursor:"pointer", padding:0, marginBottom:8 }}>{"< Back"}</button>
         <div style={{ fontSize:13, fontWeight:800, color:"#60a5fa", letterSpacing:3, marginBottom:4 }}>PITCHSIDE</div>
-        <div style={{ fontSize:20, fontWeight:900, color:"#fff" }}>Players</div>
-        <div style={{ fontSize:11, color:C.muted, marginTop:4 }}>{playerList.length} players with data</div>
+        <div style={{ fontSize:22, fontWeight:950, color:"#fff" }}>Player Cards</div>
+        <div style={{ fontSize:11, color:C.muted, marginTop:4 }}>{playerList.length} players with match data · sorted by Net/80</div>
       </div>
       <div style={{ padding:14, maxWidth:480, margin:"0 auto" }}>
-        <p style={{ fontSize:11, color:C.muted, marginTop:0 }}>Sorted by Net/80 · tap for details{isAdmin?" and notes":""}</p>
-        {playerList.map((p,i)=>{ const s=allSt[String(p.id)]||{};const hasNote=notes[p.id];return(
-          <div key={p.id} onClick={()=>{ setSelected(p);setNote(notes[p.id]||""); }} style={{ ...card, cursor:"pointer", marginBottom:8 }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <span style={{ width:32, height:32, borderRadius:"50%", background:POS_COLOR[p.pos]||C.border, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:12, color:"#fff", flexShrink:0 }}>{p.num}</span>
-                <div><div style={{ fontWeight:800, fontSize:14, color:C.text }}>{p.name}</div><div style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:600 }}>{p.pos} · {s.played} games · {s.mins} mins</div>{hasNote&&<div style={{ fontSize:10, color:"#a78bfa", marginTop:2 }}>"{notes[p.id].slice(0,40)}{notes[p.id].length>40?"...":""}"</div>}</div>
+        {playerList.map((p,i)=>{ const s=allSt[String(p.id)]||{}; return(
+          <div key={p.id} onClick={()=>setSelected(p)} style={{ background:"linear-gradient(135deg,#0f1b2d,#0a1322)", border:`1px solid ${C.border}`, borderRadius:18, padding:14, marginBottom:10, cursor:"pointer", boxShadow:"0 10px 24px rgba(0,0,0,.18)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <PlayerBubble player={p} pos={p.pos} size={44} />
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}><span style={{ fontWeight:900, fontSize:15, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span><span style={{ background:POS_COLOR[p.pos]||C.border, color:"#fff", borderRadius:999, padding:"2px 7px", fontSize:9, fontWeight:900 }}>{p.pos}</span></div>
+                <div style={{ fontSize:10, color:C.muted, marginTop:3 }}>{s.played} games · {s.mins}' total · {s.avgMins||0}' avg</div>
               </div>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-                <div style={{ background:parseFloat(s.net80)>0?"#064e3b":parseFloat(s.net80)<0?"#450a0a":C.border, borderRadius:12, padding:"4px 8px", textAlign:"center", minWidth:48 }}><div style={{ fontSize:14, fontWeight:900, color:parseFloat(s.net80)>0?C.green:parseFloat(s.net80)<0?C.red:"#94a3b8" }}>{s.net80s||"-"}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
-                <div style={{ display:"flex", gap:5 }}>{s.goals>0&&<span style={{ fontSize:12, color:"#60a5fa", fontWeight:700 }}>{s.goals}G</span>}{s.assists>0&&<span style={{ fontSize:12, color:C.green, fontWeight:700 }}>{s.assists}A</span>}</div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:28, fontWeight:950, color:metricColor(s.net80), lineHeight:1 }}>{s.net80s||"-"}</div>
+                <div style={{ fontSize:9, color:C.muted, fontWeight:800 }}>NET / 80</div>
               </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginTop:14 }}>
+              {[["Impact", s.impactS || (s.impact!==undefined ? (s.impact>=0?"+":"")+s.impact.toFixed(2) : "-"), C.amber],["Goals", s.goals||0, "#60a5fa"],["Assists", s.assists||0, C.green],["Mins", s.mins||0, "#cbd5e1"]].map(([l,v,c])=>(
+                <div key={l} style={{ background:"rgba(15,23,42,.75)", border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 6px", textAlign:"center" }}>
+                  <div style={{ fontSize:15, fontWeight:950, color:c }}>{v}</div>
+                  <div style={{ fontSize:8, color:C.muted, fontWeight:800, letterSpacing:.5 }}>{l.toUpperCase()}</div>
+                </div>
+              ))}
             </div>
           </div>
         );})}
@@ -2084,39 +2138,17 @@ function Players({ games, onBack, isAdmin }) {
       </div>
       {selected&&(
         <Modal title={selected.name} onClose={()=>setSelected(null)}>
-          <div style={{ ...card, marginBottom: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
-              {[["Goals", (allSt[String(selected.id)] || {}).goals || 0, "#60a5fa"], ["Assists", (allSt[String(selected.id)] || {}).assists || 0, C.green], ["GF", (allSt[String(selected.id)] || {}).gf || 0, "#3b82f6"], ["GA", (allSt[String(selected.id)] || {}).ga || 0, "#f87171"]].map(([l, v, c]) => (
-                <div key={l}>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: c }}>{v}</div>
-                  <div style={{ fontSize: 10, color: C.muted }}>{l}</div>
-                </div>
+          {(() => { const s=allSt[String(selected.id)]||{}; return <div>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
+              <PlayerBubble player={selected} pos={selected.pos} size={54} />
+              <div><div style={{ fontSize:18, fontWeight:950, color:"#fff" }}>{selected.name}</div><div style={{ fontSize:11, color:POS_COLOR[selected.pos]||C.muted, fontWeight:800 }}>{selected.pos} · #{selected.num}</div></div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+              {[["Net/80", s.net80s||"-", metricColor(s.net80)],["Impact", s.impactS || (s.impact!==undefined ? (s.impact>=0?"+":"")+s.impact.toFixed(2) : "-"), C.amber],["Total Minutes", (s.mins||0)+"'", "#cbd5e1"],["Avg Minutes", (s.avgMins||0)+"'", "#94a3b8"],["Goals", s.goals||0, "#60a5fa"],["Assists", s.assists||0, C.green]].map(([l,v,c])=>(
+                <div key={l} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:12, textAlign:"center" }}><div style={{ fontSize:24, fontWeight:950, color:c }}>{v}</div><div style={{ fontSize:10, color:C.muted, fontWeight:800 }}>{l}</div></div>
               ))}
             </div>
-          </div>
-          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
-            <div style={{ textAlign:"center" }}><div style={{ fontSize:20, fontWeight:900, color:C.amber }}>{(allSt[String(selected.id)]||{}).mins||0}'</div><div style={{ fontSize:10, color:C.muted }}>Total Mins</div></div>
-            <div style={{ textAlign:"center" }}><div style={{ fontSize:20, fontWeight:900, color:"#94a3b8" }}>{(allSt[String(selected.id)]||{}).avgMins||0}'</div><div style={{ fontSize:10, color:C.muted }}>Avg/Game</div></div>
-            <div style={{ textAlign:"center" }}><div style={{ fontSize:20, fontWeight:900, color:parseFloat((allSt[String(selected.id)]||{}).net80)>=0?C.green:C.red }}>{(allSt[String(selected.id)]||{}).net80s||"-"}</div><div style={{ fontSize:10, color:C.muted }}>Net/80</div></div>
-          </div>
-          {isAdmin && (
-            <div>
-              <Lbl>Coach Notes</Lbl>
-              <textarea
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                placeholder={"Add a private note about " + selected.name.split(" ")[0] + "..."}
-                style={{ width: "100%", padding: 12, borderRadius: 14, background: C.border, border: "1px solid #334155", color: C.text, fontSize: 13, resize: "none", minHeight: 80, boxSizing: "border-box", fontFamily: "-apple-system,sans-serif" }}
-              />
-              <button onClick={saveNote} style={{ ...btn(C.blue), width: "100%", padding: 14, marginTop: 8 }}>Save Note</button>
-            </div>
-          )}
-          {!isAdmin && notes[selected.id] && (
-            <div>
-              <Lbl>Coach Note</Lbl>
-              <div style={{ background: C.border, borderRadius: 14, padding: 12, fontSize: 13, color: "#a78bfa", fontStyle: "italic" }}>"{notes[selected.id]}"</div>
-            </div>
-          )}
+          </div>; })()}
         </Modal>
       )}
     </div>
