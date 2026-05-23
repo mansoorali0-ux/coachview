@@ -2292,65 +2292,55 @@ export default function App() {
   const seeded = useRef(false);
 
   useEffect(()=>{
-    const unsub=listenToGames(async fbGames=>{
-      if(fbGames.length===0&&!seeded.current){
-        seeded.current=true;
-        await saveGame(makeLVURush());
-        await saveGame(makeCoppermine());
-        await saveGame(makeKeystoneGame(ROSTER));
-        const newGames = makeAllNewGames();
-        for(const g of newGames) { await saveGame(g); }
-      } else {
-        const canonicalFixes = fbGames
-          .map(g=>canonicalizeGuestPlayers(g))
-          .filter(x=>x.changed)
-          .slice(0,5);
-        if(canonicalFixes.length > 0) {
-          for(const x of canonicalFixes) { await saveGame(x.game); }
+    let cancelled = false;
+    const safeSetLoaded = (nextGames) => {
+      if (cancelled) return;
+      setGames((nextGames || []).map(g => canonicalizeGuestPlayers(g).game));
+      setLoading(false);
+    };
+
+    const runBackgroundMaintenance = async (fbGames) => {
+      try {
+        if (!fbGames || fbGames.length === 0 || seeded.current) return;
+        seeded.current = true;
+
+        // Seed only if Firebase is truly empty. Do this in the background so the app never hangs on the loading screen.
+        if (fbGames.length === 0) {
+          await saveGame(makeLVURush());
+          await saveGame(makeCoppermine());
+          await saveGame(makeKeystoneGame(ROSTER));
+          for (const g of makeAllNewGames()) await saveGame(g);
           return;
         }
-        // Patch formations once (localStorage flag prevents repeat)
+
+        // Lightweight formation backfill only. Never block the app from loading.
         if(!localStorage.getItem("ps_patched_formations")) {
           const needsPatch = fbGames.filter(g =>
             !g.formation1H &&
             g.status !== "scheduled" &&
             g.status !== "in_progress"
-          );
-          if(needsPatch.length > 0) {
-            for(const g of needsPatch) {
-              await saveGame({...g, formation1H:"4-4-2", formation2H:"4-4-2"});
-            }
-            localStorage.setItem("ps_patched_formations", "1");
-            return;
+          ).slice(0, 5);
+          for(const g of needsPatch) {
+            await saveGame({...g, formation1H:"4-4-2", formation2H:"4-4-2"});
           }
           localStorage.setItem("ps_patched_formations", "1");
         }
-        // Fix Keystone if lineup data is wrong or missing
-        const keystoneGame = fbGames.find(g=>g.id==="5-16-2026-keystone-fc" || g.id==="5-16-2025-keystone-fc" || (sameOpponent(g.opponent,"Keystone FC") && g.date==="5/16/2026"));
-        const k1H = (keystoneGame?.starting||[]).map(String);
-        const k2H = (keystoneGame?.secondHalfStarting||[]).map(String);
-        const keystoneBad = !keystoneGame || k1H.length!==11 || k2H.length!==11 ||
-                            !k1H.includes("16") || !k1H.includes("13") ||
-                            !k2H.includes("16") || !k2H.includes("13");
-        if(keystoneBad) {
-          if(keystoneGame) await deleteGame(keystoneGame.id);
-          await saveGame(makeKeystoneGame(ROSTER));
-          return;
-        }
-        seeded.current=true;
-        // Seed any missing new season games
-        const newGames = makeAllNewGames();
-        const existingIds = new Set(fbGames.map(g=>g.id));
-        const missingGames = newGames.filter(g=>!existingIds.has(g.id));
-        if(missingGames.length > 0) {
-          for(const g of missingGames) { await saveGame(g); }
-          return; // listener fires with new data
-        }
-        setGames(fbGames.map(g=>canonicalizeGuestPlayers(g).game));
-        setLoading(false);
+      } catch(e) {
+        console.error("PitchSide background maintenance skipped:", e);
       }
-    });
-    return ()=>unsub();
+    };
+
+    try {
+      const unsub = listenToGames((fbGames=[]) => {
+        safeSetLoaded(fbGames);
+        runBackgroundMaintenance(fbGames);
+      });
+      return () => { cancelled = true; if (typeof unsub === "function") unsub(); };
+    } catch(e) {
+      console.error("PitchSide failed to connect to Firebase:", e);
+      safeSetLoaded([]);
+      return () => { cancelled = true; };
+    }
   },[]);
 
   const updateGame=g=>{ setViewing(g);setGames(prev=>prev.map(x=>x.id===g.id?g:x)); };
