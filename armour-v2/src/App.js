@@ -1,4 +1,4 @@
-aimport { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { listenToGames, saveGame, deleteGame } from "./firebase";
 import { calcStats, makeLVURush, makeCoppermine } from "./stats";
 import {
