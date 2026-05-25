@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { listenToGames, saveGame, deleteGame } from "./firebase";
+import { listenToGames, saveGame, deleteGame, loginAdmin, logoutAdmin, onAuthChange } from "./firebase";
 import { calcStats, makeLVURush, makeCoppermine } from "./stats";
 import {
   ADMIN_PIN, HALF, GAME, CUP_HALF, CUP_GAME, ROSTER, DEFAULT_POS,
@@ -516,22 +516,36 @@ function FormationPicker({ value, onChange, label }) {
 
 // ─── PIN SCREEN ───────────────────────────────────────────────────────────────
 function PinScreen({ onAdmin, onViewer }) {
-  const [pin,setPin]=useState(""); const [err,setErr]=useState(false);
-  const check=()=>{ if(pin===ADMIN_PIN){onAdmin();}else{setErr(true);setPin("");setTimeout(()=>setErr(false),2000);} };
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  const [err,setErr]=useState("");
+  const [busy,setBusy]=useState(false);
+  const check=async()=>{
+    if(!email.trim() || !password){ setErr("Enter email and password"); return; }
+    setBusy(true); setErr("");
+    try {
+      await loginAdmin(email.trim(), password);
+      onAdmin();
+    } catch(e) {
+      console.error("PitchSide login failed:", e);
+      setErr("Login failed. Check the email/password created in Firebase.");
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:32, ...T }}>
       <div style={{ fontSize:13, fontWeight:800, color:"#60a5fa", letterSpacing:3, marginBottom:4 }}>PITCHSIDE</div>
       <div style={{ fontSize:24, fontWeight:900, color:"#fff", marginBottom:4 }}>Baltimore Armour</div>
-      <div style={{ fontSize:11, color:"#93c5fd", letterSpacing:2, marginBottom:40 }}>11G ASPIRE</div>
-      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:28, width:"100%", maxWidth:320, textAlign:"center" }}>
-        <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:20 }}>Admin Login</div>
-        <input type="password" value={pin} onChange={e=>setPin(e.target.value)} onKeyDown={e=>e.key==="Enter"&&check()} placeholder="Enter PIN" maxLength={6}
-          style={{ ...inp, fontSize:28, fontWeight:700, textAlign:"center", letterSpacing:8, marginBottom:8, border:err?`2px solid ${C.red}`:`1px solid #334155` }}/>
-        {err&&<div style={{ color:C.red, fontSize:13, marginBottom:8 }}>Incorrect PIN</div>}
-        <button onClick={check} style={{ ...btn(C.blue), width:"100%", padding:16, fontSize:16, marginBottom:16 }}>Enter</button>
-        <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:16 }}>
-          <button onClick={onViewer} style={{ ...btn("transparent",C.muted), width:"100%", border:`1px solid ${C.border}`, padding:12, fontSize:13 }}>View Only (Coach / Parent)</button>
-        </div>
+      <div style={{ fontSize:11, color:"#93c5fd", letterSpacing:2, marginBottom:40 }}>SECURE COACH LOGIN</div>
+      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:28, width:"100%", maxWidth:340, textAlign:"center" }}>
+        <div style={{ fontSize:15, fontWeight:800, color:C.text, marginBottom:8 }}>Firebase Login</div>
+        <div style={{ fontSize:12, color:C.muted, lineHeight:1.4, marginBottom:16 }}>Use the email/password account you created in Firebase Authentication.</div>
+        <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&check()} placeholder="Email" autoComplete="email" style={{ ...inp, marginBottom:10 }}/>
+        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&check()} placeholder="Password" autoComplete="current-password" style={{ ...inp, marginBottom:10 }}/>
+        {err&&<div style={{ color:C.red, fontSize:13, marginBottom:10 }}>{err}</div>}
+        <button onClick={check} disabled={busy} style={{ ...btn(busy?C.border:C.blue), width:"100%", padding:16, fontSize:16, marginBottom:12, opacity:busy?0.7:1 }}>{busy?"Signing in…":"Sign In"}</button>
+        <div style={{ fontSize:11, color:C.muted, lineHeight:1.4 }}>This replaces the old PIN and prepares the database for secure Firebase rules.</div>
       </div>
     </div>
   );
@@ -2753,7 +2767,9 @@ export default function App() {
   const [games,setGames]         = useState([]);
   const [loading,setLoading]     = useState(true);
   const [viewing,setViewing]     = useState(null);
-  const [isAdmin,setIsAdmin]     = useState(()=>localStorage.getItem("ps_admin")==="1");
+  const [authUser,setAuthUser]   = useState(null);
+  const [authReady,setAuthReady] = useState(false);
+  const [isAdmin,setIsAdmin]     = useState(false);
   const [showPin,setShowPin]     = useState(false);
   const [prevScreen,setPrevScreen]=useState("home");
   const [statsTab,setStatsTab]   = useState("overview");
@@ -2762,6 +2778,23 @@ export default function App() {
   const seeded = useRef(false);
 
   useEffect(()=>{
+    const unsub = onAuthChange(user => {
+      setAuthUser(user || null);
+      setIsAdmin(!!user);
+      setAuthReady(true);
+      if (!user) localStorage.removeItem("ps_admin");
+      else localStorage.setItem("ps_admin", "1");
+    });
+    return () => { if (typeof unsub === "function") unsub(); };
+  },[]);
+
+  useEffect(()=>{
+    if (!authReady) return;
+    if (!authUser) {
+      setGames([]);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     const safeSetLoaded = (nextGames) => {
       if (cancelled) return;
@@ -2811,7 +2844,7 @@ export default function App() {
       safeSetLoaded([]);
       return () => { cancelled = true; };
     }
-  },[]);
+  },[authReady, authUser]);
 
   const updateGame=async g=>{ setViewing(g); setGames(prev=>prev.map(x=>x.id===g.id?g:x)); await saveGame(g); };
   const handleDelete=async g=>{ if(window.confirm("Delete "+g.opponent+"? This cannot be undone.")){ await deleteGame(g.id);setGames(prev=>prev.filter(x=>x.id!==g.id));setViewing(null); } };
@@ -2873,7 +2906,7 @@ export default function App() {
   };
   const handleDiscardResume=()=>{ clearGameState();setResumeState(null); };
 
-  if(loading)return(
+  if(loading || !authReady)return(
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, ...T }}>
       <div style={{ fontSize:28, fontWeight:900, color:"#60a5fa", letterSpacing:2 }}>PitchSide</div>
       <div style={{ fontSize:11, color:"#93c5fd", letterSpacing:2 }}>Baltimore Armour 11G Aspire</div>
@@ -2882,9 +2915,11 @@ export default function App() {
     </div>
   );
 
+  if(!authUser)return <PinScreen onAdmin={()=>setShowPin(false)} onViewer={()=>{}}/>;
+
   if(viewing)return <GameDetail game={viewing} onClose={()=>setViewing(null)} onUpdate={updateGame} onDelete={handleDelete} isAdmin={isAdmin}/>;
   if(screen==="admin_manager")return <AdminDataManager games={games} onBack={()=>setScreen("home")} onOpenGame={g=>{ setViewing(g); setPrevScreen("admin_manager"); }} onSaveGame={updateGame} onDeleteGame={handleDelete}/>;
-  if(showPin)return <PinScreen onAdmin={()=>{ setIsAdmin(true);localStorage.setItem("ps_admin","1");setShowPin(false); }} onViewer={()=>setShowPin(false)}/>;
+  if(showPin)return <PinScreen onAdmin={()=>setShowPin(false)} onViewer={()=>setShowPin(false)}/>;
 
   return (
     <>
@@ -2944,7 +2979,7 @@ export default function App() {
             </button>
           )}
           {isAdmin && (
-            <button onClick={()=>{setIsAdmin(false);localStorage.removeItem("ps_admin");}} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:"2px solid transparent" }}>
+            <button onClick={()=>{ logoutAdmin().catch(e=>console.error("Logout failed", e)); }} style={{ flex:1, padding:"10px 0 8px", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, borderTop:"2px solid transparent" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="#f87171"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
               <span style={{ fontSize:9, color:"#f87171" }}>Logout</span>
             </button>
