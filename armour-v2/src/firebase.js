@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAFzBY0bOMWqxdpJTeyXlzahtJ_84gHf8k",
@@ -12,6 +13,19 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const auth = getAuth(app);
+
+export function onAuthChange(callback) {
+  return onAuthStateChanged(auth, callback);
+}
+
+export function loginAdmin(email, password) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+export function logoutAdmin() {
+  return signOut(auth);
+}
 
 export function listenToGames(callback) {
   const q = query(collection(db, "games"));
