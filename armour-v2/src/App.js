@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+aimport { useState, useEffect, useRef } from "react";
 import { listenToGames, saveGame, deleteGame } from "./firebase";
 import { calcStats, makeLVURush, makeCoppermine } from "./stats";
 import {
@@ -175,6 +175,128 @@ function Modal({ title, onClose, children }) {
 }
 
 
+
+// ─── IMPACT SCORE HELPERS ───────────────────────────────────────────────────
+function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+function defaultHalfLength(type) { return type === "tournament" ? CUP_HALF : HALF; }
+function normalizeHalfLength(value, type) {
+  const n = parseInt(value, 10);
+  if (Number.isFinite(n) && n >= 20 && n <= 50) return n;
+  return defaultHalfLength(type);
+}
+function gameHalfMinutes(game) { return normalizeHalfLength(game?.halfLength, game?.type); }
+function gameFullMinutes(game) { return gameHalfMinutes(game) * 2; }
+function avgGameFullMinutes(games) {
+  const valid = (games || []).filter(g => g && g.status !== "scheduled");
+  if (!valid.length) return GAME;
+  return valid.reduce((sum, g) => sum + gameFullMinutes(g), 0) / valid.length;
+}
+function posGoalWeight(pos) {
+  if (pos === "GK") return 10;
+  if (pos === "DEF") return 9;
+  if (pos === "MID") return 9;
+  return 8;
+}
+function posAssistWeight(pos) {
+  if (pos === "DEF" || pos === "GK") return 6;
+  return 5.5;
+}
+function posGAWeight(pos) {
+  if (pos === "GK") return 1.2;
+  if (pos === "DEF") return 1.0;
+  if (pos === "MID") return 0.8;
+  return 0.6;
+}
+function playerIntervalsForGame(game, playerId) {
+  const pid = String(playerId);
+  const halfLen = gameHalfMinutes(game);
+  const fullLen = gameFullMinutes(game);
+  const events = (game?.events || []).filter(e => e.type === "sub").slice().sort((a,b) => (a.minute || 0) - (b.minute || 0));
+  const starting = (game?.starting || []).map(String);
+  const secondHalf = (game?.secondHalfStarting || []).map(String);
+  const hasSecondHalf = secondHalf.length > 0;
+  const points = events.map(e => ({ ...e, _kind:"sub", _minute: clamp(Number(e.minute) || 0, 0, fullLen) }));
+  if (hasSecondHalf) points.push({ _kind:"half", _minute: halfLen });
+  points.sort((a,b) => (a._minute - b._minute) || (a._kind === "half" ? -1 : 1));
+
+  let on = starting.includes(pid);
+  let start = on ? 0 : null;
+  const intervals = [];
+  const closeAt = (minute) => {
+    if (on && start !== null && minute > start) intervals.push([start, minute]);
+  };
+  points.forEach(pt => {
+    const m = pt._minute;
+    if (pt._kind === "half") {
+      closeAt(m);
+      on = secondHalf.includes(pid);
+      start = on ? m : null;
+      return;
+    }
+    if (String(pt.playerOff) === pid && on) {
+      closeAt(m);
+      on = false;
+      start = null;
+    }
+    if (String(pt.playerOn) === pid && !on) {
+      on = true;
+      start = m;
+    }
+  });
+  closeAt(fullLen);
+  return intervals;
+}
+function playerOnFieldCounts(games, player) {
+  const pid = String(player.id);
+  let mins = 0, gfOn = 0, gaOn = 0;
+  (games || []).filter(g => g && g.status !== "scheduled").forEach(game => {
+    const intervals = playerIntervalsForGame(game, pid);
+    intervals.forEach(([st,en]) => { mins += Math.max(0, en - st); });
+    const goals = (game.events || []).filter(e => e.type === "goal_for" || e.type === "goal_against");
+    goals.forEach(ev => {
+      const m = Number(ev.minute) || 0;
+      const wasOn = intervals.some(([st,en]) => m > st && m <= en);
+      if (wasOn && ev.type === "goal_for") gfOn += 1;
+      if (wasOn && ev.type === "goal_against") gaOn += 1;
+    });
+  });
+  return { mins, gfOn, gaOn, netOn: gfOn - gaOn };
+}
+function calcPlayerImpactScore(games, player, statOverride) {
+  const s = statOverride || {};
+  const played = s.played || 0;
+  const mins = s.mins || playerOnFieldCounts(games, player).mins || 0;
+  if (!mins || mins < 1 || played < 1) return null;
+
+  const full = avgGameFullMinutes(games);
+  const avgMins = played ? mins / played : mins;
+  const pos = player.pos || "MID";
+  const goals = s.goals || 0;
+  const assists = s.assists || 0;
+  const counts = playerOnFieldCounts(games, player);
+  const gfOn = Number.isFinite(s.gf) ? s.gf : counts.gfOn;
+  const gaOn = Number.isFinite(s.ga) ? s.ga : counts.gaOn;
+  const netOn = gfOn - gaOn;
+
+  const minutesReliability = clamp((avgMins / full) * 10, 0, 10);
+  const goalsPer80 = goals / mins * full;
+  const assistsPer80 = assists / mins * full;
+  const goalImpact = clamp(goalsPer80 * posGoalWeight(pos), 0, 40);
+  const assistImpact = clamp(assistsPer80 * posAssistWeight(pos), 0, 16);
+  const netContext = clamp((netOn / mins) * full * 2, -10, 12);
+  const gaPer80 = gaOn / mins * full;
+  const defensiveContext = -clamp(gaPer80 * 1.5 * posGAWeight(pos), 0, 9);
+  const cleanSheetValue = gaOn === 0 && mins >= 20
+    ? (pos === "GK" || pos === "DEF" ? clamp(avgMins / full * 6, 0, 6) : pos === "MID" ? clamp(avgMins / full * 3, 0, 3) : clamp(avgMins / full * 1, 0, 1))
+    : 0;
+  const carriedAttack = goals >= 3 && gfOn > 0 && goals >= gfOn ? 4 : 0;
+  const hatTrickBonus = goals >= 3 ? 6 : 0;
+
+  const score = 50 + minutesReliability + goalImpact + assistImpact + netContext + defensiveContext + cleanSheetValue + carriedAttack + hatTrickBonus;
+  return Math.round(clamp(score, 0, 100));
+}
+function fmtImpactScore(v) { return v === null || v === undefined ? "-" : String(Math.round(v)); }
+
 // ─── UI COMPONENTS ───────────────────────────────────────────────────────────
 function PlayerBubble({ player, pos, size=34 }) {
   const label = player?.num || (player?.name ? player.name.slice(0,2).toUpperCase() : "?");
@@ -216,7 +338,7 @@ function MomentumTimeline({ game, title="Momentum Timeline", compact=false }) {
   const events = (game?.events || [])
     .filter(e => ["goal_for","goal_against","sub"].includes(e.type))
     .sort((a,b)=>(a.minute||0)-(b.minute||0));
-  const maxMin = game?.type === "tournament" ? CUP_GAME : GAME;
+  const maxMin = gameFullMinutes(game);
   const allPlayers = game?.allPlayers || ROSTER;
   const pName = (id) => {
     const p = allPlayers.find(p => String(p.id) === String(id));
@@ -546,7 +668,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
               const concedes = events.filter(e=>e.type==="goal_against").map(e=>e.minute).sort((a,b)=>a-b);
               const pid = String(p.id);
               const subs = events.filter(e=>e.type==="sub");
-              const HALF=40; let intervals=[], onField=false, entry=0;
+              const HALF=gameHalfMinutes(game); let intervals=[], onField=false, entry=0;
               if((game.starting||[]).map(String).includes(pid)){onField=true;entry=0;}
               subs.filter(s=>s.half===1).sort((a,b)=>a.minute-b.minute).forEach(s=>{
                 if(String(s.playerOff)===pid&&onField){intervals.push([entry,s.minute]);onField=false;}
@@ -569,16 +691,15 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
               });
               if(totalM>0)csBonus=maxBonus*(cleanM/totalM);
             }
-            const net80=s.net80||0, g80=(s.goals||0)/s.mins*80, a80=(s.assists||0)/s.mins*80;
-            return net80+g80*0.5+a80*0.25+csBonus;
+            return calcPlayerImpactScore([{ ...game, events }], p, gStats[String(p.id)] || {});
           };
-          const fmtI = (v) => v === null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2);
+          const fmtI = fmtImpactScore;
           const rIds = new Set(ROSTER.map(p=>String(p.id)));
           const eligibleRoster = allPlayers.filter(p=>rIds.has(String(p.id))).map(p => ({ ...p, ...(gStats[String(p.id)] || {}), impact: gameImpact(p) })).filter(p => (gStats[String(p.id)]||{}).mins > 0);
           const eligibleGuests = allPlayers.filter(p=>!rIds.has(String(p.id))).map(p => ({ ...p, ...(gStats[String(p.id)] || {}), impact: gameImpact(p) })).filter(p => (gStats[String(p.id)]||{}).mins > 0);
           const eligible = [...eligibleRoster, ...eligibleGuests];
-          const sortedRosterE = eligibleRoster.sort((a, b) => { const d = (b.net80||0)-(a.net80||0); return d!==0?d:(b.mins||0)-(a.mins||0); });
-          const sortedGuestE = eligibleGuests.sort((a, b) => { const d = (b.net80||0)-(a.net80||0); return d!==0?d:(b.mins||0)-(a.mins||0); });
+          const sortedRosterE = eligibleRoster.sort((a, b) => { const d = (b.impact??-999)-(a.impact??-999); return d!==0?d:(b.mins||0)-(a.mins||0); });
+          const sortedGuestE = eligibleGuests.sort((a, b) => { const d = (b.impact??-999)-(a.impact??-999); return d!==0?d:(b.mins||0)-(a.mins||0); });
           const gkOpt = sortedRosterE.find(p => p.pos === "GK");
           const outOpt = sortedRosterE.filter(p => p.pos !== "GK").slice(0, 10);
           const optXI = gkOpt ? [gkOpt, ...outOpt] : sortedRosterE.slice(0, 11);
@@ -586,7 +707,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
           if (optXI.length === 0) return null;
           return (
             <div style={{ ...card, border: `1px solid ${C.amber}`, marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: C.amber, fontWeight: 800, marginBottom: 8 }}>Best XI · Rostered Players · Net/80 highest first</div>
+              <div style={{ fontSize: 11, color: C.amber, fontWeight: 800, marginBottom: 8 }}>Best XI · Rostered Players · Impact Score highest first</div>
               {optXI.map((p, i) => (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: i < optXI.length-1 ? `1px solid ${C.border}` : "none" }}>
                   <span style={{ fontSize: 11, color: C.muted, width: 18 }}>{i+1}.</span>
@@ -598,8 +719,8 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                       <div style={{ fontSize: 8, color: C.muted }}>NET/80</div>
                     </div>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: p.impact > 0 ? C.amber : p.impact < 0 ? C.red : "#94a3b8" }}>{fmtI(p.impact)}</div>
-                      <div style={{ fontSize: 8, color: C.muted }}>IMPACT</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: p.impact >= 75 ? C.green : p.impact >= 50 ? C.amber : C.red }}>{fmtI(p.impact)}</div>
+                      <div style={{ fontSize: 8, color: C.muted }}>IMPACT SCORE</div>
                     </div>
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa" }}>{p.mins}'</div>
@@ -622,7 +743,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                       <span style={{ fontSize:9, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
                       <div style={{ display:"flex", gap:4 }}>
                         <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:7, color:C.muted }}>NET/80</div></div>
-                        <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:p.impact>0?C.amber:"#94a3b8" }}>{fmtI(p.impact)}</div><div style={{ fontSize:7, color:C.muted }}>IMPACT</div></div>
+                        <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:p.impact>=75?C.green:p.impact>=50?C.amber:C.red }}>{fmtI(p.impact)}</div><div style={{ fontSize:7, color:C.muted }}>IMPACT SCORE</div></div>
                       </div>
                     </div>
                   ))}
@@ -637,7 +758,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                       <span style={{ flex: 1, fontSize: 13, color: "#94a3b8" }}>{p.name}</span>
                       <div style={{ display: "flex", gap: 6 }}>
                         <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 800, color: parseFloat(p.net80) >= 0 ? C.green : C.red }}>{p.net80s}</div><div style={{ fontSize: 8, color: C.muted }}>NET/80</div></div>
-                        <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 800, color: p.impact > 0 ? C.amber : "#94a3b8" }}>{fmtI(p.impact)}</div><div style={{ fontSize: 8, color: C.muted }}>IMPACT</div></div>
+                        <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 800, color: p.impact >= 75 ? C.green : p.impact >= 50 ? C.amber : C.red }}>{fmtI(p.impact)}</div><div style={{ fontSize: 8, color: C.muted }}>IMPACT SCORE</div></div>
                       </div>
                     </div>
                   ))}
@@ -740,8 +861,241 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
   );
 }
 
+
+// ─── ADMIN DATA MANAGER ──────────────────────────────────────────────────────
+function AdminDataManager({ games, onBack, onOpenGame, onSaveGame, onDeleteGame }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const completed = games.filter(g => g.status === "completed" || (g.status !== "scheduled" && g.scoreFor !== undefined));
+  const scheduled = games.filter(g => g.status === "scheduled");
+  const issues = games.filter(g => getGameDataIssues(g).length > 0);
+  const visible = games
+    .filter(g => {
+      const q = query.trim().toLowerCase();
+      const hay = `${g.opponent || ""} ${g.date || ""} ${g.venue || ""} ${g.type || ""}`.toLowerCase();
+      const filterOK = filter === "all" ||
+        (filter === "completed" && (g.status === "completed" || (g.status !== "scheduled" && g.scoreFor !== undefined))) ||
+        (filter === "scheduled" && g.status === "scheduled") ||
+        (filter === "issues" && getGameDataIssues(g).length > 0);
+      return filterOK && (!q || hay.includes(q));
+    })
+    .slice()
+    .sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  const openEdit = (g) => {
+    setMessage("");
+    setEditing({
+      ...g,
+      _scoreFor: Number(g.scoreFor || 0),
+      _scoreAgainst: Number(g.scoreAgainst || 0),
+      _halfLength: gameHalfMinutes(g),
+      _status: g.status || "completed",
+      _type: g.type || "regular",
+      _venue: g.venue || "Away",
+      _veoLink: g.veoLink || "",
+      _dateRaw: toDateInputValue(g.date),
+    });
+  };
+
+  const saveEdit = async (extra={}) => {
+    if (!editing) return;
+    setSaving(true);
+    setMessage("Saving…");
+    try {
+      const updated = {
+        ...editing,
+        ...extra,
+        opponent: (editing.opponent || "").trim(),
+        date: editing._dateRaw ? new Date(editing._dateRaw).toLocaleDateString("en-US") : editing.date,
+        type: editing._type,
+        venue: editing._venue,
+        status: editing._status,
+        halfLength: normalizeHalfLength(editing._halfLength, editing._type),
+        scoreFor: Number(extra.scoreFor ?? editing._scoreFor ?? 0),
+        scoreAgainst: Number(extra.scoreAgainst ?? editing._scoreAgainst ?? 0),
+        veoLink: (editing._veoLink || "").trim(),
+        updatedAt: new Date().toISOString(),
+      };
+      delete updated._scoreFor; delete updated._scoreAgainst; delete updated._halfLength;
+      delete updated._status; delete updated._type; delete updated._venue; delete updated._veoLink; delete updated._dateRaw;
+      await onSaveGame(updated);
+      setEditing(updated);
+      setMessage("Saved to Firebase.");
+    } catch (e) {
+      console.error(e);
+      setMessage("Save failed. Take a screenshot and send it to me.");
+    }
+    setSaving(false);
+  };
+
+  const rebuildScoreFromEvents = async () => {
+    if (!editing) return;
+    const scoreFor = (editing.events || []).filter(e => e.type === "goal_for").length;
+    const scoreAgainst = (editing.events || []).filter(e => e.type === "goal_against").length;
+    setEditing(g => ({ ...g, _scoreFor: scoreFor, _scoreAgainst: scoreAgainst }));
+    await saveEdit({ scoreFor, scoreAgainst });
+  };
+
+  const cleanGuests = async () => {
+    if (!editing) return;
+    const { game } = canonicalizeGuestPlayers(editing);
+    setEditing(g => ({ ...g, ...game }));
+    await onSaveGame({ ...game, updatedAt: new Date().toISOString() });
+    setMessage("Guest/player IDs cleaned and saved.");
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:84 }}>
+      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:"20px 16px 16px", borderBottom:`3px solid ${C.amber}` }}>
+        <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:800, cursor:"pointer", padding:0, marginBottom:10 }}>{"< Back"}</button>
+        <div style={{ fontSize:11, color:C.amber, letterSpacing:2, fontWeight:900, textTransform:"uppercase" }}>Admin</div>
+        <div style={{ fontSize:24, fontWeight:900, color:"#fff", marginTop:2 }}>Data Manager</div>
+        <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>Fix scores, match length, metadata, guest IDs, and Firebase game records without touching Firebase.</div>
+      </div>
+
+      <div style={{ padding:16, maxWidth:520, margin:"0 auto" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
+          {[
+            ["Games", games.length, C.blue],
+            ["Completed", completed.length, C.green],
+            ["Scheduled", scheduled.length, C.purple],
+            ["Needs Review", issues.length, issues.length ? C.amber : C.muted],
+          ].map(([label,value,color]) => (
+            <div key={label} style={{ ...card, marginBottom:0, textAlign:"center", padding:"12px 8px" }}>
+              <div style={{ fontSize:22, fontWeight:900, color }}>{value}</div>
+              <div style={{ fontSize:9, color:C.muted, fontWeight:800, letterSpacing:1, textTransform:"uppercase" }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search opponent, date, venue..." style={{ ...inp, marginBottom:10 }} />
+        <div style={{ display:"flex", gap:6, marginBottom:12, overflowX:"auto" }}>
+          {[["all","All"],["completed","Completed"],["scheduled","Scheduled"],["issues","Review"]].map(([k,l]) => (
+            <button key={k} onClick={()=>setFilter(k)} style={{ ...btn(filter===k?C.blue:C.border, filter===k?"#fff":C.muted, { padding:"10px 12px", whiteSpace:"nowrap", fontSize:12 }) }}>{l}</button>
+          ))}
+        </div>
+
+        {visible.length === 0 && <div style={{ ...card, color:C.muted, fontSize:13, textAlign:"center" }}>No games found.</div>}
+
+        {visible.map(g => {
+          const ev = g.events || [];
+          const gfEvents = ev.filter(e=>e.type==="goal_for").length;
+          const gaEvents = ev.filter(e=>e.type==="goal_against").length;
+          const issueList = getGameDataIssues(g);
+          const statusColor = g.status === "scheduled" ? C.purple : g.scoreFor > g.scoreAgainst ? C.green : g.scoreFor < g.scoreAgainst ? C.red : C.amber;
+          return (
+            <div key={g.id || g.opponent} style={{ ...card, border:`1px solid ${issueList.length ? C.amber : C.border}` }}>
+              <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:14, fontWeight:900, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>vs {g.opponent || "Unknown"}</div>
+                  <div style={{ fontSize:11, color:C.muted, marginTop:3 }}>{g.date || "No date"} · {g.venue || "Venue?"} · {g.type === "tournament" ? "Cup" : "League"} · {gameHalfMinutes(g)} min halves</div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:7 }}>
+                    <span style={{ background:statusColor, color:"#fff", borderRadius:999, padding:"3px 8px", fontSize:10, fontWeight:900 }}>{g.status === "scheduled" ? "SCHEDULED" : `${g.scoreFor || 0}-${g.scoreAgainst || 0}`}</span>
+                    <span style={{ background:"#0a1222", color:C.muted, border:`1px solid ${C.border}`, borderRadius:999, padding:"3px 8px", fontSize:10, fontWeight:800 }}>{ev.length} events</span>
+                    {(gfEvents !== Number(g.scoreFor || 0) || gaEvents !== Number(g.scoreAgainst || 0)) && g.status !== "scheduled" && <span style={{ background:"#422006", color:"#fbbf24", borderRadius:999, padding:"3px 8px", fontSize:10, fontWeight:900 }}>score check</span>}
+                    {issueList.slice(0,2).map(x=><span key={x} style={{ background:"#1f2937", color:C.amber, borderRadius:999, padding:"3px 8px", fontSize:10, fontWeight:800 }}>{x}</span>)}
+                  </div>
+                </div>
+                <button onClick={()=>openEdit(g)} style={{ ...btn(C.blue, "#fff", { padding:"10px 12px", fontSize:12 }) }}>Manage</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {editing && (
+        <Modal title="Manage Game Data" onClose={()=>setEditing(null)}>
+          <div style={{ fontSize:13, color:C.muted, marginBottom:10 }}>Changes here save directly to Firebase. Use this instead of editing Firestore manually.</div>
+          {message && <div style={{ background:"#0a1222", border:`1px solid ${message.includes("failed") ? C.red : C.border}`, borderRadius:12, padding:10, color:message.includes("failed") ? "#fca5a5" : C.green, fontSize:12, fontWeight:800, marginBottom:10 }}>{message}</div>}
+
+          <Lbl>Opponent</Lbl>
+          <input value={editing.opponent || ""} onChange={e=>setEditing(g=>({...g, opponent:e.target.value}))} style={{ ...inp, marginBottom:10 }} />
+          <Lbl>Date</Lbl>
+          <input type="date" value={editing._dateRaw || ""} onChange={e=>setEditing(g=>({...g, _dateRaw:e.target.value}))} style={{ ...inp, marginBottom:10 }} />
+          <Lbl>Veo Link</Lbl>
+          <input value={editing._veoLink || ""} onChange={e=>setEditing(g=>({...g, _veoLink:e.target.value}))} placeholder="Paste Veo or Drive match link here" style={{ ...inp, marginBottom:10 }} />
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            <div><Lbl>Score For</Lbl><input type="number" value={editing._scoreFor ?? 0} onChange={e=>setEditing(g=>({...g, _scoreFor:e.target.value}))} style={{ ...inp, marginBottom:10 }} /></div>
+            <div><Lbl>Score Against</Lbl><input type="number" value={editing._scoreAgainst ?? 0} onChange={e=>setEditing(g=>({...g, _scoreAgainst:e.target.value}))} style={{ ...inp, marginBottom:10 }} /></div>
+          </div>
+
+          <Lbl>Status</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>{["scheduled","completed","in_progress"].map(s=>(
+            <button key={s} onClick={()=>setEditing(g=>({...g,_status:s}))} style={{ ...btn(editing._status===s?C.blue:C.border, editing._status===s?"#fff":C.muted), flex:1, padding:"10px 6px", fontSize:11 }}>{s.replace("_"," ")}</button>
+          ))}</div>
+
+          <Lbl>Competition</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>{[["regular","League"],["tournament","Cup"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setEditing(g=>({...g,_type:k,_halfLength:normalizeHalfLength(g._halfLength,k)}))} style={{ ...btn(editing._type===k?C.blue:C.border, editing._type===k?"#fff":C.muted), flex:1 }}>{l}</button>
+          ))}</div>
+
+          <Lbl>Half Length</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>{[30,35,40].map(m=>(
+            <button key={m} onClick={()=>setEditing(g=>({...g,_halfLength:m}))} style={{ ...btn(Number(editing._halfLength)===m?C.blue:C.border, Number(editing._halfLength)===m?"#fff":C.muted), flex:1 }}>{m}</button>
+          ))}</div>
+
+          <Lbl>Venue</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:12 }}>{["Home","Away"].map(v=>(
+            <button key={v} onClick={()=>setEditing(g=>({...g,_venue:v}))} style={{ ...btn(editing._venue===v?C.blue:C.border, editing._venue===v?"#fff":C.muted), flex:1 }}>{v}</button>
+          ))}</div>
+
+          <div style={{ ...card, background:"#081321", marginBottom:12 }}>
+            <div style={{ fontSize:12, fontWeight:900, color:C.text, marginBottom:6 }}>Data Checks</div>
+            <div style={{ fontSize:11, color:C.muted }}>Events: {(editing.events || []).length} · Goals from events: {(editing.events || []).filter(e=>e.type==="goal_for").length}-{(editing.events || []).filter(e=>e.type==="goal_against").length}</div>
+            <div style={{ fontSize:11, color:C.muted, marginTop:3 }}>Players saved: {(editing.allPlayers || []).length || ROSTER.length} · Guest players: {(editing.guests || []).length}</div>
+          </div>
+
+          <button disabled={saving} onClick={()=>saveEdit()} style={{ ...btn(C.green), width:"100%", marginBottom:8 }}>{saving?"Saving…":"Save Game Data"}</button>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+            <button disabled={saving} onClick={rebuildScoreFromEvents} style={{ ...btn(C.amber, "#111827", { fontSize:12 }) }}>Rebuild Score</button>
+            <button disabled={saving} onClick={cleanGuests} style={{ ...btn(C.purple, "#fff", { fontSize:12 }) }}>Clean Guests</button>
+          </div>
+          <button onClick={()=>{ setEditing(null); onOpenGame(editing); }} style={{ ...btn(C.border, "#93c5fd"), width:"100%", marginBottom:8 }}>Open Full Game Editor</button>
+          <button onClick={async()=>{ if(window.confirm("Delete this game from Firebase?")){ await onDeleteGame(editing); setEditing(null); } }} style={{ ...btn("#7f1d1d", "#fca5a5"), width:"100%" }}>Delete Game</button>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function toDateInputValue(v) {
+  if (!v) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v);
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+function getGameDataIssues(g) {
+  const issues = [];
+  if (!g.id) issues.push("missing id");
+  if (!g.opponent) issues.push("missing opponent");
+  if (!g.date) issues.push("missing date");
+  if (![30,35,40].includes(gameHalfMinutes(g))) issues.push("half length");
+  if (g.status !== "scheduled") {
+    const gfEvents = (g.events || []).filter(e=>e.type==="goal_for").length;
+    const gaEvents = (g.events || []).filter(e=>e.type==="goal_against").length;
+    if (Number(g.scoreFor || 0) !== gfEvents || Number(g.scoreAgainst || 0) !== gaEvents) issues.push("score mismatch");
+    if (!(g.starting || []).length && (g.events || []).length) issues.push("missing lineup");
+  }
+  const seen = new Set();
+  (g.guests || []).forEach(p => {
+    const key = normName(p.name);
+    if (key && seen.has(key)) issues.push("duplicate guest");
+    if (key) seen.add(key);
+  });
+  return Array.from(new Set(issues));
+}
+
 // ─── HOME ─────────────────────────────────────────────────────────────────────
-function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume, onDiscardResume, onSchedule, onEditScheduled, onDeleteScheduled }) {
+function Home({ games, onStart, onStats, onView, onAdminManager, isAdmin, resumeState, onResume, onDiscardResume, onSchedule, onEditScheduled, onDeleteScheduled }) {
   const [showNew,setShowNew]=useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [editingGame, setEditingGame] = useState(null);
@@ -750,7 +1104,8 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
   const [schedTime, setSchedTime] = useState("");
   const [schedType, setSchedType] = useState("regular");
   const [schedVenue, setSchedVenue] = useState("Away");
-  const [type,setType]=useState("regular"); const [opp,setOpp]=useState(""); const [customOpp,setCustomOpp]=useState(""); const [venue,setVenue]=useState("Home");
+  const [schedHalfLength, setSchedHalfLength] = useState(defaultHalfLength("regular"));
+  const [type,setType]=useState("regular"); const [opp,setOpp]=useState(""); const [customOpp,setCustomOpp]=useState(""); const [venue,setVenue]=useState("Home"); const [halfLengthNew,setHalfLengthNew]=useState(defaultHalfLength("regular"));
   const played=new Set(games.map(g=>g.opponent.toLowerCase().trim()));
   // Match upcoming games - filter out completed/in-progress games
   const completedGamesForSchedule = games.filter(g=>g.status!=="scheduled" && g.status!=="in_progress");
@@ -759,14 +1114,14 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
   });
   // Also include Firebase-scheduled games
   const firebaseScheduled = games.filter(g=>g.status==="scheduled").map(g=>({
-    opp:g.opponent, date:g.date, time:g.time||"" , venue:g.venue, type:g.type, id:g.id
+    opp:g.opponent, date:g.date, time:g.time||"" , venue:g.venue, type:g.type, id:g.id, halfLength:gameHalfMinutes(g)
   }));
   const remaining = [
     ...hardcodedRemaining,
     ...firebaseScheduled.filter(fs=>!hardcodedRemaining.some(h=>h.opp.toLowerCase()===fs.opp.toLowerCase()))
   ].sort((a,b)=>new Date(a.date)-new Date(b.date));
   const teams=type==="regular"?LEAGUE_TEAMS:TOURNAMENT_TEAMS;
-  const go=()=>{ const opponent=opp==="__custom__"?customOpp.trim():opp; if(!opponent)return; onStart({type,opponent,venue}); setShowNew(false); };
+  const go=()=>{ const opponent=opp==="__custom__"?customOpp.trim():opp; if(!opponent)return; onStart({type,opponent,venue,halfLength:normalizeHalfLength(halfLengthNew,type)}); setShowNew(false); };
   const completedGames=games.filter(g=>g.status==="completed"||(g.scoreFor!==undefined&&g.status!=="scheduled"&&g.status!=="in_progress"));
   const record={W:completedGames.filter(g=>g.scoreFor>g.scoreAgainst).length,D:completedGames.filter(g=>g.scoreFor===g.scoreAgainst).length,L:completedGames.filter(g=>g.scoreFor<g.scoreAgainst).length};
   const totalGF=completedGames.reduce((a,g)=>a+g.scoreFor,0), totalGA=completedGames.reduce((a,g)=>a+g.scoreAgainst,0);
@@ -833,7 +1188,7 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
               <div key={i} style={{ background: "linear-gradient(180deg,#111c2e,#0d1727)", border: `1px solid ${C.border}`, borderRadius: 16, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>vs {g.opp.split(" ").slice(0,3).join(" ")}</div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{g.date}{g.time?" · "+g.time:""} · {g.venue}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{g.date}{g.time?" · "+g.time:""} · {g.venue} · {gameHalfMinutes(g)} min halves</div>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:5, flexShrink:0, marginLeft:8 }}>
                   <span style={{ background: g.type==="tournament"?C.purple:C.blue, color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:10, fontWeight:700 }}>{g.type==="tournament"?"CUP":"LEAGUE"}</span>
@@ -846,13 +1201,13 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
                           } else {
                             // Hardcoded game - save to Firebase first so it gets an id
                             const newId = "scheduled-"+Date.now();
-                            await onSchedule({ opp:g.opp, date:g.date||"", time:g.time||"", type:g.type, venue:g.venue, id:newId });
-                            setEditingGame({ opp:g.opp, date:g.date||"", time:g.time||"", type:g.type, venue:g.venue, id:newId, rawDate:"" });
+                            await onSchedule({ opp:g.opp, date:g.date||"", time:g.time||"", type:g.type, venue:g.venue, id:newId, halfLength:gameHalfMinutes(g) });
+                            setEditingGame({ opp:g.opp, date:g.date||"", time:g.time||"", type:g.type, venue:g.venue, id:newId, halfLength:gameHalfMinutes(g), rawDate:"" });
                           }
                         }}
                         style={{ background:"#0f4c81", border:"none", borderRadius:6, padding:"4px 8px", color:"#93c5fd", fontSize:10, fontWeight:700, cursor:"pointer" }}
                       >EDIT</button>
-                      <button onClick={()=>onStart({ type:g.type, opponent:g.opp, venue:g.venue, scheduledId:g.id })} style={{ background:C.green, border:"none", borderRadius:6, padding:"4px 8px", color:"#fff", fontSize:10, fontWeight:700, cursor:"pointer" }}>▶ START</button>
+                      <button onClick={()=>onStart({ type:g.type, opponent:g.opp, venue:g.venue, scheduledId:g.id, halfLength:gameHalfMinutes(g) })} style={{ background:C.green, border:"none", borderRadius:6, padding:"4px 8px", color:"#fff", fontSize:10, fontWeight:700, cursor:"pointer" }}>▶ START</button>
                     </div>
                   )}
                 </div>
@@ -867,13 +1222,16 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
         </div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={onStats} style={{ ...btn(C.border,"#93c5fd"), flex:1 }}>Season Stats</button>
+          {isAdmin&&<button onClick={onAdminManager} style={{ ...btn(C.amber,"#111827"), flex:1 }}>Data Manager</button>}
         </div>
         {!isAdmin&&<div style={{ textAlign:"center", marginTop:12, fontSize:11, color:C.muted }}>View only - data updates live as games are tracked</div>}
       </div>
       {showNew&&(
         <Modal title="New Game" onClose={()=>setShowNew(false)}>
           <Lbl>Type</Lbl>
-          <div style={{ display:"flex", gap:8, marginBottom:14 }}>{["regular","tournament"].map(t=><button key={t} onClick={()=>{ setType(t);setOpp(""); }} style={{ ...btn(type===t?C.blue:C.border,type===t?"#fff":C.muted), flex:1 }}>{t==="regular"?"League":"Cup"}</button>)}</div>
+          <div style={{ display:"flex", gap:8, marginBottom:14 }}>{["regular","tournament"].map(t=><button key={t} onClick={()=>{ setType(t); setOpp(""); setHalfLengthNew(defaultHalfLength(t)); }} style={{ ...btn(type===t?C.blue:C.border,type===t?"#fff":C.muted), flex:1 }}>{t==="regular"?"League":"Cup"}</button>)}</div>
+          <Lbl>Half Length</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:14 }}>{[30,35,40].map(m=><button key={m} onClick={()=>setHalfLengthNew(m)} style={{ ...btn(Number(halfLengthNew)===m?C.blue:C.border,Number(halfLengthNew)===m?"#fff":C.muted), flex:1 }}>{m} min</button>)}</div>
           <Lbl>Venue</Lbl>
           <div style={{ display:"flex", gap:8, marginBottom:14 }}>{["Home","Away"].map(v=><button key={v} onClick={()=>setVenue(v)} style={{ ...btn(venue===v?C.blue:C.border,venue===v?"#fff":C.muted), flex:1 }}>{v}</button>)}</div>
           <Lbl>Opponent</Lbl>
@@ -910,9 +1268,13 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <Lbl>Competition</Lbl>
           <div style={{ display:"flex", gap:8, marginBottom:12 }}>
             {[["regular","⚽ League"],["tournament","🏆 Cup"]].map(([k,l])=>(
-              <button key={k} onClick={()=>setSchedType(k)} style={{ ...btn(schedType===k?C.blue:C.border, schedType===k?"#fff":C.muted), flex:1 }}>{l}</button>
+              <button key={k} onClick={()=>{ setSchedType(k); setSchedHalfLength(defaultHalfLength(k)); }} style={{ ...btn(schedType===k?C.blue:C.border, schedType===k?"#fff":C.muted), flex:1 }}>{l}</button>
             ))}
           </div>
+          <Lbl>Half Length</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:12 }}>{[30,35,40].map(m=>(
+            <button key={m} onClick={()=>setSchedHalfLength(m)} style={{ ...btn(Number(schedHalfLength)===m?C.blue:C.border, Number(schedHalfLength)===m?"#fff":C.muted), flex:1 }}>{m} min</button>
+          ))}</div>
           <Lbl>Venue</Lbl>
           <div style={{ display:"flex", gap:8, marginBottom:16 }}>
             {["Home","Away"].map(v=>(
@@ -922,8 +1284,8 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <button
             onClick={()=>{
               if(!schedOpp.trim()||!schedDate)return;
-              onSchedule({ opp:schedOpp.trim(), date:schedDate, time:schedTime, type:schedType, venue:schedVenue });
-              setSchedOpp(""); setSchedDate(""); setSchedTime(""); setSchedType("regular"); setSchedVenue("Away");
+              onSchedule({ opp:schedOpp.trim(), date:schedDate, time:schedTime, type:schedType, venue:schedVenue, halfLength:normalizeHalfLength(schedHalfLength,schedType) });
+              setSchedOpp(""); setSchedDate(""); setSchedTime(""); setSchedType("regular"); setSchedVenue("Away"); setSchedHalfLength(defaultHalfLength("regular"));
               setShowSchedule(false);
             }}
             disabled={!schedOpp.trim()||!schedDate}
@@ -960,9 +1322,13 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
           <Lbl>Competition</Lbl>
           <div style={{ display:"flex", gap:8, marginBottom:12 }}>
             {[["regular","⚽ League"],["tournament","🏆 Cup"]].map(([k,l])=>(
-              <button key={k} onClick={()=>setEditingGame(g=>({...g,type:k}))} style={{ ...btn(editingGame.type===k?C.blue:C.border, editingGame.type===k?"#fff":C.muted), flex:1 }}>{l}</button>
+              <button key={k} onClick={()=>setEditingGame(g=>({...g,type:k,halfLength:defaultHalfLength(k)}))} style={{ ...btn(editingGame.type===k?C.blue:C.border, editingGame.type===k?"#fff":C.muted), flex:1 }}>{l}</button>
             ))}
           </div>
+          <Lbl>Half Length</Lbl>
+          <div style={{ display:"flex", gap:8, marginBottom:12 }}>{[30,35,40].map(m=>(
+            <button key={m} onClick={()=>setEditingGame(g=>({...g,halfLength:m}))} style={{ ...btn(Number(normalizeHalfLength(editingGame.halfLength,editingGame.type))===m?C.blue:C.border, Number(normalizeHalfLength(editingGame.halfLength,editingGame.type))===m?"#fff":C.muted), flex:1 }}>{m} min</button>
+          ))}</div>
           <Lbl>Venue</Lbl>
           <div style={{ display:"flex", gap:8, marginBottom:16 }}>
             {["Home","Away"].map(v=>(
@@ -978,6 +1344,7 @@ function Home({ games, onStart, onStats, onView, isAdmin, resumeState, onResume,
               onClick={()=>{
                 onEditScheduled({
                   ...editingGame,
+                  halfLength:normalizeHalfLength(editingGame.halfLength,editingGame.type),
                   date: editingGame.rawDate
                     ? new Date(editingGame.rawDate).toLocaleDateString("en-US")
                     : editingGame.date,
@@ -1099,8 +1466,8 @@ function Lineup({ gameInfo, onKickoff, onBack, pastGames=[] }) {
 
 // ─── GAME SCREEN ──────────────────────────────────────────────────────────────
 function Game({ gameInfo, onEnd, onBack }) {
-  const halfLength = gameInfo.type === "tournament" ? CUP_HALF : HALF;
-  const gameLength = gameInfo.type === "tournament" ? CUP_GAME : GAME;
+  const halfLength = gameHalfMinutes(gameInfo);
+  const gameLength = gameFullMinutes(gameInfo);
   // If starting from 2nd half only, begin at half=2 and secs=halfLength*60
   // If resuming, restore all previous state
   const isResume = !!gameInfo._resumeEvents;
@@ -1152,6 +1519,7 @@ function Game({ gameInfo, onEnd, onBack }) {
     formation1H: gameInfo.formation1H || "4-3-3",
     formation2H,
     id:gameId.current,
+    halfLength,
     status
   });
 
@@ -1311,7 +1679,7 @@ function Game({ gameInfo, onEnd, onBack }) {
   };
   const endHalf=()=>{ setRunning(false);setHtMode(true);pauseRef.current=halfLength*60;setSecs(halfLength*60);setModal("halftime"); };
   const start2H=()=>{ setHalf(2);setHtMode(false);setSecs(halfLength*60);pauseRef.current=halfLength*60;setRunning(false);setModal(null); };
-  const liveGame={ ...gameInfo,events,scoreFor:gf,scoreAgainst:ga,date:gameDate.current,secondHalfStarting:(half===2||htMode)?[...onField]:gameInfo.secondHalfStarting,formation1H:gameInfo.formation1H||"4-3-3",formation2H,id:gameId.current };
+  const liveGame={ ...gameInfo, halfLength, events,scoreFor:gf,scoreAgainst:ga,date:gameDate.current,secondHalfStarting:(half===2||htMode)?[...onField]:gameInfo.secondHalfStarting,formation1H:gameInfo.formation1H||"4-3-3",formation2H,id:gameId.current };
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
@@ -1601,10 +1969,10 @@ function Game({ gameInfo, onEnd, onBack }) {
 function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   const [view, setView]       = useState(defaultTab || "overview");
   const [compFilter, setCompFilter] = useState("all");
-  const [sortBy, setSortBy]   = useState("net80");
+  const [sortBy, setSortBy]   = useState("impact");
   const [sortDir, setSortDir] = useState(-1);
   const [scout, setScout]     = useState(null);
-  const [scoutOptSort, setScoutOptSort] = useState("net80");
+  const [scoutOptSort, setScoutOptSort] = useState("impact");
 
   // Never include scheduled games in stats
   const playedGames = games.filter(g => g.status !== "scheduled");
@@ -1640,7 +2008,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
       const s1H = (game.starting || []).map(String);
       const s2H = (game.secondHalfStarting || []).map(String);
       const subs = allEvs.filter(e => e.type === "sub");
-      const HALF = 40;
+      const HALF = gameHalfMinutes(game);
       // Track player time intervals
       let intervals = [];
       let onField = false;
@@ -1681,16 +2049,8 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
     return totalBonus;
   };
 
-  const calcImpact = (p) => {
-    const s = allSt[String(p.id)] || {};
-    if (!s.mins || s.mins < 80) return null;
-    const net80 = s.net80 || 0;
-    const goalsPer80 = (s.goals || 0) / s.mins * 80;
-    const assistsPer80 = (s.assists || 0) / s.mins * 80;
-    const csBonus = calcCSBonus(p);
-    return net80 + (goalsPer80 * 0.5) + (assistsPer80 * 0.25) + csBonus;
-  };
-  const fmtImpact = (v) => v === null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2);
+  const calcImpact = (p) => calcPlayerImpactScore(filteredGames, p, allSt[String(p.id)] || {});
+  const fmtImpact = fmtImpactScore;
 
   const rIds = new Set(ROSTER.map(p => String(p.id)));
   const sortFn = (a, b) => {
@@ -1843,13 +2203,13 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   const renderPlayers = () => (
     <div>
       <div style={{ display:"flex", gap:4, marginBottom:8, flexWrap:"wrap" }}>
-        {sb("goals","Goals")}{sb("assists","Asst")}{sb("gf","GF")}{sb("ga","GA")}{sb("net80","Net/80")}{sb("impact","Impact")}
+        {sb("impact","Impact")}{sb("net80","Net")}{sb("goals","Goals")}{sb("assists","Asst")}{sb("gf","GF")}{sb("ga","GA")}
       </div>
-      <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Primary numbers are Net/80 and Impact. Supporting stats stay smaller so coaches can scan faster. Min 80 total mins.</p>
+      <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Impact Score is the primary coach rating. Net/80 is the supporting on-field goal-difference stat. Both are sortable.</p>
       {pList.map((p, idx)=>{
         const s=allSt[String(p.id)]||{};
         const impact=calcImpact(p);
-        const ic=impact===null?"#94a3b8":impact>0?C.green:impact<0?C.red:"#94a3b8";
+        const ic=impact===null?"#94a3b8":impact>=75?C.green:impact>=50?C.amber:C.red;
         const netVal=parseFloat(s.net80);
         const netColor=netVal>0?C.green:netVal<0?C.red:"#94a3b8";
         const isFirstGuest = !rIds.has(String(p.id)) && (idx===0 || rIds.has(String(pList[idx-1]?.id)));
@@ -1865,11 +2225,11 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
             <div style={{ display:"flex", gap:8, flex:1.25 }}>
               <div style={{ flex:1, background:"linear-gradient(180deg,#0d2137,#081321)", border:`1px solid ${C.border}`, borderRadius:14, padding:"9px 8px", textAlign:"center" }}>
                 <div style={{ fontSize:28, lineHeight:1, fontWeight:950, color:netColor }}>{s.net80s||"-"}</div>
-                <div style={{ fontSize:9, color:C.muted, marginTop:5, fontWeight:800, letterSpacing:.5 }}>NET / 80</div>
+                <div style={{ fontSize:9, color:C.muted, marginTop:5, fontWeight:800, letterSpacing:.5 }}>NET/80</div>
               </div>
               <div style={{ flex:1, background:"linear-gradient(180deg,#0d2137,#081321)", border:`1px solid ${C.border}`, borderRadius:14, padding:"9px 8px", textAlign:"center" }}>
                 <div style={{ fontSize:28, lineHeight:1, fontWeight:950, color:ic }}>{fmtImpact(impact)}</div>
-                <div style={{ fontSize:9, color:C.muted, marginTop:5, fontWeight:800, letterSpacing:.5 }}>IMPACT</div>
+                <div style={{ fontSize:9, color:C.muted, marginTop:5, fontWeight:800, letterSpacing:.5 }}>IMPACT SCORE</div>
               </div>
             </div>
           </div>
@@ -1887,7 +2247,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
     </div>
   );
 
-  const [optimumSort, setOptimumSort] = useState("net80");
+  const [optimumSort, setOptimumSort] = useState("impact");
   const renderOptimum = () => {
     const rosterIds = new Set(ROSTER.map(p=>String(p.id)));
     // Separate rostered players from guests
@@ -1916,7 +2276,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
         <div style={{ fontSize:13, fontWeight:800, color:C.amber, marginBottom:8 }}>Season Optimum XI — {compLabel}</div>
         <div style={{ display:"flex", gap:8, marginBottom:8 }}>
           <button onClick={()=>setOptimumSort("net80")} style={{ flex:1, padding:"8px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:optimumSort==="net80"?C.blue:C.border, color:optimumSort==="net80"?"#fff":C.muted }}>Net/80 ▼</button>
-          <button onClick={()=>setOptimumSort("impact")} style={{ flex:1, padding:"8px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:optimumSort==="impact"?C.amber:C.border, color:optimumSort==="impact"?"#000":C.muted }}>Impact ▼</button>
+          <button onClick={()=>setOptimumSort("impact")} style={{ flex:1, padding:"8px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:11, cursor:"pointer", background:optimumSort==="impact"?C.amber:C.border, color:optimumSort==="impact"?"#000":C.muted }}>Impact Score ▼</button>
         </div>
         <div style={{ fontSize:10, color:C.muted }}>1 GK guaranteed · tiebreak by minutes</div>
       </div>
@@ -1927,7 +2287,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           <div style={{ flex:1 }}><div style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</div><div style={{ fontSize:10, color:C.muted }}>{p.played} games · {p.mins} mins</div></div>
           <div style={{ display:"flex", gap:6 }}>
             <div style={{ textAlign:"right" }}><div style={{ fontSize:14, fontWeight:900, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
-            <div style={{ textAlign:"right" }}><div style={{ fontSize:14, fontWeight:900, color:p.impact>0?C.amber:p.impact<0?C.red:"#94a3b8" }}>{fmtImpact(p.impact)}</div><div style={{ fontSize:8, color:C.muted }}>IMPACT</div></div>
+            <div style={{ textAlign:"right" }}><div style={{ fontSize:14, fontWeight:900, color:p.impact>=75?C.green:p.impact>=50?C.amber:C.red }}>{fmtImpact(p.impact)}</div><div style={{ fontSize:8, color:C.muted }}>IMPACT SCORE</div></div>
           </div>
         </div>)}
       </div>)}
@@ -2018,7 +2378,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           <p style={{ fontSize:11, color:C.muted, marginTop:0, marginBottom:8 }}>{og.length} game{og.length!==1?"s":""} · 1 GK · tiebreak by minutes</p>
           <div style={{ display:"flex", gap:8, marginBottom:10 }}>
             <button onClick={()=>setScoutOptSort("net80")} style={{ flex:1, padding:"7px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:(scoutOptSort||"net80")==="net80"?C.blue:C.border, color:(scoutOptSort||"net80")==="net80"?"#fff":C.muted }}>Net/80 ▼</button>
-            <button onClick={()=>setScoutOptSort("impact")} style={{ flex:1, padding:"7px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:scoutOptSort==="impact"?C.amber:C.border, color:scoutOptSort==="impact"?"#000":C.muted }}>Impact ▼</button>
+            <button onClick={()=>setScoutOptSort("impact")} style={{ flex:1, padding:"7px 4px", borderRadius:12, border:"none", fontWeight:700, fontSize:10, cursor:"pointer", background:scoutOptSort==="impact"?C.amber:C.border, color:scoutOptSort==="impact"?"#000":C.muted }}>Impact Score ▼</button>
           </div>
           {(() => {
             const scImpact = (p) => {
@@ -2030,7 +2390,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
                 og.forEach(game=>{
                   const concedes=(game.events||[]).filter(e=>e.type==="goal_against").map(e=>e.minute).sort((a,b)=>a-b);
                   const pid=String(p.id), subs=(game.events||[]).filter(e=>e.type==="sub");
-                  const HALF=40; let ivs=[],on=false,en=0;
+                  const HALF=gameHalfMinutes(game); let ivs=[],on=false,en=0;
                   if((game.starting||[]).map(String).includes(pid)){on=true;en=0;}
                   subs.filter(s=>s.half===1).sort((a,b)=>a.minute-b.minute).forEach(s=>{if(String(s.playerOff)===pid&&on){ivs.push([en,s.minute]);on=false;}if(String(s.playerOn)===pid&&!on){on=true;en=s.minute;}});
                   if(on)ivs.push([en,HALF]);on=false;en=HALF;
@@ -2041,9 +2401,9 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
                   if(tM>0)csB+=maxB*(cM/tM);
                 });
               }
-              return (s.net80||0)+(s.goals||0)/s.mins*80*0.5+(s.assists||0)/s.mins*80*0.25+csB;
+              return calcPlayerImpactScore(og, p, s);
             };
-            const fmtSI = (v) => v===null?"-":(v>=0?"+":"")+v.toFixed(2);
+            const fmtSI = fmtImpactScore;
             const scRosterIds = new Set(ROSTER.map(p=>String(p.id)));
             const optFull = allP.map(p=>({...p,...(ss[String(p.id)]||{}),impact:scImpact(p)})).filter(p=>(ss[String(p.id)]||{}).mins>0&&scRosterIds.has(String(p.id)));
             const sortedFull = [...optFull].sort((a,b)=>{ const av=(scoutOptSort||"net80")==="impact"?(a.impact??-999):(a.net80||0); const bv=(scoutOptSort||"net80")==="impact"?(b.impact??-999):(b.net80||0); const d=bv-av; return d!==0?d:(b.mins||0)-(a.mins||0); });
@@ -2057,7 +2417,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
                 <span style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
                 <div style={{ display:"flex", gap:6 }}>
                   <div style={{ textAlign:"center" }}><div style={{ fontSize:12, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
-                  <div style={{ textAlign:"center" }}><div style={{ fontSize:12, fontWeight:800, color:p.impact>0?C.amber:p.impact<0?C.red:"#94a3b8" }}>{fmtSI(p.impact)}</div><div style={{ fontSize:8, color:C.muted }}>IMPACT</div></div>
+                  <div style={{ textAlign:"center" }}><div style={{ fontSize:12, fontWeight:800, color:p.impact>=75?C.green:p.impact>=50?C.amber:C.red }}>{fmtSI(p.impact)}</div><div style={{ fontSize:8, color:C.muted }}>IMPACT SCORE</div></div>
                 </div>
               </div>
             ));
@@ -2065,8 +2425,8 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           {(() => {
             // Show players who didn't make XI
             const scRosterIds2 = new Set(ROSTER.map(p=>String(p.id)));
-            const scImpact2 = (p) => { const s=ss[String(p.id)]||{}; if(!s.mins||s.mins<5)return null; return (s.net80||0)+(s.goals||0)/s.mins*80*0.5+(s.assists||0)/s.mins*80*0.25; };
-            const fmtSI2 = (v) => v===null?"-":(v>=0?"+":"")+v.toFixed(2);
+            const scImpact2 = (p) => calcPlayerImpactScore(og, p, ss[String(p.id)] || {});
+            const fmtSI2 = fmtImpactScore;
             const allScout = allP.map(p=>({...p,...(ss[String(p.id)]||{}),impact:scImpact2(p)})).filter(p=>(ss[String(p.id)]||{}).mins>0&&scRosterIds2.has(String(p.id)));
             const sortedAll = [...allScout].sort((a,b)=>{ const av=(scoutOptSort||"net80")==="impact"?(a.impact??-999):(a.net80||0); const bv=(scoutOptSort||"net80")==="impact"?(b.impact??-999):(b.net80||0); const d=bv-av; return d!==0?d:(b.mins||0)-(a.mins||0); });
             const sGK2=sortedAll.find(p=>p.pos==="GK");
@@ -2084,7 +2444,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
                     <span style={{ fontSize:9, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
                     <div style={{ display:"flex", gap:4 }}>
                       <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:7, color:C.muted }}>NET/80</div></div>
-                      <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:p.impact>0?C.amber:"#94a3b8" }}>{fmtSI2(p.impact)}</div><div style={{ fontSize:7, color:C.muted }}>IMPACT</div></div>
+                      <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:p.impact>=75?C.green:p.impact>=50?C.amber:C.red }}>{fmtSI2(p.impact)}</div><div style={{ fontSize:7, color:C.muted }}>IMPACT SCORE</div></div>
                     </div>
                   </div>
                 ))}
@@ -2169,7 +2529,7 @@ function Players({ games, onBack, isAdmin }) {
   const [selected,setSelected]=useState(null);
   const allGuests=uniqueGuestsFromGames(games);
   const allP=[...ROSTER,...allGuests]; const allSt=calcStats(games);
-  const playerList=allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>(b.net80||0)-(a.net80||0));
+  const playerList=allP.map(p=>({...p,...(allSt[String(p.id)]||{}),impact:calcPlayerImpactScore(games, p, allSt[String(p.id)]||{})})).filter(p=>p.played>0).sort((a,b)=>(b.impact??-999)-(a.impact??-999));
   const metricColor = v => parseFloat(v)>0 ? C.green : parseFloat(v)<0 ? C.red : "#94a3b8";
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
@@ -2177,10 +2537,10 @@ function Players({ games, onBack, isAdmin }) {
         <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:13, fontWeight:800, cursor:"pointer", padding:0, marginBottom:8 }}>{"< Back"}</button>
         <div style={{ fontSize:13, fontWeight:800, color:"#60a5fa", letterSpacing:3, marginBottom:4 }}>PITCHSIDE</div>
         <div style={{ fontSize:22, fontWeight:950, color:"#fff" }}>Player Cards</div>
-        <div style={{ fontSize:11, color:C.muted, marginTop:4 }}>{playerList.length} players with match data · sorted by Net/80</div>
+        <div style={{ fontSize:11, color:C.muted, marginTop:4 }}>{playerList.length} players with match data · sorted by Impact Score</div>
       </div>
       <div style={{ padding:14, maxWidth:480, margin:"0 auto" }}>
-        {playerList.map((p,i)=>{ const s=allSt[String(p.id)]||{}; return(
+        {playerList.map((p,i)=>{ const s={...(allSt[String(p.id)]||{}), impact:p.impact}; return(
           <div key={p.id} onClick={()=>setSelected(p)} style={{ background:"linear-gradient(135deg,#0f1b2d,#0a1322)", border:`1px solid ${C.border}`, borderRadius:18, padding:14, marginBottom:10, cursor:"pointer", boxShadow:"0 10px 24px rgba(0,0,0,.18)" }}>
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
               <PlayerBubble player={p} pos={p.pos} size={44} />
@@ -2189,12 +2549,12 @@ function Players({ games, onBack, isAdmin }) {
                 <div style={{ fontSize:10, color:C.muted, marginTop:3 }}>{s.played} games · {s.mins}' total · {s.avgMins||0}' avg</div>
               </div>
               <div style={{ textAlign:"right" }}>
-                <div style={{ fontSize:28, fontWeight:950, color:metricColor(s.net80), lineHeight:1 }}>{s.net80s||"-"}</div>
-                <div style={{ fontSize:9, color:C.muted, fontWeight:800 }}>NET / 80</div>
+                <div style={{ fontSize:28, fontWeight:950, color:s.impact>=75?C.green:s.impact>=50?C.amber:C.red, lineHeight:1 }}>{fmtImpactScore(s.impact)}</div>
+                <div style={{ fontSize:9, color:C.muted, fontWeight:800 }}>IMPACT SCORE</div>
               </div>
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginTop:14 }}>
-              {[["Impact", s.impactS || (s.impact!==undefined ? (s.impact>=0?"+":"")+s.impact.toFixed(2) : "-"), C.amber],["Goals", s.goals||0, "#60a5fa"],["Assists", s.assists||0, C.green],["Mins", s.mins||0, "#cbd5e1"]].map(([l,v,c])=>(
+              {[["Impact Score", fmtImpactScore(s.impact), s.impact>=75?C.green:s.impact>=50?C.amber:C.red],["Goals", s.goals||0, "#60a5fa"],["Assists", s.assists||0, C.green],["Mins", s.mins||0, "#cbd5e1"]].map(([l,v,c])=>(
                 <div key={l} style={{ background:"rgba(15,23,42,.75)", border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 6px", textAlign:"center" }}>
                   <div style={{ fontSize:15, fontWeight:950, color:c }}>{v}</div>
                   <div style={{ fontSize:8, color:C.muted, fontWeight:800, letterSpacing:.5 }}>{l.toUpperCase()}</div>
@@ -2207,13 +2567,13 @@ function Players({ games, onBack, isAdmin }) {
       </div>
       {selected&&(
         <Modal title={selected.name} onClose={()=>setSelected(null)}>
-          {(() => { const s=allSt[String(selected.id)]||{}; return <div>
+          {(() => { const s={...(allSt[String(selected.id)]||{}), impact:calcPlayerImpactScore(games, selected, allSt[String(selected.id)]||{})}; return <div>
             <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
               <PlayerBubble player={selected} pos={selected.pos} size={54} />
               <div><div style={{ fontSize:18, fontWeight:950, color:"#fff" }}>{selected.name}</div><div style={{ fontSize:11, color:POS_COLOR[selected.pos]||C.muted, fontWeight:800 }}>{selected.pos} · #{selected.num}</div></div>
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-              {[["Net/80", s.net80s||"-", metricColor(s.net80)],["Impact", s.impactS || (s.impact!==undefined ? (s.impact>=0?"+":"")+s.impact.toFixed(2) : "-"), C.amber],["Total Minutes", (s.mins||0)+"'", "#cbd5e1"],["Avg Minutes", (s.avgMins||0)+"'", "#94a3b8"],["Goals", s.goals||0, "#60a5fa"],["Assists", s.assists||0, C.green]].map(([l,v,c])=>(
+              {[["Net/80", s.net80s||"-", metricColor(s.net80)],["Impact Score", fmtImpactScore(s.impact), s.impact>=75?C.green:s.impact>=50?C.amber:C.red],["Total Minutes", (s.mins||0)+"'", "#cbd5e1"],["Avg Minutes", (s.avgMins||0)+"'", "#94a3b8"],["Goals", s.goals||0, "#60a5fa"],["Assists", s.assists||0, C.green]].map(([l,v,c])=>(
                 <div key={l} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:12, textAlign:"center" }}><div style={{ fontSize:24, fontWeight:950, color:c }}>{v}</div><div style={{ fontSize:10, color:C.muted, fontWeight:800 }}>{l}</div></div>
               ))}
             </div>
@@ -2453,16 +2813,17 @@ export default function App() {
     }
   },[]);
 
-  const updateGame=g=>{ setViewing(g);setGames(prev=>prev.map(x=>x.id===g.id?g:x)); };
+  const updateGame=async g=>{ setViewing(g); setGames(prev=>prev.map(x=>x.id===g.id?g:x)); await saveGame(g); };
   const handleDelete=async g=>{ if(window.confirm("Delete "+g.opponent+"? This cannot be undone.")){ await deleteGame(g.id);setGames(prev=>prev.filter(x=>x.id!==g.id));setViewing(null); } };
   const handleEnd=async g=>{ clearGameState();setResumeState(null);await saveGame(g);setScreen("stats"); };
-  const handleSchedule=async({opp,date,time,type,venue,id})=>{
+  const handleSchedule=async({opp,date,time,type,venue,id,halfLength})=>{
     const scheduled={
       id: id || "scheduled-"+Date.now(),
       opponent:opp,
       date: date ? (date.includes("/") ? date : new Date(date).toLocaleDateString("en-US")) : "",
       time: time || "",
       type, venue,
+      halfLength: normalizeHalfLength(halfLength,type),
       status:"scheduled",
       scoreFor:0, scoreAgainst:0,
       events:[], starting:[], allPlayers:ROSTER,
@@ -2477,7 +2838,7 @@ export default function App() {
       await saveGame({
         ...existing, id:g.id,
         opponent:g.opp, date:g.date, time:g.time||"",
-        type:g.type, venue:g.venue, status:"scheduled",
+        type:g.type, venue:g.venue, halfLength: normalizeHalfLength(g.halfLength,g.type), status:"scheduled",
         scoreFor:0, scoreAgainst:0,
         events:existing.events||[], starting:existing.starting||[], allPlayers:existing.allPlayers||ROSTER,
       });
@@ -2485,7 +2846,7 @@ export default function App() {
       await saveGame({
         id:"scheduled-"+Date.now(),
         opponent:g.opp, date:g.date, time:g.time||"",
-        type:g.type, venue:g.venue, status:"scheduled",
+        type:g.type, venue:g.venue, halfLength: normalizeHalfLength(g.halfLength,g.type), status:"scheduled",
         scoreFor:0, scoreAgainst:0,
         events:[], starting:[], allPlayers:ROSTER,
       });
@@ -2522,6 +2883,7 @@ export default function App() {
   );
 
   if(viewing)return <GameDetail game={viewing} onClose={()=>setViewing(null)} onUpdate={updateGame} onDelete={handleDelete} isAdmin={isAdmin}/>;
+  if(screen==="admin_manager")return <AdminDataManager games={games} onBack={()=>setScreen("home")} onOpenGame={g=>{ setViewing(g); setPrevScreen("admin_manager"); }} onSaveGame={updateGame} onDeleteGame={handleDelete}/>;
   if(showPin)return <PinScreen onAdmin={()=>{ setIsAdmin(true);localStorage.setItem("ps_admin","1");setShowPin(false); }} onViewer={()=>setShowPin(false)}/>;
 
   return (
@@ -2531,6 +2893,7 @@ export default function App() {
           games={games}
           onStart={i=>{ if(!isAdmin){setShowPin(true);return;} setGameInfo(i);setScreen("lineup"); if(i.scheduledId){deleteGame(i.scheduledId).catch(()=>{}); }}}
           onStats={()=>setScreen("stats_view")}
+          onAdminManager={()=>setScreen("admin_manager")}
           onView={g=>{ setViewing(g);setPrevScreen("home"); }}
           isAdmin={isAdmin}
           resumeState={resumeState}
