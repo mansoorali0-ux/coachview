@@ -7,6 +7,10 @@ import {
   uid, findPlayer
 } from "./constants";
 
+// ─── ANALYTICS ENGINE v2 INCLUDED ─────────────────────────────────────────────
+// Impact Score v2 = 50% Team Impact / Net80, 25% Production, 15% Reliability, 10% Defensive Stability.
+// Includes position-adjusted goal, assist, and clean sheet values plus small-sample guardrails.
+
 // ─── FORMATIONS ───────────────────────────────────────────────────────────────
 const FORMATIONS = [
   { id:"4-4-2",  label:"4-4-2",  desc:"Classic, balanced" },
@@ -191,21 +195,42 @@ function avgGameFullMinutes(games) {
   if (!valid.length) return GAME;
   return valid.reduce((sum, g) => sum + gameFullMinutes(g), 0) / valid.length;
 }
-function posGoalWeight(pos) {
-  if (pos === "GK") return 10;
-  if (pos === "DEF") return 9;
-  if (pos === "MID") return 9;
+function posGoalValue(pos) {
+  if (pos === "GK") return 15;
+  if (pos === "DEF") return 12;
+  if (pos === "MID") return 10;
   return 8;
 }
-function posAssistWeight(pos) {
-  if (pos === "DEF" || pos === "GK") return 6;
-  return 5.5;
+function posAssistValue(pos) {
+  if (pos === "GK") return 8;
+  if (pos === "DEF") return 7;
+  if (pos === "MID") return 6;
+  return 5;
+}
+function posCleanSheetValue(pos) {
+  if (pos === "GK") return 8;
+  if (pos === "DEF") return 7;
+  if (pos === "MID") return 4;
+  return 2;
 }
 function posGAWeight(pos) {
-  if (pos === "GK") return 1.2;
+  if (pos === "GK") return 1.15;
   if (pos === "DEF") return 1.0;
-  if (pos === "MID") return 0.8;
-  return 0.6;
+  if (pos === "MID") return 0.75;
+  return 0.45;
+}
+function normalizeNet80(net80) {
+  // Converts raw Net/80 into a stable 0-100 Team Impact score.
+  // +4 or better is elite, -4 or worse is very poor. This prevents short-minute volatility.
+  return Math.round(clamp(50 + (Number(net80 || 0) * 10), 10, 95));
+}
+function reliabilityFromMinutes(avgMins, fullMinutes) {
+  const share = fullMinutes > 0 ? avgMins / fullMinutes : 0;
+  if (share >= 0.90) return 100;
+  if (share >= 0.75) return 85;
+  if (share >= 0.50) return 65;
+  if (share >= 0.25) return 40;
+  return 20;
 }
 function playerIntervalsForGame(game, playerId) {
   const pid = String(playerId);
@@ -262,10 +287,11 @@ function playerOnFieldCounts(games, player) {
   });
   return { mins, gfOn, gaOn, netOn: gfOn - gaOn };
 }
-function calcPlayerImpactScore(games, player, statOverride) {
+function calcPlayerImpactBreakdown(games, player, statOverride) {
   const s = statOverride || {};
   const played = s.played || 0;
-  const mins = s.mins || playerOnFieldCounts(games, player).mins || 0;
+  const counts = playerOnFieldCounts(games, player);
+  const mins = s.mins || counts.mins || 0;
   if (!mins || mins < 1 || played < 1) return null;
 
   const full = avgGameFullMinutes(games);
@@ -273,27 +299,61 @@ function calcPlayerImpactScore(games, player, statOverride) {
   const pos = player.pos || "MID";
   const goals = s.goals || 0;
   const assists = s.assists || 0;
-  const counts = playerOnFieldCounts(games, player);
   const gfOn = Number.isFinite(s.gf) ? s.gf : counts.gfOn;
   const gaOn = Number.isFinite(s.ga) ? s.ga : counts.gaOn;
   const netOn = gfOn - gaOn;
+  const rawNet80 = mins > 0 ? (netOn / mins) * full : 0;
 
-  const minutesReliability = clamp((avgMins / full) * 10, 0, 10);
-  const goalsPer80 = goals / mins * full;
-  const assistsPer80 = assists / mins * full;
-  const goalImpact = clamp(goalsPer80 * posGoalWeight(pos), 0, 40);
-  const assistImpact = clamp(assistsPer80 * posAssistWeight(pos), 0, 16);
-  const netContext = clamp((netOn / mins) * full * 2, -10, 12);
-  const gaPer80 = gaOn / mins * full;
-  const defensiveContext = -clamp(gaPer80 * 1.5 * posGAWeight(pos), 0, 9);
-  const cleanSheetValue = gaOn === 0 && mins >= 20
-    ? (pos === "GK" || pos === "DEF" ? clamp(avgMins / full * 6, 0, 6) : pos === "MID" ? clamp(avgMins / full * 3, 0, 3) : clamp(avgMins / full * 1, 0, 1))
-    : 0;
-  const carriedAttack = goals >= 3 && gfOn > 0 && goals >= gfOn ? 4 : 0;
-  const hatTrickBonus = goals >= 3 ? 6 : 0;
+  // 1) Team Impact: built from Net/80, but normalized so low-minute swings do not dominate.
+  const teamImpact = normalizeNet80(rawNet80);
 
-  const score = 50 + minutesReliability + goalImpact + assistImpact + netContext + defensiveContext + cleanSheetValue + carriedAttack + hatTrickBonus;
-  return Math.round(clamp(score, 0, 100));
+  // 2) Production: position-adjusted goals and assists. Neutral baseline of 50 so non-scorers are not crushed.
+  const weightedProduction = (goals * posGoalValue(pos)) + (assists * posAssistValue(pos));
+  const productionPer80 = mins > 0 ? (weightedProduction / mins) * full : 0;
+  const production = Math.round(clamp(50 + (productionPer80 * 3.2), 50, 100));
+
+  // 3) Reliability: coach-trust layer based on share of match played.
+  const reliability = reliabilityFromMinutes(avgMins, full);
+
+  // 4) Defensive Stability: rewards clean sheets and low GA while on field. Includes midfielders.
+  const gaPer80 = mins > 0 ? (gaOn / mins) * full : 0;
+  const cleanSheetEarned = gaOn === 0 && (avgMins / full) >= 0.25;
+  const cleanSheetBoost = cleanSheetEarned ? posCleanSheetValue(pos) * 4 : 0;
+  const lowGABonus = gaPer80 <= 0.75 ? 10 : gaPer80 <= 1.25 ? 5 : 0;
+  const gaDrag = clamp(gaPer80 * 6 * posGAWeight(pos), 0, 28);
+  const defensiveStability = Math.round(clamp(50 + cleanSheetBoost + lowGABonus - gaDrag, 20, 100));
+
+  let impact =
+    (teamImpact * 0.50) +
+    (production * 0.25) +
+    (reliability * 0.15) +
+    (defensiveStability * 0.10);
+
+  // Small sample guardrails:
+  // A short cameo should not outrank a full-game trusted starter unless the production is truly exceptional.
+  const minuteShare = avgMins / full;
+  const majorProduction = weightedProduction >= 16 || goals >= 2 || (goals >= 1 && assists >= 1);
+  if (minuteShare < 0.15 && !majorProduction) impact = Math.min(impact, 65);
+  else if (minuteShare < 0.25 && !majorProduction) impact = Math.min(impact, 72);
+  else if (minuteShare < 0.25 && majorProduction) impact = Math.min(impact, 84);
+
+  return {
+    impact: Math.round(clamp(impact, 25, 100)),
+    teamImpact,
+    production,
+    reliability,
+    defensiveStability,
+    rawNet80,
+    gfOn,
+    gaOn,
+    mins,
+    avgMins,
+    cleanSheetEarned,
+  };
+}
+function calcPlayerImpactScore(games, player, statOverride) {
+  const b = calcPlayerImpactBreakdown(games, player, statOverride);
+  return b ? b.impact : null;
 }
 function fmtImpactScore(v) { return v === null || v === undefined ? "-" : String(Math.round(v)); }
 
@@ -726,7 +786,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
               {optXI.map((p, i) => (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: i < optXI.length-1 ? `1px solid ${C.border}` : "none" }}>
                   <span style={{ fontSize: 11, color: C.muted, width: 18 }}>{i+1}.</span>
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.text }}>{p.name}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
                   <span style={{ fontSize: 10, color: POS_COLOR[p.pos] || C.muted, fontWeight: 700, marginRight: 4 }}>{p.pos}</span>
                   <div style={{ display: "flex", gap: 6 }}>
                     <div style={{ textAlign: "center" }}>
@@ -754,7 +814,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                   {optRest.map((p, i) => (
                     <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0", borderBottom:i<optRest.length-1?`1px solid ${C.border}`:"none", opacity:0.7 }}>
                       <span style={{ fontSize:11, color:C.muted, width:18 }}>{optXI.length+i+1}.</span>
-                      <span style={{ flex:1, fontSize:12, color:"#94a3b8" }}>{p.name}</span>
+                      <span style={{ flex:1, minWidth:0, fontSize:11, color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
                       <span style={{ fontSize:9, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
                       <div style={{ display:"flex", gap:4 }}>
                         <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:7, color:C.muted }}>NET/80</div></div>
@@ -770,7 +830,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
                   {sortedGuestE.map((p, i) => (
                     <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < sortedGuestE.length-1 ? `1px solid ${C.border}` : "none", opacity: 0.75 }}>
                       <span style={{ fontSize: 11, color: C.muted, width: 18 }}>G</span>
-                      <span style={{ flex: 1, fontSize: 13, color: "#94a3b8" }}>{p.name}</span>
+                      <span style={{ flex: 1, minWidth:0, fontSize: 11, color: "#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
                       <div style={{ display: "flex", gap: 6 }}>
                         <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 800, color: parseFloat(p.net80) >= 0 ? C.green : C.red }}>{p.net80s}</div><div style={{ fontSize: 8, color: C.muted }}>NET/80</div></div>
                         <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 800, color: p.impact >= 75 ? C.green : p.impact >= 50 ? C.amber : C.red }}>{fmtI(p.impact)}</div><div style={{ fontSize: 8, color: C.muted }}>IMPACT SCORE</div></div>
@@ -789,7 +849,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
           return (
             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, ...card, border: `1px solid ${C.border}`, marginBottom: 5 }}>
               <span style={{ width: 28, height: 28, borderRadius: "50%", background: C.border, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, color: "#93c5fd", flexShrink: 0 }}>#{p.num}</span>
-              <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: C.text }}>{p.name}</span>
+              <span style={{ flex: 1, minWidth:0, fontWeight: 700, fontSize: 12, color: C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
               <span style={{ fontSize: 16, fontWeight: 800, color: "#60a5fa" }}>{s.mins}'</span>
               {s.goals > 0 && <div style={{ background: C.border, borderRadius: 6, padding: "3px 8px", textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 800, color: "#60a5fa" }}>{s.goals}</div><div style={{ fontSize: 8, color: C.muted }}>G</div></div>}
               {s.assists > 0 && <div style={{ background: C.border, borderRadius: 6, padding: "3px 8px", textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{s.assists}</div><div style={{ fontSize: 8, color: C.muted }}>A</div></div>}
@@ -1921,7 +1981,7 @@ function Game({ gameInfo, onEnd, onBack }) {
           {benchP.map(p=>(
             <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, ...card, marginBottom:6 }}>
               <span style={{ width:28, height:28, borderRadius:"50%", background:C.border, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:11, color:"#93c5fd", flexShrink:0 }}>{p.num}</span>
-              <span style={{ flex:1, fontWeight:600, fontSize:14, color:C.text }}>{p.name}</span>
+              <span style={{ flex:1, minWidth:0, fontWeight:700, fontSize:12, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
               <span style={{ fontSize:11, color:POS_COLOR[p.pos], fontWeight:600 }}>{p.pos}</span>
             </div>
           ))}
@@ -2117,7 +2177,7 @@ function Game({ gameInfo, onEnd, onBack }) {
         {onFieldP.map(p=>(
           <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, background:"#0d2137", border:`1px solid ${C.blue}`, borderRadius:14, padding:"10px 12px", marginBottom:5 }}>
             <span style={{ width:26, height:26, borderRadius:"50%", background:POS_COLOR[positions[p.id]]||C.muted, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:10, color:"#fff", flexShrink:0 }}>{p.num}</span>
-            <span style={{ flex:1, fontSize:13, fontWeight:700, color:C.text }}>{p.name}</span>
+            <span style={{ flex:1, minWidth:0, fontSize:12, fontWeight:800, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
             <span style={{ fontSize:11, color:POS_COLOR[positions[p.id]], fontWeight:700 }}>{positions[p.id]}</span>
           </div>
         ))}
@@ -2590,7 +2650,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
             return sXI.map((p,i)=>(
               <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderBottom:i<sXI.length-1?`1px solid ${C.border}`:"none" }}>
                 <span style={{ fontSize:12, color:C.muted, width:18 }}>{i+1}.</span>
-                <span style={{ flex:1, fontSize:13, fontWeight:700, color:C.text }}>{p.name}</span>
+                <span style={{ flex:1, minWidth:0, fontSize:12, fontWeight:800, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
                 <span style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
                 <div style={{ display:"flex", gap:6 }}>
                   <div style={{ textAlign:"center" }}><div style={{ fontSize:12, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
@@ -2617,7 +2677,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
                 {scOthers.map((p,i)=>(
                   <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0", borderBottom:i<scOthers.length-1?`1px solid ${C.border}`:"none", opacity:0.7 }}>
                     <span style={{ fontSize:11, color:C.muted, width:18 }}>{sXI2ids.size+i+1}.</span>
-                    <span style={{ flex:1, fontSize:12, color:"#94a3b8" }}>{p.name}</span>
+                    <span style={{ flex:1, minWidth:0, fontSize:11, color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
                     <span style={{ fontSize:9, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
                     <div style={{ display:"flex", gap:4 }}>
                       <div style={{ textAlign:"center" }}><div style={{ fontSize:11, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:7, color:C.muted }}>NET/80</div></div>
