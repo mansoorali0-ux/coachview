@@ -537,15 +537,16 @@ function PinScreen({ onAdmin, onViewer }) {
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:32, ...T }}>
       <div style={{ fontSize:13, fontWeight:800, color:"#60a5fa", letterSpacing:3, marginBottom:4 }}>PITCHSIDE</div>
       <div style={{ fontSize:24, fontWeight:900, color:"#fff", marginBottom:4 }}>Baltimore Armour</div>
-      <div style={{ fontSize:11, color:"#93c5fd", letterSpacing:2, marginBottom:40 }}>SECURE COACH LOGIN</div>
+      <div style={{ fontSize:11, color:"#93c5fd", letterSpacing:2, marginBottom:40 }}>ADMIN LOGIN</div>
       <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:28, width:"100%", maxWidth:340, textAlign:"center" }}>
-        <div style={{ fontSize:15, fontWeight:800, color:C.text, marginBottom:8 }}>Firebase Login</div>
-        <div style={{ fontSize:12, color:C.muted, lineHeight:1.4, marginBottom:16 }}>Use the email/password account you created in Firebase Authentication.</div>
+        <div style={{ fontSize:15, fontWeight:800, color:C.text, marginBottom:8 }}>Coach/Admin Login</div>
+        <div style={{ fontSize:12, color:C.muted, lineHeight:1.4, marginBottom:16 }}>Use your approved Firebase email/password to unlock editing tools.</div>
         <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&check()} placeholder="Email" autoComplete="email" style={{ ...inp, marginBottom:10 }}/>
         <input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&check()} placeholder="Password" autoComplete="current-password" style={{ ...inp, marginBottom:10 }}/>
         {err&&<div style={{ color:C.red, fontSize:13, marginBottom:10 }}>{err}</div>}
-        <button onClick={check} disabled={busy} style={{ ...btn(busy?C.border:C.blue), width:"100%", padding:16, fontSize:16, marginBottom:12, opacity:busy?0.7:1 }}>{busy?"Signing in…":"Sign In"}</button>
-        <div style={{ fontSize:11, color:C.muted, lineHeight:1.4 }}>This replaces the old PIN and prepares the database for secure Firebase rules.</div>
+        <button onClick={check} disabled={busy} style={{ ...btn(busy?C.border:C.blue), width:"100%", padding:16, fontSize:16, marginBottom:10, opacity:busy?0.7:1 }}>{busy?"Signing in…":"Sign In"}</button>
+        <button onClick={onViewer} style={{ ...btn("transparent",C.muted), width:"100%", border:`1px solid ${C.border}`, padding:12, fontSize:13, marginBottom:12 }}>Continue View Only</button>
+        <div style={{ fontSize:11, color:C.muted, lineHeight:1.4 }}>Viewers can watch live data. Only signed-in admins can edit or save.</div>
       </div>
     </div>
   );
@@ -2790,11 +2791,6 @@ export default function App() {
 
   useEffect(()=>{
     if (!authReady) return;
-    if (!authUser) {
-      setGames([]);
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     const safeSetLoaded = (nextGames) => {
       if (cancelled) return;
@@ -2915,7 +2911,6 @@ export default function App() {
     </div>
   );
 
-  if(!authUser)return <PinScreen onAdmin={()=>setShowPin(false)} onViewer={()=>{}}/>;
 
   if(viewing)return <GameDetail game={viewing} onClose={()=>setViewing(null)} onUpdate={updateGame} onDelete={handleDelete} isAdmin={isAdmin}/>;
   if(screen==="admin_manager")return <AdminDataManager games={games} onBack={()=>setScreen("home")} onOpenGame={g=>{ setViewing(g); setPrevScreen("admin_manager"); }} onSaveGame={updateGame} onDeleteGame={handleDelete}/>;
