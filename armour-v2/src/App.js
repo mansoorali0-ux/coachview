@@ -963,13 +963,90 @@ function AdminDataManager({ games, onBack, onOpenGame, onSaveGame, onDeleteGame 
     setMessage("Guest/player IDs cleaned and saved.");
   };
 
+  const downloadJson = (filename, data) => {
+    try {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      setMessage("Export failed. Take a screenshot and send it to me.");
+    }
+  };
+
+  const exportAllGamesBackup = () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadJson(`pitchside-games-backup-${stamp}.json`, {
+      exportedAt: new Date().toISOString(),
+      app: "PitchSide",
+      type: "all-games-backup",
+      games,
+    });
+  };
+
+  const exportGameBackup = () => {
+    if (!editing) return;
+    const stamp = new Date().toISOString().slice(0, 10);
+    const safeOpponent = normOpponent(editing.opponent || "game").replace(/\s+/g, "-") || "game";
+    downloadJson(`pitchside-${safeOpponent}-${stamp}.json`, {
+      exportedAt: new Date().toISOString(),
+      app: "PitchSide",
+      type: "single-game-backup",
+      game: editing,
+      integrityReport: getGameIntegrityReport(editing),
+    });
+  };
+
+  const autoRepairSafeIssues = async () => {
+    if (!editing) return;
+    if (!window.confirm("Run safe repair on this game? This will clean duplicate guest IDs, normalize match length, and rebuild the score from goal events.")) return;
+    setSaving(true);
+    setMessage("Running safe repair…");
+    try {
+      const { game } = canonicalizeGuestPlayers(editing);
+      const scoreFor = game.status === "scheduled" ? Number(game.scoreFor || 0) : (game.events || []).filter(e => e.type === "goal_for").length;
+      const scoreAgainst = game.status === "scheduled" ? Number(game.scoreAgainst || 0) : (game.events || []).filter(e => e.type === "goal_against").length;
+      const repaired = {
+        ...game,
+        scoreFor,
+        scoreAgainst,
+        halfLength: normalizeHalfLength(game.halfLength || editing._halfLength, game.type || editing._type),
+        updatedAt: new Date().toISOString(),
+        integrityRepairAppliedAt: new Date().toISOString(),
+      };
+      await onSaveGame(repaired);
+      setEditing({
+        ...repaired,
+        _scoreFor: Number(repaired.scoreFor || 0),
+        _scoreAgainst: Number(repaired.scoreAgainst || 0),
+        _halfLength: gameHalfMinutes(repaired),
+        _status: repaired.status || "completed",
+        _type: repaired.type || "regular",
+        _venue: repaired.venue || "Away",
+        _veoLink: repaired.veoLink || "",
+        _dateRaw: toDateInputValue(repaired.date),
+      });
+      setMessage("Safe repair completed and saved.");
+    } catch (e) {
+      console.error(e);
+      setMessage("Safe repair failed. Take a screenshot and send it to me.");
+    }
+    setSaving(false);
+  };
+
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:84 }}>
       <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:"20px 16px 16px", borderBottom:`3px solid ${C.amber}` }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:800, cursor:"pointer", padding:0, marginBottom:10 }}>{"< Back"}</button>
         <div style={{ fontSize:11, color:C.amber, letterSpacing:2, fontWeight:900, textTransform:"uppercase" }}>Admin</div>
         <div style={{ fontSize:24, fontWeight:900, color:"#fff", marginTop:2 }}>Data Manager</div>
-        <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>Fix scores, match length, metadata, guest IDs, and Firebase game records without touching Firebase.</div>
+        <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>Fix scores, match length, metadata, guest IDs, and Firebase game records. Phase 2A + 2B adds data integrity checks, event validation, safe repair tools, and JSON backup/export.</div>
       </div>
 
       <div style={{ padding:16, maxWidth:520, margin:"0 auto" }}>
@@ -994,12 +1071,15 @@ function AdminDataManager({ games, onBack, onOpenGame, onSaveGame, onDeleteGame 
           ))}
         </div>
 
+        <button onClick={exportAllGamesBackup} style={{ ...btn(C.border, "#93c5fd", { width:"100%", marginBottom:12 }) }}>Export All Games Backup</button>
+
         {visible.length === 0 && <div style={{ ...card, color:C.muted, fontSize:13, textAlign:"center" }}>No games found.</div>}
 
         {visible.map(g => {
           const ev = g.events || [];
-          const gfEvents = ev.filter(e=>e.type==="goal_for").length;
-          const gaEvents = ev.filter(e=>e.type==="goal_against").length;
+          const report = getGameIntegrityReport(g);
+          const gfEvents = report.gfEvents;
+          const gaEvents = report.gaEvents;
           const issueList = getGameDataIssues(g);
           const statusColor = g.status === "scheduled" ? C.purple : g.scoreFor > g.scoreAgainst ? C.green : g.scoreFor < g.scoreAgainst ? C.red : C.amber;
           return (
@@ -1059,19 +1139,42 @@ function AdminDataManager({ games, onBack, onOpenGame, onSaveGame, onDeleteGame 
             <button key={v} onClick={()=>setEditing(g=>({...g,_venue:v}))} style={{ ...btn(editing._venue===v?C.blue:C.border, editing._venue===v?"#fff":C.muted), flex:1 }}>{v}</button>
           ))}</div>
 
-          <div style={{ ...card, background:"#081321", marginBottom:12 }}>
-            <div style={{ fontSize:12, fontWeight:900, color:C.text, marginBottom:6 }}>Data Checks</div>
-            <div style={{ fontSize:11, color:C.muted }}>Events: {(editing.events || []).length} · Goals from events: {(editing.events || []).filter(e=>e.type==="goal_for").length}-{(editing.events || []).filter(e=>e.type==="goal_against").length}</div>
-            <div style={{ fontSize:11, color:C.muted, marginTop:3 }}>Players saved: {(editing.allPlayers || []).length || ROSTER.length} · Guest players: {(editing.guests || []).length}</div>
-          </div>
+          {(() => {
+            const report = getGameIntegrityReport(editing);
+            return (
+              <div style={{ ...card, background:"#081321", marginBottom:12, border:`1px solid ${report.issues.length ? C.red : report.warnings.length ? C.amber : C.green}` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                  <div style={{ fontSize:12, fontWeight:900, color:C.text }}>Data Integrity Checks</div>
+                  <div style={{ fontSize:10, fontWeight:900, color:report.issues.length ? C.red : report.warnings.length ? C.amber : C.green }}>{report.issues.length ? "FIX NEEDED" : report.warnings.length ? "REVIEW" : "HEALTHY"}</div>
+                </div>
+                <div style={{ fontSize:11, color:C.muted }}>Events: {report.eventCount} · Goals from events: {report.gfEvents}-{report.gaEvents} · Max minute: {report.maxMinute}'</div>
+                <div style={{ fontSize:11, color:C.muted, marginTop:3 }}>Players saved: {report.playerCount} · Guest players: {report.guestCount}</div>
+                {(report.issues.length > 0 || report.warnings.length > 0) && (
+                  <div style={{ marginTop:8 }}>
+                    {report.issues.map(x => <div key={x} style={{ fontSize:11, color:"#fca5a5", marginTop:3 }}>● {x}</div>)}
+                    {report.warnings.map(x => <div key={x} style={{ fontSize:11, color:"#fbbf24", marginTop:3 }}>● {x}</div>)}
+                  </div>
+                )}
+                {report.suggestions.length > 0 && (
+                  <div style={{ marginTop:8, padding:8, borderRadius:10, background:"#0a1222", border:`1px solid ${C.border}` }}>
+                    {report.suggestions.map(x => <div key={x} style={{ fontSize:11, color:"#93c5fd", marginTop:3 }}>Suggestion: {x}</div>)}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <button disabled={saving} onClick={()=>saveEdit()} style={{ ...btn(C.green), width:"100%", marginBottom:8 }}>{saving?"Saving…":"Save Game Data"}</button>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
             <button disabled={saving} onClick={rebuildScoreFromEvents} style={{ ...btn(C.amber, "#111827", { fontSize:12 }) }}>Rebuild Score</button>
             <button disabled={saving} onClick={cleanGuests} style={{ ...btn(C.purple, "#fff", { fontSize:12 }) }}>Clean Guests</button>
           </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+            <button disabled={saving} onClick={autoRepairSafeIssues} style={{ ...btn(C.green, "#fff", { fontSize:12 }) }}>Safe Auto Repair</button>
+            <button disabled={saving} onClick={exportGameBackup} style={{ ...btn(C.border, "#93c5fd", { fontSize:12 }) }}>Export Game</button>
+          </div>
           <button onClick={()=>{ setEditing(null); onOpenGame(editing); }} style={{ ...btn(C.border, "#93c5fd"), width:"100%", marginBottom:8 }}>Open Full Game Editor</button>
-          <button onClick={async()=>{ if(window.confirm("Delete this game from Firebase?")){ await onDeleteGame(editing); setEditing(null); } }} style={{ ...btn("#7f1d1d", "#fca5a5"), width:"100%" }}>Delete Game</button>
+          <button onClick={async()=>{ if(window.confirm("Delete this game from Firebase? This cannot be undone. Only delete test/bad records.")){ await onDeleteGame(editing); setEditing(null); } }} style={{ ...btn("#7f1d1d", "#fca5a5"), width:"100%" }}>Delete Game</button>
         </Modal>
       )}
     </div>
@@ -1088,25 +1191,84 @@ function toDateInputValue(v) {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-function getGameDataIssues(g) {
+function getGameIntegrityReport(g) {
+  const events = g.events || [];
+  const allPlayers = g.allPlayers || ROSTER;
+  const playerIds = new Set(allPlayers.map(p => String(p.id)));
+  const rosterIds = new Set(ROSTER.map(p => String(p.id)));
   const issues = [];
+  const warnings = [];
+  const suggestions = [];
+
   if (!g.id) issues.push("missing id");
-  if (!g.opponent) issues.push("missing opponent");
+  if (!g.opponent || !String(g.opponent).trim()) issues.push("missing opponent");
   if (!g.date) issues.push("missing date");
   if (![30,35,40].includes(gameHalfMinutes(g))) issues.push("half length");
+
+  const gfEvents = events.filter(e => e.type === "goal_for").length;
+  const gaEvents = events.filter(e => e.type === "goal_against").length;
   if (g.status !== "scheduled") {
-    const gfEvents = (g.events || []).filter(e=>e.type==="goal_for").length;
-    const gaEvents = (g.events || []).filter(e=>e.type==="goal_against").length;
-    if (Number(g.scoreFor || 0) !== gfEvents || Number(g.scoreAgainst || 0) !== gaEvents) issues.push("score mismatch");
-    if (!(g.starting || []).length && (g.events || []).length) issues.push("missing lineup");
+    if (Number(g.scoreFor || 0) !== gfEvents || Number(g.scoreAgainst || 0) !== gaEvents) {
+      issues.push("score mismatch");
+      suggestions.push("Use Rebuild Score to match the goal events.");
+    }
+    if (!(g.starting || []).length && events.length) issues.push("missing lineup");
   }
-  const seen = new Set();
+
+  const maxMinute = gameTotalMinutes(g);
+  events.forEach((e, idx) => {
+    const label = `${e.type || "event"} #${idx + 1}`;
+    if (!["goal_for","goal_against","sub","half_start","half_end","game_end"].includes(e.type)) warnings.push(`${label}: unknown type`);
+    if (e.minute === undefined || e.minute === null || Number.isNaN(Number(e.minute))) issues.push(`${label}: missing minute`);
+    else if (Number(e.minute) < 0 || Number(e.minute) > maxMinute + 5) warnings.push(`${label}: minute outside match length`);
+    if (e.type === "goal_for" && !e.ownGoal && e.scorer && !playerIds.has(String(e.scorer))) issues.push(`${label}: scorer not in player list`);
+    if (e.type === "goal_for" && e.assist && !playerIds.has(String(e.assist))) issues.push(`${label}: assist not in player list`);
+    if (e.type === "sub") {
+      if (!e.playerOn || !playerIds.has(String(e.playerOn))) issues.push(`${label}: player on not found`);
+      if (!e.playerOff || !playerIds.has(String(e.playerOff))) issues.push(`${label}: player off not found`);
+      if (String(e.playerOn) === String(e.playerOff)) issues.push(`${label}: same player on/off`);
+    }
+  });
+
+  const guestNames = new Map();
   (g.guests || []).forEach(p => {
     const key = normName(p.name);
-    if (key && seen.has(key)) issues.push("duplicate guest");
-    if (key) seen.add(key);
+    if (!key) warnings.push("guest missing name");
+    if (key && guestNames.has(key)) issues.push("duplicate guest");
+    if (key) guestNames.set(key, p);
   });
-  return Array.from(new Set(issues));
+
+  const allPlayerNames = new Map();
+  allPlayers.forEach(p => {
+    const key = normName(p.name);
+    if (!key) return;
+    if (allPlayerNames.has(key)) warnings.push("duplicate player name");
+    allPlayerNames.set(key, p);
+    if (!rosterIds.has(String(p.id)) && !String(p.id).startsWith("G_")) warnings.push("guest id format");
+  });
+
+  const starting = (g.starting || []).map(String);
+  const second = (g.secondHalfStarting || []).map(String);
+  if (starting.length > 11) warnings.push("starting XI over 11");
+  if (second.length > 11) warnings.push("2nd half XI over 11");
+  [...starting, ...second].forEach(id => { if (!playerIds.has(String(id))) issues.push("lineup player not found"); });
+
+  return {
+    issues: Array.from(new Set(issues)),
+    warnings: Array.from(new Set(warnings)),
+    suggestions: Array.from(new Set(suggestions)),
+    gfEvents,
+    gaEvents,
+    eventCount: events.length,
+    playerCount: allPlayers.length,
+    guestCount: (g.guests || []).length,
+    maxMinute,
+  };
+}
+
+function getGameDataIssues(g) {
+  const r = getGameIntegrityReport(g);
+  return [...r.issues, ...r.warnings];
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
