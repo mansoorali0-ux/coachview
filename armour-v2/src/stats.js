@@ -1,5 +1,15 @@
 import { ROSTER, HALF, GAME } from "./constants";
 
+function gameHalfMinutes(game) {
+  const n = parseInt(game?.halfLength, 10);
+  if (Number.isFinite(n) && n >= 20 && n <= 50) return n;
+  return HALF;
+}
+
+function gameFullMinutes(game) {
+  return gameHalfMinutes(game) * 2 || GAME;
+}
+
 export function calcStats(games) {
   const stats = {};
 
@@ -13,41 +23,84 @@ export function calcStats(games) {
     const allP = g.allPlayers || ROSTER;
     allP.forEach(p => ensure(p.id));
 
+    const halfLen = gameHalfMinutes(g);
+    const fullLen = gameFullMinutes(g);
     const on = {}, mins = {};
+
     (g.starting || []).forEach(id => { on[String(id)] = 0; });
 
-    const sorted = [...(g.events || [])].sort((a,b) => a.minute - b.minute);
+    const sorted = [...(g.events || [])].sort((a,b) => {
+      const am = Number(a.minute) || 0;
+      const bm = Number(b.minute) || 0;
+      return am - bm;
+    });
+
     let htDone = false;
 
+    const doHalfReset = () => {
+      if (htDone || !g.secondHalfStarting) return;
+      htDone = true;
+
+      Object.keys(on).forEach(k => {
+        const start = Number(on[k]) || 0;
+        mins[k] = (mins[k] || 0) + Math.max(0, halfLen - start);
+      });
+
+      Object.keys(on).forEach(k => delete on[k]);
+
+      (g.secondHalfStarting || []).forEach(id => {
+        const k = ensure(id);
+        on[k] = halfLen;
+      });
+    };
+
     sorted.forEach(ev => {
-      // Halftime reset
-      if (!htDone && ev.half === 2 && g.secondHalfStarting) {
-        htDone = true;
-        Object.keys(on).forEach(k => { mins[k] = (mins[k]||0) + (HALF - on[k]); });
-        Object.keys(on).forEach(k => delete on[k]);
-        g.secondHalfStarting.forEach(id => { ensure(id); on[String(id)] = HALF; });
+      const minute = Math.max(0, Math.min(fullLen, Number(ev.minute) || 0));
+
+      if (!htDone && g.secondHalfStarting && (ev.half === 2 || minute >= halfLen)) {
+        doHalfReset();
       }
 
       if (ev.type === "sub") {
-        const off = String(ev.playerOff), inn = String(ev.playerOn);
-        if (on[off] !== undefined) { mins[off] = (mins[off]||0) + (ev.minute - on[off]); delete on[off]; }
-        ensure(inn); on[inn] = ev.minute;
+        const off = String(ev.playerOff);
+        const inn = String(ev.playerOn);
+
+        if (on[off] !== undefined) {
+          const start = Number(on[off]) || 0;
+          mins[off] = (mins[off] || 0) + Math.max(0, minute - start);
+          delete on[off];
+        }
+
+        ensure(inn);
+        if (on[inn] === undefined) {
+          on[inn] = minute;
+        }
       }
+
       if (ev.type === "goal_for") {
-        if (ev.scorer) { const k=ensure(ev.scorer); stats[k].goals++; }
-        if (ev.assist) { const k=ensure(ev.assist); stats[k].assists++; }
+        if (ev.scorer) { const k = ensure(ev.scorer); stats[k].goals++; }
+        if (ev.assist) { const k = ensure(ev.assist); stats[k].assists++; }
         Object.keys(on).forEach(k => { ensure(k); stats[k].gf++; });
       }
+
       if (ev.type === "goal_against") {
         Object.keys(on).forEach(k => { ensure(k); stats[k].ga++; });
       }
     });
 
-    Object.keys(on).forEach(k => { mins[k] = (mins[k]||0) + (GAME - on[k]); });
+    if (!htDone && g.secondHalfStarting) {
+      doHalfReset();
+    }
+
+    Object.keys(on).forEach(k => {
+      const start = Number(on[k]) || 0;
+      mins[k] = (mins[k] || 0) + Math.max(0, fullLen - start);
+    });
+
     Object.keys(mins).forEach(k => {
       if (mins[k] > 0) {
         ensure(k);
-        stats[k].mins += Math.min(mins[k], GAME);
+        stats[k].mins += Math.min(mins[k], fullLen);
         stats[k].played++;
       }
     });
