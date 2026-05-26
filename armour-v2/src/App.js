@@ -7,6 +7,15 @@ import {
   uid, findPlayer
 } from "./constants";
 
+// ─── AVATAR SUB IMPACT OVERVIEW INCLUDED ───────────────────────────────────
+// Modern prototype portraits for roster players, full-name card layout, and season-level Sub Impact overview.
+
+// ─── METRIC EXPLAINERS INCLUDED ─────────────────────────────────────────────
+// Impact, Net/80, GF/GA, and Sub Impact include short explanation + expandable formula/details.
+
+// ─── SUB IMPACT FINAL INCLUDED ──────────────────────────────────────────────
+// Individual sub impact rows plus game-level Sub +/- summary. Full event visibility and full-name readability included.
+
 // ─── PREMIUM REBRAND v1 INCLUDED ───────────────────────────────────────────\n// Matte graphite + ice-blue design system, premium cards/buttons, and player-name fit improvements.\n\n// ─── ANALYTICS ENGINE v2 INCLUDED ─────────────────────────────────────────────
 // Impact Score v2 = 50% Team Impact / Net80, 25% Production, 15% Reliability, 10% Defensive Stability.
 // Includes position-adjusted goal, assist, and clean sheet values plus small-sample guardrails.
@@ -400,8 +409,53 @@ function calcPlayerImpactScore(games, player, statOverride) {
 function fmtImpactScore(v) { return v === null || v === undefined ? "-" : String(Math.round(v)); }
 
 // ─── UI COMPONENTS ───────────────────────────────────────────────────────────
+function avatarSvg(player, pos="MID") {
+  if (!player || player.isGuest || String(player.num || "").toUpperCase() === "G") return null;
+  const seed = Array.from(String(player.id || player.name || "0")).reduce((a,c)=>a+c.charCodeAt(0),0);
+  const skins = ["#8d5524","#c68642","#e0ac69","#f1c27d","#ffdbac","#6b3f2a"];
+  const hairs = ["#111827","#2f1b0c","#5b3427","#8b5a2b","#0f172a","#3f2a20"];
+  const skin = skins[seed % skins.length];
+  const hair = hairs[(seed * 3) % hairs.length];
+  const jersey = POS_COLOR[pos] || C.blue;
+  const bg1 = seed % 2 === 0 ? "#0f2744" : "#111827";
+  const bg2 = seed % 3 === 0 ? "#164e63" : "#020617";
+  const hairShape = seed % 3 === 0
+    ? `<path d="M23 30c4-16 29-17 35 0-6-8-24-9-35 0z" fill="${hair}"/>`
+    : seed % 3 === 1
+      ? `<path d="M20 31c2-18 34-19 39 1-8-5-20-8-39-1z" fill="${hair}"/>`
+      : `<path d="M24 29c6-14 25-14 31 0-10-3-20-3-31 0z" fill="${hair}"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop stop-color="${bg1}"/><stop offset="1" stop-color="${bg2}"/>
+      </linearGradient>
+      <clipPath id="clip"><circle cx="40" cy="40" r="39"/></clipPath>
+    </defs>
+    <circle cx="40" cy="40" r="40" fill="url(#bg)"/>
+    <g clip-path="url(#clip)">
+      <path d="M12 82c4-20 17-31 28-31s24 11 28 31H12z" fill="${jersey}"/>
+      <path d="M27 58l13 8 13-8" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2"/>
+      <circle cx="40" cy="37" r="17" fill="${skin}"/>
+      ${hairShape}
+      <circle cx="34" cy="39" r="2" fill="#111827"/><circle cx="46" cy="39" r="2" fill="#111827"/>
+      <path d="M34 48c4 3 9 3 13 0" stroke="#111827" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M23 34c2-13 29-18 35 1-10-7-24-8-35-1z" fill="${hair}" opacity=".85"/>
+      <path d="M21 68h38" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
+    </g>
+  </svg>`;
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+}
+
 function PlayerBubble({ player, pos, size=34 }) {
   const label = player?.num || (player?.name ? player.name.slice(0,2).toUpperCase() : "?");
+  const img = avatarSvg(player, pos);
+  if (img) {
+    return (
+      <span style={{ width:size, height:size, borderRadius:"50%", backgroundImage:img, backgroundSize:"cover", backgroundPosition:"center", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:11, color:"#fff", flexShrink:0, boxShadow:`0 10px 24px rgba(0,0,0,.32), 0 0 0 2px ${POS_COLOR[pos] || C.border}`, border:"2px solid rgba(255,255,255,.14)", position:"relative" }}>
+        <span style={{ position:"absolute", right:-4, bottom:-4, minWidth:18, height:18, padding:"0 4px", borderRadius:999, background:POS_COLOR[pos]||C.blue, border:"2px solid #020617", color:"#fff", fontSize:9, fontWeight:950, display:"flex", alignItems:"center", justifyContent:"center" }}>{label}</span>
+      </span>
+    );
+  }
   return (
     <span style={{ width:size, height:size, borderRadius:"50%", background:POS_COLOR[pos]||C.border, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:size>36?13:11, color:"#fff", flexShrink:0, boxShadow:"0 6px 16px rgba(0,0,0,.25)", border:"1px solid rgba(255,255,255,.16)" }}>{label}</span>
   );
@@ -425,7 +479,7 @@ function FormationField({ players, positions, title, compact=false }) {
             {row.map(p => (
               <div key={p.id} style={{ textAlign:"center", minWidth:compact?42:48 }}>
                 <PlayerBubble player={p} pos={p._pos} size={compact?30:36} />
-                <div style={{ fontSize:compact?8:9, color:"#d1fae5", marginTop:3, fontWeight:700, maxWidth:60, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name?.split(" ")[0]}</div>
+                <div style={{ fontSize:compact?8:9, color:"#d1fae5", marginTop:3, fontWeight:700, maxWidth:78, whiteSpace:"normal", lineHeight:1.1 }}>{p.name}</div>
               </div>
             ))}
           </div>
@@ -444,7 +498,7 @@ function MomentumTimeline({ game, title="Momentum Timeline", compact=false }) {
   const allPlayers = game?.allPlayers || ROSTER;
   const pName = (id) => {
     const p = allPlayers.find(p => String(p.id) === String(id));
-    return p ? p.name.split(" ")[0] : "?";
+    return p ? p.name : "?";
   };
   const eventMeta = (e) => {
     if (e.type === "goal_for") return { icon:"⚽", bg:C.green, label:e.ownGoal ? "Own Goal" : `Goal · ${pName(e.scorer)}` };
@@ -484,14 +538,13 @@ function MomentumTimeline({ game, title="Momentum Timeline", compact=false }) {
         <div style={{ color:C.muted, fontSize:12, textAlign:"center", padding:"8px 0" }}>No goals or substitutions logged</div>
       ) : (
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-          {events.slice(0,10).map((e,i)=>{ const meta=eventMeta(e); return (
-            <div key={e.id || i} style={{ display:"flex", alignItems:"center", gap:5, background:"#0a1222", border:`1px solid ${C.border}`, borderRadius:999, padding:"5px 8px" }}>
+          {events.map((e,i)=>{ const meta=eventMeta(e); return (
+            <div key={e.id || i} style={{ display:"flex", alignItems:"center", gap:5, background:"#0a1222", border:`1px solid ${C.border}`, borderRadius:999, padding:"6px 9px", maxWidth:"100%" }}>
               <span style={{ width:16, height:16, borderRadius:"50%", background:meta.bg, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9 }}>{meta.icon}</span>
               <span style={{ fontSize:10, color:C.text, fontWeight:700 }}>{e.minute}'</span>
-              <span style={{ fontSize:10, color:C.muted }}>{meta.label}</span>
+              <span style={{ fontSize:10, color:C.muted, whiteSpace:"normal", lineHeight:1.2 }}>{meta.label}</span>
             </div>
           );})}
-          {events.length > 10 && <span style={{ fontSize:10, color:C.muted, padding:"5px 0" }}>+{events.length-10} more</span>}
         </div>
       )}
     </div>
@@ -654,6 +707,88 @@ function PinScreen({ onAdmin, onViewer }) {
   );
 }
 
+
+// ─── SUB IMPACT ───────────────────────────────────────────────────────
+function SubImpact({ game, events }) {
+  const [open, setOpen] = useState(false);
+  const allPlayers = game?.allPlayers || ROSTER;
+  const halfLen = gameHalfMinutes(game);
+  const fullLen = gameFullMinutes(game);
+  const sorted = [...(events || [])].sort((a,b)=>(Number(a.minute)||0)-(Number(b.minute)||0));
+  const subs = sorted.filter(e=>e.type === "sub");
+  const goals = sorted.filter(e=>e.type === "goal_for" || e.type === "goal_against");
+  const name = id => findPlayer(id, allPlayers)?.name || "?";
+  const num = id => findPlayer(id, allPlayers)?.num || "?";
+
+  const nextOffMinute = (playerId, startMinute) => {
+    const pid = String(playerId);
+    const off = subs.find(s => String(s.playerOff) === pid && (Number(s.minute)||0) > startMinute);
+    return off ? Number(off.minute)||startMinute : fullLen;
+  };
+
+  const rows = subs.map((s, i) => {
+    const start = Math.max(0, Math.min(fullLen, Number(s.minute)||0));
+    const end = nextOffMinute(s.playerOn, start);
+    const windowGoals = goals.filter(g => {
+      const m = Number(g.minute)||0;
+      return m >= start && m <= end;
+    });
+    const gf = windowGoals.filter(g=>g.type === "goal_for").length;
+    const ga = windowGoals.filter(g=>g.type === "goal_against").length;
+    const net = gf - ga;
+    const mins = Math.max(0, end - start);
+    const clean = ga === 0;
+    const scoredSoon = windowGoals.some(g=>g.type === "goal_for" && (Number(g.minute)||0) - start <= 10);
+    const concededSoon = windowGoals.some(g=>g.type === "goal_against" && (Number(g.minute)||0) - start <= 10);
+    let label = "No score change";
+    let color = C.muted;
+    if (net > 0) { label = scoredSoon ? "Positive sub impact" : "Positive sub impact"; color = C.green; }
+    else if (net < 0) { label = concededSoon ? "Conceded while on" : "Negative sub impact"; color = C.red; }
+    else if (clean && mins >= 10) { label = "Clean sub window"; color = C.blue; }
+    return { ...s, start, end, mins, gf, ga, net, clean, label, color, key:s.id || `${s.minute}-${s.playerOn}-${i}` };
+  });
+
+  if (!rows.length) return null;
+
+  const totals = rows.reduce((a,r)=>({ gf:a.gf+r.gf, ga:a.ga+r.ga, net:a.net+r.net }), { gf:0, ga:0, net:0 });
+
+  return (
+    <div style={{ ...card, border:`1px solid ${C.border2}`, marginBottom:12 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10, marginBottom:10 }}>
+        <div>
+          <div style={{ fontSize:11, color:C.blue, fontWeight:900, letterSpacing:1.2, textTransform:"uppercase" }}>Sub Impact</div>
+          <div style={{ fontSize:11, color:C.muted, marginTop:3, lineHeight:1.35 }}>Team +/- after each player enters until they leave or the match ends.</div>
+          <button onClick={()=>setOpen(!open)} style={{ marginTop:8, background:"rgba(56,189,248,0.12)", color:C.blue, border:`1px solid ${C.border2}`, borderRadius:12, padding:"7px 9px", fontSize:10, fontWeight:900, cursor:"pointer" }}>{open ? "Hide formula" : "How calculated"}</button>
+        </div>
+        <div style={{ textAlign:"right", flexShrink:0 }}>
+          <div style={{ fontSize:18, fontWeight:900, color:totals.net>0?C.green:totals.net<0?C.red:C.muted }}>{totals.net>0?`+${totals.net}`:totals.net}</div>
+          <div style={{ fontSize:9, color:C.muted, fontWeight:800 }}>SUB +/-</div>
+        </div>
+      </div>
+      {open && (
+        <div style={{ marginBottom:10, padding:10, borderRadius:14, background:"rgba(2,6,23,0.55)", border:`1px solid ${C.border}`, color:C.text, fontSize:11, lineHeight:1.45 }}>
+          Sub Impact = Goals For while the sub is on − Goals Against while the sub is on. It describes the match window after entry, not individual blame or credit.
+        </div>
+      )}
+
+      {rows.map(r => (
+        <div key={r.key} style={{ display:"grid", gridTemplateColumns:"42px 1fr auto", gap:10, alignItems:"center", padding:"11px 0", borderTop:`1px solid ${C.border}` }}>
+          <div style={{ fontSize:14, fontWeight:900, color:C.amber }}>{r.start}'</div>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontSize:13, fontWeight:900, color:C.text, lineHeight:1.2, whiteSpace:"normal" }}>#{num(r.playerOn)} {name(r.playerOn)} on</div>
+            <div style={{ fontSize:11, color:C.muted, lineHeight:1.25, whiteSpace:"normal" }}>#{num(r.playerOff)} {name(r.playerOff)} off · {r.mins}' window</div>
+            <div style={{ fontSize:10, color:r.color, fontWeight:800, marginTop:3 }}>{r.label}</div>
+          </div>
+          <div style={{ textAlign:"right", minWidth:74 }}>
+            <div style={{ fontSize:16, fontWeight:900, color:r.net>0?C.green:r.net<0?C.red:C.muted }}>{r.net>0?`+${r.net}`:r.net}</div>
+            <div style={{ fontSize:9, color:C.muted, fontWeight:800 }}>GF {r.gf} · GA {r.ga}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── GAME DETAIL ──────────────────────────────────────────────────────────────
 function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
   const [events,setEvents]=useState(game.events||[]);
@@ -766,10 +901,11 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
         {subEvs.map(ev=>(
           <div key={ev.id} onClick={()=>openEdit(ev)} style={{ display:"flex", alignItems:"center", gap:10, ...card, cursor:isAdmin?"pointer":"default", marginBottom:6 }}>
             <span style={{ fontSize:13, fontWeight:800, color:C.amber, minWidth:32 }}>{ev.minute}'</span>
-            <div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:700, color:C.text }}>#{pNum(ev.playerOn)} {pName(ev.playerOn)} on</div><div style={{ fontSize:11, color:C.muted }}>#{pNum(ev.playerOff)} {pName(ev.playerOff)} off</div></div>
+            <div style={{ flex:1, minWidth:0 }}><div style={{ fontSize:13, fontWeight:800, color:C.text, whiteSpace:"normal", lineHeight:1.2 }}>#{pNum(ev.playerOn)} {pName(ev.playerOn)} on</div><div style={{ fontSize:11, color:C.muted, whiteSpace:"normal", lineHeight:1.25 }}>#{pNum(ev.playerOff)} {pName(ev.playerOff)} off</div></div>
             {isAdmin&&<span style={{ fontSize:10, color:C.blue }}>edit</span>}
           </div>
         ))}
+        <SubImpact game={game} events={events} />
         <Lbl mt={12}>Optimum Team This Game</Lbl>
         {(() => {
           const gStats = calcStats([{ ...game, events }]);
@@ -828,7 +964,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
               {optXI.map((p, i) => (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: i < optXI.length-1 ? `1px solid ${C.border}` : "none" }}>
                   <span style={{ fontSize: 11, color: C.muted, width: 18 }}>{i+1}.</span>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 800, color: C.text, whiteSpace: "normal", lineHeight: 1.18 }}>{p.name}</span>
                   <span style={{ fontSize: 10, color: POS_COLOR[p.pos] || C.muted, fontWeight: 700, marginRight: 4 }}>{p.pos}</span>
                   <div style={{ display: "flex", gap: 6 }}>
                     <div style={{ textAlign: "center" }}>
@@ -2219,7 +2355,7 @@ function Game({ gameInfo, onEnd, onBack }) {
         {onFieldP.map(p=>(
           <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, background:"#0d2137", border:`1px solid ${C.blue}`, borderRadius:14, padding:"10px 12px", marginBottom:5 }}>
             <span style={{ width:26, height:26, borderRadius:"50%", background:POS_COLOR[positions[p.id]]||C.muted, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:10, color:"#fff", flexShrink:0 }}>{p.num}</span>
-            <span style={{ flex:1, minWidth:0, fontSize:12, fontWeight:800, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
+            <span style={{ flex:1, minWidth:0, fontSize:12, fontWeight:800, color:C.text, whiteSpace:"normal", lineHeight:1.18 }}>{p.name}</span>
             <span style={{ fontSize:11, color:POS_COLOR[positions[p.id]], fontWeight:700 }}>{positions[p.id]}</span>
           </div>
         ))}
@@ -2252,6 +2388,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
   const [sortDir, setSortDir] = useState(-1);
   const [scout, setScout]     = useState(null);
   const [scoutOptSort, setScoutOptSort] = useState("impact");
+  const [formulaOpen, setFormulaOpen] = useState(false);
 
   // Never include scheduled games in stats
   const playedGames = games.filter(g => g.status !== "scheduled");
@@ -2348,6 +2485,60 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
     </button>
   );
 
+  const metricCopy = {
+    impact: {
+      title:"Impact Score",
+      short:"Impact combines team impact, production, reliability, and defensive stability.",
+      detail:"Built from Net/80 influence, goals and assists, minutes reliability, and defensive stability. It rewards overall match influence, not just scoring."
+    },
+    net80: {
+      title:"Net/80",
+      short:"Net/80 shows team goal difference while the player is on the field, normalized to 80 minutes.",
+      detail:"Formula: (Goals For While On − Goals Against While On) ÷ Minutes Played × 80. This shows on-field team differential, not individual blame."
+    },
+    goals: {
+      title:"Goals",
+      short:"Total goals scored by the player in the selected games.",
+      detail:"Only goals logged in completed games are counted. Own goals are excluded from player scoring."
+    },
+    assists: {
+      title:"Assists",
+      short:"Total assists logged for the player in the selected games.",
+      detail:"Assists come from goal events where an assisting player was selected."
+    },
+    gf: {
+      title:"GF While On",
+      short:"Goals scored by the team while the player was on the field.",
+      detail:"This is an on-field team stat. It reflects team scoring during the player’s minutes."
+    },
+    ga: {
+      title:"GA While On",
+      short:"Goals conceded by the team while the player was on the field.",
+      detail:"This is an on-field team stat. It reflects goals conceded during the player’s minutes."
+    }
+  };
+  const MetricExplainer = () => {
+    const m = metricCopy[sortBy] || metricCopy.impact;
+    return (
+      <div style={{ ...card, padding:12, marginBottom:12, border:`1px solid ${C.border2}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"flex-start" }}>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontSize:11, color:C.blue, fontWeight:900, letterSpacing:1, textTransform:"uppercase" }}>{m.title}</div>
+            <div style={{ fontSize:12, color:C.muted, lineHeight:1.35, marginTop:4 }}>{m.short}</div>
+          </div>
+          <button onClick={()=>setFormulaOpen(!formulaOpen)} style={{ background:"rgba(56,189,248,0.12)", color:C.blue, border:`1px solid ${C.border2}`, borderRadius:12, padding:"7px 9px", fontSize:10, fontWeight:900, cursor:"pointer", flexShrink:0 }}>
+            {formulaOpen ? "Hide" : "Formula"}
+          </button>
+        </div>
+        {formulaOpen && (
+          <div style={{ marginTop:10, padding:10, borderRadius:14, background:"rgba(2,6,23,0.55)", border:`1px solid ${C.border}`, color:C.text, fontSize:11, lineHeight:1.45 }}>
+            {m.detail}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const topG = allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.goals>0).sort((a,b)=>b.goals-a.goals);
   const topA = allP.map(p=>({...p,...(allSt[String(p.id)]||{})})).filter(p=>p.assists>0).sort((a,b)=>b.assists-a.assists);
   const buckets = [{l:"0-10",min:0,max:10},{l:"11-20",min:11,max:20},{l:"21-30",min:21,max:30},{l:"31-40",min:31,max:40},{l:"41-50",min:41,max:50},{l:"51-60",min:51,max:60},{l:"61-70",min:61,max:70},{l:"71-80",min:71,max:80}];
@@ -2361,6 +2552,53 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
     );
   }
 
+
+  const calcSubImpactRowsForGame = (game) => {
+    const allPlayers = game?.allPlayers || ROSTER;
+    const halfLen = gameHalfMinutes(game);
+    const fullLen = gameFullMinutes(game);
+    const evs = [...(game?.events || [])].sort((a,b)=>(Number(a.minute)||0)-(Number(b.minute)||0));
+    const subs = evs.filter(e=>e.type === "sub");
+    const goals = evs.filter(e=>e.type === "goal_for" || e.type === "goal_against");
+
+    const nextOffMinute = (playerId, startMinute) => {
+      const pid = String(playerId);
+      const off = subs.find(s => String(s.playerOff) === pid && (Number(s.minute)||0) > startMinute);
+      return off ? Number(off.minute)||startMinute : fullLen;
+    };
+
+    return subs.map((s, i) => {
+      const start = Math.max(0, Math.min(fullLen, Number(s.minute)||0));
+      const end = nextOffMinute(s.playerOn, start);
+      const windowGoals = goals.filter(g => {
+        const m = Number(g.minute)||0;
+        return m >= start && m <= end;
+      });
+      const gf = windowGoals.filter(g=>g.type === "goal_for").length;
+      const ga = windowGoals.filter(g=>g.type === "goal_against").length;
+      const net = gf - ga;
+      const mins = Math.max(0, end - start);
+      const p = findPlayer(s.playerOn, allPlayers) || {};
+      return { playerId:String(s.playerOn), player:p, gf, ga, net, mins, app:1 };
+    });
+  };
+
+  const subImpactSummary = (() => {
+    const map = {};
+    filteredGames.forEach(g => {
+      calcSubImpactRowsForGame(g).forEach(r => {
+        const k = String(r.playerId);
+        if (!map[k]) map[k] = { ...r, gf:0, ga:0, net:0, mins:0, app:0 };
+        map[k].gf += r.gf;
+        map[k].ga += r.ga;
+        map[k].net += r.net;
+        map[k].mins += r.mins;
+        map[k].app += 1;
+      });
+    });
+    return Object.values(map).sort((a,b)=>(b.net-a.net) || (b.app-a.app) || (b.mins-a.mins));
+  })();
+
   const renderOverview = () => (
     <div>
       <div style={card}>
@@ -2372,6 +2610,30 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           })}
           <div><div style={{ fontSize:36, fontWeight:900, color:"#60a5fa" }}>{totalGF}-{totalGA}</div><div style={{ fontSize:11, color:C.muted }}>Goals</div></div>
         </div>
+      </div>
+      <div style={card}>
+        <Lbl>Sub Impact Overview</Lbl>
+        <div style={{ color:C.muted, fontSize:11, lineHeight:1.35, marginBottom:10 }}>Overall team +/- after players enter as substitutes. This tracks match windows, not individual blame or credit.</div>
+        {subImpactSummary.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No substitutions logged yet</div>}
+        {subImpactSummary.slice(0,8).map((r,i)=> {
+          const p = r.player || {};
+          const pos = p.pos || "MID";
+          const netColor = r.net>0?C.green:r.net<0?C.red:C.muted;
+          const avg = r.app ? (r.net / r.app) : 0;
+          return (
+            <div key={r.playerId} style={{ display:"grid", gridTemplateColumns:"auto 1fr auto", gap:10, alignItems:"center", padding:"9px 0", borderTop:i?`1px solid ${C.border}`:"none" }}>
+              <PlayerBubble player={p} pos={pos} size={38} />
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:900, color:C.text, lineHeight:1.15, whiteSpace:"normal" }}>{p.name || "Unknown"}</div>
+                <div style={{ fontSize:10, color:C.muted, marginTop:3 }}>{r.app} sub app{r.app===1?"":"s"} · {r.mins}' mins · GF {r.gf} / GA {r.ga}</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:20, fontWeight:950, color:netColor }}>{r.net>0?`+${r.net}`:r.net}</div>
+                <div style={{ fontSize:9, color:C.muted, fontWeight:800 }}>AVG {avg>0?`+${avg.toFixed(2)}`:avg.toFixed(2)}</div>
+              </div>
+            </div>
+          );
+        })}
       </div>
       <div style={card}>
         <Lbl>Top Scorers</Lbl>
@@ -2484,7 +2746,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
       <div style={{ display:"flex", gap:4, marginBottom:8, flexWrap:"wrap" }}>
         {sb("impact","Impact")}{sb("net80","Net")}{sb("goals","Goals")}{sb("assists","Asst")}{sb("gf","GF")}{sb("ga","GA")}
       </div>
-      <p style={{ color:C.muted, fontSize:11, marginTop:0, marginBottom:12 }}>Impact Score is the primary coach rating. Net/80 is the supporting on-field goal-difference stat. Both are sortable.</p>
+      <MetricExplainer />
       {pList.map((p, idx)=>{
         const s=allSt[String(p.id)]||{};
         const impact=calcImpact(p);
@@ -2496,10 +2758,13 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
         {isFirstGuest && guestList.length>0 && <div style={{ fontSize:11, fontWeight:800, color:C.muted, letterSpacing:1, marginTop:12, marginBottom:6 }}>GUEST PLAYERS</div>}
         <div style={{ ...card, border:`1px solid ${C.border}`, opacity: rIds.has(String(p.id))?1:0.78, padding:14 }}>
           <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
-            <PlayerBubble player={p} pos={p.pos} size={44} />
+            <PlayerBubble player={p} pos={p.pos} size={56} />
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontWeight:900, fontSize:14, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.name}</div>
-              <div style={{ fontSize:11, color:POS_COLOR[p.pos]||C.muted, fontWeight:800, marginTop:2 }}>{p.pos}</div>
+              <div style={{ fontWeight:900, fontSize:14, color:C.text, whiteSpace:"normal", lineHeight:1.15 }}>{p.name}</div>
+              <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:5, flexWrap:"wrap" }}>
+                <span style={{ fontSize:10, color:C.text, background:"rgba(255,255,255,.08)", border:`1px solid ${C.border}`, borderRadius:999, padding:"3px 7px", fontWeight:900 }}>#{p.num}</span>
+                <span style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:900 }}>{p.pos}</span>
+              </div>
             </div>
             <div style={{ display:"flex", gap:8, flex:1.25 }}>
               <div style={{ flex:1, background:"linear-gradient(180deg,#0d2137,#081321)", border:`1px solid ${C.border}`, borderRadius:14, padding:"9px 8px", textAlign:"center" }}>
@@ -2692,7 +2957,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
             return sXI.map((p,i)=>(
               <div key={p.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderBottom:i<sXI.length-1?`1px solid ${C.border}`:"none" }}>
                 <span style={{ fontSize:12, color:C.muted, width:18 }}>{i+1}.</span>
-                <span style={{ flex:1, minWidth:0, fontSize:12, fontWeight:800, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
+                <span style={{ flex:1, minWidth:0, fontSize:12, fontWeight:800, color:C.text, whiteSpace:"normal", lineHeight:1.18 }}>{p.name}</span>
                 <span style={{ fontSize:10, color:POS_COLOR[p.pos]||C.muted, fontWeight:700, marginRight:4 }}>{p.pos}</span>
                 <div style={{ display:"flex", gap:6 }}>
                   <div style={{ textAlign:"center" }}><div style={{ fontSize:12, fontWeight:800, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
@@ -2822,7 +3087,7 @@ function Players({ games, onBack, isAdmin }) {
         {playerList.map((p,i)=>{ const s={...(allSt[String(p.id)]||{}), impact:p.impact}; return(
           <div key={p.id} onClick={()=>setSelected(p)} style={{ background:"linear-gradient(135deg,#0f1b2d,#0a1322)", border:`1px solid ${C.border}`, borderRadius:18, padding:14, marginBottom:10, cursor:"pointer", boxShadow:"0 10px 24px rgba(0,0,0,.18)" }}>
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <PlayerBubble player={p} pos={p.pos} size={44} />
+              <PlayerBubble player={p} pos={p.pos} size={56} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6 }}><span style={{ fontWeight:900, fontSize:15, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span><span style={{ background:POS_COLOR[p.pos]||C.border, color:"#fff", borderRadius:999, padding:"2px 7px", fontSize:9, fontWeight:900 }}>{p.pos}</span></div>
                 <div style={{ fontSize:10, color:C.muted, marginTop:3 }}>{s.played} games · {s.mins}' total · {s.avgMins||0}' avg</div>
