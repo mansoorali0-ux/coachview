@@ -7,7 +7,7 @@ import {
   uid, findPlayer
 } from "./constants";
 
-// ─── ANALYTICS ENGINE v2 INCLUDED ─────────────────────────────────────────────
+// ─── PREMIUM REBRAND v1 INCLUDED ───────────────────────────────────────────\n// Matte graphite + ice-blue design system, premium cards/buttons, and player-name fit improvements.\n\n// ─── ANALYTICS ENGINE v2 INCLUDED ─────────────────────────────────────────────
 // Impact Score v2 = 50% Team Impact / Net80, 25% Production, 15% Reliability, 10% Defensive Stability.
 // Includes position-adjusted goal, assist, and clean sheet values plus small-sample guardrails.
 
@@ -24,25 +24,67 @@ const FORMATIONS = [
 ];
 
 
-// ─── THEME ───────────────────────────────────────────────────────────────────
+// ─── PREMIUM DESIGN SYSTEM v1 ────────────────────────────────────────────────
 const C = {
-  bg:"#050b16",
-  card:"#111c2e",
-  card2:"#0d1727",
-  border:"#223653",
-  blue:"#246BFD",
-  blue2:"#1B4FD8",
-  text:"#eef5ff",
-  muted:"#8aa0bd",
-  green:"#16a34a",
-  red:"#dc2626",
+  bg:"#030712",
+  bg2:"#07111f",
+  surface:"#0b1220",
+  card:"#0f172a",
+  card2:"#111827",
+  card3:"#0b1324",
+  border:"rgba(148,163,184,0.18)",
+  border2:"rgba(96,165,250,0.22)",
+  blue:"#38bdf8",
+  blue2:"#2563eb",
+  cyan:"#67e8f9",
+  text:"#f8fafc",
+  muted:"#94a3b8",
+  muted2:"#64748b",
+  green:"#22c55e",
+  red:"#ef4444",
   amber:"#f59e0b",
-  purple:"#7c3aed",
+  purple:"#8b5cf6",
+  black:"#020617",
 };
-const T   = { fontFamily:"Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" };
-const card = { background:"linear-gradient(180deg,#111c2e,#0d1727)", border:`1px solid ${C.border}`, borderRadius:16, padding:"13px 15px", marginBottom:10, boxShadow:"0 10px 24px rgba(0,0,0,0.18)" };
-const btn  = (bg, color="#fff", extra={}) => ({ background:bg, border:"1px solid rgba(255,255,255,0.06)", borderRadius:14, color, fontWeight:800, cursor:"pointer", padding:"14px 16px", fontSize:14, boxShadow:"0 8px 18px rgba(0,0,0,0.18)", ...extra });
-const inp  = { width:"100%", padding:14, borderRadius:14, background:"#0b1627", border:`1px solid ${C.border}`, color:C.text, fontSize:16, boxSizing:"border-box", outline:"none" };
+const T = {
+  fontFamily:"Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+  letterSpacing:"-0.01em"
+};
+const card = {
+  background:"linear-gradient(180deg,rgba(15,23,42,0.96),rgba(8,13,25,0.98))",
+  border:`1px solid ${C.border}`,
+  borderRadius:22,
+  padding:"15px 16px",
+  marginBottom:12,
+  boxShadow:"0 18px 45px rgba(0,0,0,0.28)",
+  backdropFilter:"blur(16px)"
+};
+const btn = (bg, color="#fff", extra={}) => ({
+  background:bg,
+  border:"1px solid rgba(255,255,255,0.08)",
+  borderRadius:16,
+  color,
+  fontWeight:900,
+  cursor:"pointer",
+  padding:"14px 16px",
+  fontSize:13,
+  letterSpacing:"-0.01em",
+  boxShadow:"0 12px 26px rgba(0,0,0,0.24)",
+  transition:"transform .15s ease, box-shadow .15s ease, opacity .15s ease",
+  ...extra
+});
+const inp = {
+  width:"100%",
+  padding:14,
+  borderRadius:16,
+  background:"rgba(2,6,23,0.72)",
+  border:`1px solid ${C.border}`,
+  color:C.text,
+  fontSize:16,
+  boxSizing:"border-box",
+  outline:"none",
+  boxShadow:"inset 0 1px 0 rgba(255,255,255,0.03)"
+};
 
 // ─── PERSISTENT GAME STATE (localStorage survives navigation & refresh) ───────
 const LS_GAME_KEY = "ps_live_game_v2";
@@ -650,7 +692,7 @@ function GameDetail({ game, onClose, onUpdate, onDelete, isAdmin }) {
   const doDel=async()=>{ const updated=events.filter(e=>e.id!==editing.id); const g={...game,events:updated,scoreFor:game.scoreFor-(editing.type==="goal_for"?1:0),scoreAgainst:game.scoreAgainst-(editing.type==="goal_against"?1:0)}; setEvents(updated);setSaving(true);await saveGame(g);onUpdate(g);setSaving(false);setEditing(null); };
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:40 }}>
-      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
+      <div style={{ background:"radial-gradient(circle at 18% 12%, rgba(56,189,248,0.22), transparent 30%), linear-gradient(135deg,#050b16,#07111f 60%,#020617)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
         <button onClick={onClose} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:700, cursor:"pointer", padding:0, marginBottom:8 }}>{"< Back"}</button>
         <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>{game.date} · {game.venue} · {game.type==="tournament"?"Cup":"League"}</div>
         <div style={{ fontSize:15, fontWeight:800, color:"#60a5fa", marginBottom:8 }}>vs {game.opponent.split(" ").slice(0,4).join(" ")}</div>
@@ -1102,7 +1144,7 @@ function AdminDataManager({ games, onBack, onOpenGame, onSaveGame, onDeleteGame 
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:84 }}>
-      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:"20px 16px 16px", borderBottom:`3px solid ${C.amber}` }}>
+      <div style={{ background:"radial-gradient(circle at 18% 12%, rgba(56,189,248,0.22), transparent 30%), linear-gradient(135deg,#050b16,#07111f 60%,#020617)", padding:"20px 16px 16px", borderBottom:`3px solid ${C.amber}` }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:800, cursor:"pointer", padding:0, marginBottom:10 }}>{"< Back"}</button>
         <div style={{ fontSize:11, color:C.amber, letterSpacing:2, fontWeight:900, textTransform:"uppercase" }}>Admin</div>
         <div style={{ fontSize:24, fontWeight:900, color:"#fff", marginTop:2 }}>Data Manager</div>
@@ -1364,7 +1406,7 @@ function Home({ games, onStart, onStats, onView, onAdminManager, isAdmin, resume
   const totalGF=completedGames.reduce((a,g)=>a+g.scoreFor,0), totalGA=completedGames.reduce((a,g)=>a+g.scoreAgainst,0);
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
-      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:"28px 16px 18px", borderBottom:`3px solid ${C.blue}`, textAlign:"center" }}>
+      <div style={{ background:"radial-gradient(circle at 18% 12%, rgba(56,189,248,0.22), transparent 30%), linear-gradient(135deg,#050b16,#07111f 60%,#020617)", padding:"28px 16px 18px", borderBottom:`3px solid ${C.blue}`, textAlign:"center" }}>
         <div style={{ fontSize:13, fontWeight:800, color:"#60a5fa", letterSpacing:3, marginBottom:6, opacity:0.8 }}>PITCHSIDE</div>
         <div style={{ fontSize:22, fontWeight:900, color:"#fff", letterSpacing:1 }}>Baltimore Armour</div>
         <div style={{ fontSize:12, color:"#93c5fd", letterSpacing:2, marginTop:2 }}>11G ASPIRE - 2025/26</div>
@@ -1626,7 +1668,7 @@ function Lineup({ gameInfo, onKickoff, onBack, pastGames=[] }) {
   };
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:100 }}>
-      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
+      <div style={{ background:"radial-gradient(circle at 18% 12%, rgba(56,189,248,0.22), transparent 30%), linear-gradient(135deg,#050b16,#07111f 60%,#020617)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:14, fontWeight:700, cursor:"pointer", padding:0, marginBottom:8 }}>{"< Back"}</button>
         <div style={{ fontSize:16, fontWeight:800, color:"#60a5fa" }}>vs {gameInfo.opponent?.split(" ").slice(0,4).join(" ")}</div>
         {/* Half selector */}
@@ -1920,7 +1962,7 @@ function Game({ gameInfo, onEnd, onBack }) {
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
-      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:"12px 16px", borderBottom:`3px solid ${C.blue}` }}>
+      <div style={{ background:"radial-gradient(circle at 18% 12%, rgba(56,189,248,0.22), transparent 30%), linear-gradient(135deg,#050b16,#07111f 60%,#020617)", padding:"12px 16px", borderBottom:`3px solid ${C.blue}` }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
           {/* Exit now just goes home - game state is saved and restorable */}
           <button onClick={()=>setShowBack(true)} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:13, fontWeight:700, cursor:"pointer", padding:0 }}>{"< Home"}</button>
@@ -2336,7 +2378,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
         {topG.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No goals yet</div>}
         {topG.slice(0,8).map((p,i)=>(
           <div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:i<Math.min(7,topG.length-1)?`1px solid ${C.border}`:"none" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</span></div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:800, fontSize:12, color:C.text }}>{p.name}</span></div>
             <span style={{ fontSize:22, fontWeight:900, color:"#60a5fa" }}>{p.goals}</span>
           </div>
         ))}
@@ -2346,7 +2388,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
         {topA.length===0&&<div style={{ color:C.muted, fontSize:13 }}>No assists yet</div>}
         {topA.slice(0,8).map((p,i)=>(
           <div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:i<Math.min(7,topA.length-1)?`1px solid ${C.border}`:"none" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</span></div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:13, color:C.muted, fontWeight:800, width:18 }}>{i+1}</span><span style={{ fontWeight:800, fontSize:12, color:C.text }}>{p.name}</span></div>
             <span style={{ fontSize:22, fontWeight:900, color:C.green }}>{p.assists}</span>
           </div>
         ))}
@@ -2456,7 +2498,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
           <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
             <PlayerBubble player={p} pos={p.pos} size={44} />
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontWeight:900, fontSize:16, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.name}</div>
+              <div style={{ fontWeight:900, fontSize:14, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.name}</div>
               <div style={{ fontSize:11, color:POS_COLOR[p.pos]||C.muted, fontWeight:800, marginTop:2 }}>{p.pos}</div>
             </div>
             <div style={{ display:"flex", gap:8, flex:1.25 }}>
@@ -2521,7 +2563,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
         <div style={{ fontSize:10, fontWeight:800, color:POS_COLOR[pos], letterSpacing:1, marginBottom:6 }}>{pos}</div>
         {byPos[pos].map(p=><div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, ...card, border:`1px solid ${C.border}`, marginBottom:5 }}>
           <span style={{ width:28, height:28, borderRadius:"50%", background:POS_COLOR[pos], display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:11, color:"#fff", flexShrink:0 }}>{p.num}</span>
-          <div style={{ flex:1 }}><div style={{ fontWeight:700, fontSize:14, color:C.text }}>{p.name}</div><div style={{ fontSize:10, color:C.muted }}>{p.played} games · {p.mins} mins</div></div>
+          <div style={{ flex:1 }}><div style={{ fontWeight:800, fontSize:12, color:C.text }}>{p.name}</div><div style={{ fontSize:10, color:C.muted }}>{p.played} games · {p.mins} mins</div></div>
           <div style={{ display:"flex", gap:6 }}>
             <div style={{ textAlign:"right" }}><div style={{ fontSize:14, fontWeight:900, color:parseFloat(p.net80)>=0?C.green:C.red }}>{p.net80s}</div><div style={{ fontSize:8, color:C.muted }}>NET/80</div></div>
             <div style={{ textAlign:"right" }}><div style={{ fontSize:14, fontWeight:900, color:p.impact>=75?C.green:p.impact>=50?C.amber:C.red }}>{fmtImpact(p.impact)}</div><div style={{ fontSize:8, color:C.muted }}>IMPACT SCORE</div></div>
@@ -2732,7 +2774,7 @@ function Stats({ games, onBack, onView, isAdmin, defaultTab }) {
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:32 }}>
-      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:16, borderBottom:`3px solid ${C.blue}`, display:"flex", alignItems:"center", gap:12 }}>
+      <div style={{ background:"radial-gradient(circle at 18% 12%, rgba(56,189,248,0.22), transparent 30%), linear-gradient(135deg,#050b16,#07111f 60%,#020617)", padding:16, borderBottom:`3px solid ${C.blue}`, display:"flex", alignItems:"center", gap:12 }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:20, cursor:"pointer", padding:0, fontWeight:800 }}>{"<"}</button>
         <div><div style={{ fontSize:18, fontWeight:800, color:"#60a5fa" }}>Season Stats</div><div style={{ fontSize:11, color:C.muted }}>{filteredGames.length} games · {compLabel}</div></div>
       </div>
@@ -2770,7 +2812,7 @@ function Players({ games, onBack, isAdmin }) {
   const metricColor = v => parseFloat(v)>0 ? C.green : parseFloat(v)<0 ? C.red : "#94a3b8";
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, ...T, paddingBottom:80 }}>
-      <div style={{ background:"linear-gradient(135deg,#10243f,#071222 60%,#0b1d36)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
+      <div style={{ background:"radial-gradient(circle at 18% 12%, rgba(56,189,248,0.22), transparent 30%), linear-gradient(135deg,#050b16,#07111f 60%,#020617)", padding:16, borderBottom:`3px solid ${C.blue}` }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"#60a5fa", fontSize:13, fontWeight:800, cursor:"pointer", padding:0, marginBottom:8 }}>{"< Back"}</button>
         <div style={{ fontSize:13, fontWeight:800, color:"#60a5fa", letterSpacing:3, marginBottom:4 }}>PITCHSIDE</div>
         <div style={{ fontSize:22, fontWeight:950, color:"#fff" }}>Player Cards</div>
