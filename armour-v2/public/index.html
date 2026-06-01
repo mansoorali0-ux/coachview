@@ -18,7 +18,10 @@
       .ps-rule{width:200px;height:1px;margin:16px auto 13px;background:linear-gradient(90deg,transparent,var(--ps-blue),transparent);}
       .ps-tag1{font-size:14px;color:var(--ps-blue);font-weight:900;letter-spacing:2.2px;text-transform:uppercase;}
       .ps-tag2{font-size:12px;color:var(--ps-muted);font-weight:800;letter-spacing:1.6px;text-transform:uppercase;margin-top:7px;}
-      @media(max-width:420px){.ps-word{font-size:28px}.ps-logo{width:84px;height:84px}.ps-tag1{font-size:12px}.ps-tag2{font-size:10px}}
+      .ps-home-brand{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin:0 auto 8px;padding:7px 12px;border-radius:999px;background:rgba(2,6,23,.42);border:1px solid rgba(96,165,250,.18);box-shadow:0 10px 28px rgba(0,0,0,.18);}
+      .ps-home-brand svg{width:26px;height:26px;filter:drop-shadow(0 6px 12px rgba(56,189,248,.22));}
+      .ps-home-brand span{font-size:13px;font-weight:950;letter-spacing:2px;color:var(--ps-text);}
+      @media(max-width:420px){.ps-word{font-size:28px}.ps-logo{width:84px;height:84px}.ps-tag1{font-size:12px}.ps-tag2{font-size:10px}.ps-home-brand{margin-bottom:7px}.ps-home-brand span{font-size:12px}}
     </style>
   </head>
   <body>
@@ -41,7 +44,21 @@
     </div>
     <div id="root"></div>
     <script>
-      window.addEventListener('load',function(){setTimeout(function(){var s=document.getElementById('ps-splash');if(s)s.classList.add('ps-hide');},900);});
+      function psLogoSvg(){return '<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="psHomeBlue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67e8f9"/><stop offset="0.45" stop-color="#38bdf8"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs><path d="M20 10h44c16 0 27 10 27 25 0 15-11 25-28 25H44v30H20V10z" fill="none" stroke="url(#psHomeBlue)" stroke-width="10" stroke-linejoin="round"/><path d="M44 31h20c5 0 8 3 8 7s-3 7-8 7H44V31z" fill="url(#psHomeBlue)"/><path d="M49 67h8v15h-8zM62 57h8v25h-8zM75 47h8v35h-8z" fill="url(#psHomeBlue)" opacity=".9"/></svg>';}
+      function applyHomeBrandCleanup(){
+        var nodes=Array.from(document.querySelectorAll('div,span'));
+        var title=nodes.find(function(n){return n.textContent && n.textContent.trim()==='Baltimore Armour';});
+        if(!title)return;
+        var header=title.closest('div[style]');
+        var probe=title.parentElement;
+        for(var i=0;i<4&&probe;i++,probe=probe.parentElement){if((probe.textContent||'').includes('Baltimore Armour')&&(probe.textContent||'').includes('Wins')){header=probe;break;}}
+        if(!header||header.querySelector('.ps-home-brand'))return;
+        nodes.forEach(function(n){if(n.textContent&&n.textContent.trim()==='PITCHSIDE'&&header.contains(n)){n.style.display='none';}});
+        var brand=document.createElement('div');brand.className='ps-home-brand';brand.innerHTML=psLogoSvg()+'<span>PITCHSIDE</span>';
+        title.parentElement.insertBefore(brand,title);
+      }
+      window.addEventListener('load',function(){setTimeout(function(){var s=document.getElementById('ps-splash');if(s)s.classList.add('ps-hide');applyHomeBrandCleanup();},900);});
+      new MutationObserver(function(){applyHomeBrandCleanup();}).observe(document.documentElement,{childList:true,subtree:true});
     </script>
   </body>
 </html>
