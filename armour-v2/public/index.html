@@ -3,12 +3,53 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <meta name="theme-color" content="#060e1a" />
+    <meta name="theme-color" content="#030712" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>PitchSide</title>
+    <title>PitchSide | Live Coaching Intelligence</title>
+    <style>
+      :root{--ps-bg:#030712;--ps-card:#0f172a;--ps-blue:#38bdf8;--ps-blue2:#2563eb;--ps-text:#f8fafc;--ps-muted:#94a3b8;}
+      body{margin:0;background:var(--ps-bg);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+      #ps-splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 18%,rgba(56,189,248,.22),transparent 34%),linear-gradient(180deg,#020617,#07111f 56%,#020617);transition:opacity .45s ease,visibility .45s ease;}
+      #ps-splash.ps-hide{opacity:0;visibility:hidden;pointer-events:none;}
+      .ps-brand{text-align:center;color:var(--ps-text);padding:32px;}
+      .ps-logo{width:96px;height:96px;margin:0 auto 18px;filter:drop-shadow(0 18px 34px rgba(56,189,248,.25));}
+      .ps-word{font-size:32px;font-weight:950;letter-spacing:4px;line-height:1;}
+      .ps-rule{width:200px;height:1px;margin:16px auto 13px;background:linear-gradient(90deg,transparent,var(--ps-blue),transparent);}
+      .ps-tag1{font-size:14px;color:var(--ps-blue);font-weight:900;letter-spacing:2.2px;text-transform:uppercase;}
+      .ps-tag2{font-size:12px;color:var(--ps-muted);font-weight:800;letter-spacing:1.6px;text-transform:uppercase;margin-top:7px;}
+      .ps-mini-brand{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;z-index:60;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:rgba(2,6,23,.58);border:1px solid rgba(96,165,250,.18);backdrop-filter:blur(12px);box-shadow:0 10px 28px rgba(0,0,0,.22);opacity:0;transform:translateY(-6px);transition:opacity .35s ease,transform .35s ease;pointer-events:none;}
+      .ps-mini-brand.ps-show{opacity:1;transform:translateY(0);}
+      .ps-mini-brand svg{width:24px;height:24px;filter:drop-shadow(0 6px 12px rgba(56,189,248,.22));}
+      .ps-mini-word{font-size:12px;font-weight:950;letter-spacing:1.6px;color:var(--ps-text);}
+      @media(max-width:420px){.ps-word{font-size:28px}.ps-logo{width:84px;height:84px}.ps-tag1{font-size:12px}.ps-tag2{font-size:10px}.ps-mini-brand{top:calc(env(safe-area-inset-top,0px) + 8px);left:10px;}}
+    </style>
   </head>
-  <body style="margin:0;background:#060e1a">
+  <body>
+    <div id="ps-splash" aria-label="PitchSide loading">
+      <div class="ps-brand">
+        <svg class="ps-logo" viewBox="0 0 100 100" role="img" aria-label="PitchSide logo">
+          <defs><linearGradient id="psBlue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67e8f9"/><stop offset="0.45" stop-color="#38bdf8"/><stop offset="1" stop-color="#2563eb"/></linearGradient><linearGradient id="psSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#94a3b8"/></linearGradient></defs>
+          <path d="M20 10h44c16 0 27 10 27 25 0 15-11 25-28 25H44v30H20V10z" fill="none" stroke="url(#psBlue)" stroke-width="10" stroke-linejoin="round"/>
+          <path d="M44 31h20c5 0 8 3 8 7s-3 7-8 7H44V31z" fill="url(#psBlue)"/>
+          <path d="M49 67h8v15h-8zM62 57h8v25h-8zM75 47h8v35h-8z" fill="url(#psBlue)" opacity=".9"/>
+          <circle cx="34" cy="72" r="12" fill="url(#psSteel)" stroke="#020617" stroke-width="3"/>
+          <path d="M34 60l4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z" fill="#020617" opacity=".72"/>
+          <path d="M22 82c18-1 36-6 58-21" stroke="#67e8f9" stroke-width="5" fill="none" stroke-linecap="round" opacity=".72"/>
+        </svg>
+        <div class="ps-word">PITCHSIDE</div>
+        <div class="ps-rule"></div>
+        <div class="ps-tag1">Beyond the Stats</div>
+        <div class="ps-tag2">Live Coaching Intelligence</div>
+      </div>
+    </div>
+    <div class="ps-mini-brand" id="ps-mini-brand" aria-hidden="true">
+      <svg viewBox="0 0 100 100"><defs><linearGradient id="psBlueMini" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67e8f9"/><stop offset="0.45" stop-color="#38bdf8"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs><path d="M20 10h44c16 0 27 10 27 25 0 15-11 25-28 25H44v30H20V10z" fill="none" stroke="url(#psBlueMini)" stroke-width="10" stroke-linejoin="round"/><path d="M44 31h20c5 0 8 3 8 7s-3 7-8 7H44V31z" fill="url(#psBlueMini)"/><path d="M49 67h8v15h-8zM62 57h8v25h-8zM75 47h8v35h-8z" fill="url(#psBlueMini)" opacity=".9"/></svg>
+      <span class="ps-mini-word">PITCHSIDE</span>
+    </div>
     <div id="root"></div>
+    <script>
+      window.addEventListener('load',function(){setTimeout(function(){var s=document.getElementById('ps-splash');if(s)s.classList.add('ps-hide');var b=document.getElementById('ps-mini-brand');if(b)b.classList.add('ps-show');},900);});
+    </script>
   </body>
 </html>
