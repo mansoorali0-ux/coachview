@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>PitchSide | Live Coaching Intelligence</title>
     <style>
-      :root{--ps-bg:#030712;--ps-card:#0f172a;--ps-blue:#38bdf8;--ps-blue2:#2563eb;--ps-text:#f8fafc;--ps-muted:#94a3b8;}
+      :root{--ps-bg:#030712;--ps-blue:#38bdf8;--ps-blue2:#2563eb;--ps-text:#f8fafc;--ps-muted:#94a3b8;}
       body{margin:0;background:var(--ps-bg);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
       #ps-splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 18%,rgba(56,189,248,.22),transparent 34%),linear-gradient(180deg,#020617,#07111f 56%,#020617);transition:opacity .45s ease,visibility .45s ease;}
       #ps-splash.ps-hide{opacity:0;visibility:hidden;pointer-events:none;}
@@ -18,11 +18,7 @@
       .ps-rule{width:200px;height:1px;margin:16px auto 13px;background:linear-gradient(90deg,transparent,var(--ps-blue),transparent);}
       .ps-tag1{font-size:14px;color:var(--ps-blue);font-weight:900;letter-spacing:2.2px;text-transform:uppercase;}
       .ps-tag2{font-size:12px;color:var(--ps-muted);font-weight:800;letter-spacing:1.6px;text-transform:uppercase;margin-top:7px;}
-      .ps-mini-brand{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;z-index:60;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:rgba(2,6,23,.58);border:1px solid rgba(96,165,250,.18);backdrop-filter:blur(12px);box-shadow:0 10px 28px rgba(0,0,0,.22);opacity:0;transform:translateY(-6px);transition:opacity .35s ease,transform .35s ease;pointer-events:none;}
-      .ps-mini-brand.ps-show{opacity:1;transform:translateY(0);}
-      .ps-mini-brand svg{width:24px;height:24px;filter:drop-shadow(0 6px 12px rgba(56,189,248,.22));}
-      .ps-mini-word{font-size:12px;font-weight:950;letter-spacing:1.6px;color:var(--ps-text);}
-      @media(max-width:420px){.ps-word{font-size:28px}.ps-logo{width:84px;height:84px}.ps-tag1{font-size:12px}.ps-tag2{font-size:10px}.ps-mini-brand{top:calc(env(safe-area-inset-top,0px) + 8px);left:10px;}}
+      @media(max-width:420px){.ps-word{font-size:28px}.ps-logo{width:84px;height:84px}.ps-tag1{font-size:12px}.ps-tag2{font-size:10px}}
     </style>
   </head>
   <body>
@@ -43,13 +39,9 @@
         <div class="ps-tag2">Live Coaching Intelligence</div>
       </div>
     </div>
-    <div class="ps-mini-brand" id="ps-mini-brand" aria-hidden="true">
-      <svg viewBox="0 0 100 100"><defs><linearGradient id="psBlueMini" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67e8f9"/><stop offset="0.45" stop-color="#38bdf8"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs><path d="M20 10h44c16 0 27 10 27 25 0 15-11 25-28 25H44v30H20V10z" fill="none" stroke="url(#psBlueMini)" stroke-width="10" stroke-linejoin="round"/><path d="M44 31h20c5 0 8 3 8 7s-3 7-8 7H44V31z" fill="url(#psBlueMini)"/><path d="M49 67h8v15h-8zM62 57h8v25h-8zM75 47h8v35h-8z" fill="url(#psBlueMini)" opacity=".9"/></svg>
-      <span class="ps-mini-word">PITCHSIDE</span>
-    </div>
     <div id="root"></div>
     <script>
-      window.addEventListener('load',function(){setTimeout(function(){var s=document.getElementById('ps-splash');if(s)s.classList.add('ps-hide');var b=document.getElementById('ps-mini-brand');if(b)b.classList.add('ps-show');},900);});
+      window.addEventListener('load',function(){setTimeout(function(){var s=document.getElementById('ps-splash');if(s)s.classList.add('ps-hide');},900);});
     </script>
   </body>
 </html>
