@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, onAuthStateChanged } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAFzBY0bOMWqxdpJTeyXlzahtJ_84gHf8k",
@@ -21,6 +21,14 @@ export function onAuthChange(callback) {
 
 export function loginAdmin(email, password) {
   return signInWithEmailAndPassword(auth, email, password);
+}
+
+export function createCoachAccount(email, password) {
+  return createUserWithEmailAndPassword(auth, email, password);
+}
+
+export function resetAdminPassword(email) {
+  return sendPasswordResetEmail(auth, email);
 }
 
 export function logoutAdmin() {
