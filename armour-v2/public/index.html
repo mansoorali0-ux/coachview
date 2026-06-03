@@ -57,8 +57,34 @@
         var brand=document.createElement('div');brand.className='ps-home-brand';brand.innerHTML=psLogoSvg()+'<span>PITCHSIDE</span>';
         title.parentElement.insertBefore(brand,title);
       }
-      window.addEventListener('load',function(){setTimeout(function(){var s=document.getElementById('ps-splash');if(s)s.classList.add('ps-hide');applyHomeBrandCleanup();},900);});
-      new MutationObserver(function(){applyHomeBrandCleanup();}).observe(document.documentElement,{childList:true,subtree:true});
+      function pitchsideMetricValue(text,metric){
+        var label=metric==='net'?'NET/80':'IMPACT SCORE';
+        var idx=text.indexOf(label);
+        if(idx<0)return null;
+        var part=text.slice(0,idx).match(/[+-]?\d+(?:\.\d+)?\s*$/);
+        if(part)return parseFloat(part[0]);
+        part=text.slice(idx+label.length).match(/[+-]?\d+(?:\.\d+)?/);
+        return part?parseFloat(part[0]):null;
+      }
+      function normalizePitchSideRankings(){
+        var buttons=Array.from(document.querySelectorAll('button'));
+        var selected=buttons.find(function(b){var t=(b.textContent||'').toLowerCase();return t.includes('impact')||t.includes('net');});
+        var metric=selected && (selected.textContent||'').toLowerCase().includes('net')?'net':'impact';
+        var candidates=Array.from(document.querySelectorAll('div')).filter(function(el){var t=el.textContent||'';return t.includes('IMPACT SCORE')&&t.includes('NET/80')&&t.length<500;});
+        var parents=new Map();
+        candidates.forEach(function(el){if(el.parentElement)parents.set(el.parentElement,(parents.get(el.parentElement)||0)+1);});
+        parents.forEach(function(count,parent){
+          if(count<3||parent.dataset.psMetricSorted===metric)return;
+          var rows=Array.from(parent.children).filter(function(el){var t=el.textContent||'';return t.includes('IMPACT SCORE')&&t.includes('NET/80');});
+          var parsed=rows.map(function(el,i){var v=pitchsideMetricValue(el.textContent||'',metric);return{el:el,i:i,v:v===null?-999:v};});
+          if(parsed.filter(function(x){return x.v>-999;}).length<3)return;
+          parsed.sort(function(a,b){return (b.v-a.v)||(a.i-b.i);}).forEach(function(x){parent.appendChild(x.el);});
+          parent.dataset.psMetricSorted=metric;
+        });
+      }
+      function runPitchSidePolish(){applyHomeBrandCleanup();normalizePitchSideRankings();}
+      window.addEventListener('load',function(){setTimeout(function(){var s=document.getElementById('ps-splash');if(s)s.classList.add('ps-hide');runPitchSidePolish();},900);});
+      new MutationObserver(function(){setTimeout(runPitchSidePolish,60);}).observe(document.documentElement,{childList:true,subtree:true});
     </script>
   </body>
 </html>
